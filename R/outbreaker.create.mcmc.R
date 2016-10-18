@@ -14,7 +14,7 @@ outbreaker.create.mcmc <- function(data, config) {
     ## CREATE EMPTY OUTPUT VECTORS ##
     size <- round(config$n.iter/config$sample.every)
     step <- integer(size)
-    post <- prior <- like <- mu <- pi <- eps <- double(size)
+    post <- prior <- like <- mu <- pi <- eps <- xi <- double(size)
     alpha <- as.list(integer(size))
     t.inf <- as.list(integer(size))
     kappa <- as.list(integer(size))
@@ -26,6 +26,7 @@ outbreaker.create.mcmc <- function(data, config) {
     current.kappa <- kappa[[1]] <- config$init.kappa
     current.pi <- pi[1] <- config$init.pi
     current.eps <- eps[1] <- config$init.eps
+    current.xi <- xi[1] <- config$init.xi
     if (is.null(config$init.t.inf)) {
         current.t.inf <- t.inf[[1]] <- data$dates - which.max(data$f.dens) + 1
     } else {
@@ -37,10 +38,10 @@ outbreaker.create.mcmc <- function(data, config) {
     ## SHAPE CHAIN ##
     out <- list(size=size, step=step,
                 post=post, like=like, prior=prior,
-                alpha=alpha, t.inf=t.inf, mu=mu, kappa=kappa, pi=pi, eps=eps,
+                alpha=alpha, t.inf=t.inf, mu=mu, kappa=kappa, pi=pi, eps=eps, xi=xi,
                 current.alpha=current.alpha, current.t.inf=current.t.inf, current.mu=current.mu,
-                current.kappa=current.kappa, current.pi=current.pi, current.eps=current.eps,
-                counter=counter)
+                current.kappa=current.kappa, current.pi=current.pi, current.eps=current.eps, 
+                current.xi=current.xi, counter=counter)
     return(out)
 }
 

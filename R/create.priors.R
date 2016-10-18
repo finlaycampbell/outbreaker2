@@ -10,7 +10,8 @@ create.priors <- function(config) {
 
     default.functions <- list(mu = make.prior.mu,
                               pi = make.prior.pi,
-                              eps = make.prior.eps
+                              eps = make.prior.eps,
+                              xi = make.prior.xi
                               )
     priors.function.names <- names(default.functions)
     out <- lapply(default.functions, function(f) f(config))

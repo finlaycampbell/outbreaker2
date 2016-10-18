@@ -33,6 +33,7 @@ outbreaker.mcmc.store <- function(param, densities, step) {
     param$kappa[[counter]] <- param$current.kappa
     param$pi[counter] <- param$current.pi
     param$eps[counter] <- param$current.eps
+    param$xi[counter] <- param$current.xi
 
     return(param)
 }

@@ -224,7 +224,7 @@ make.move.eps <- function(config, densities, rand) {
     new.param$current.eps <- stats::rnorm(1, mean=new.param$current.eps, sd=config$sd.eps)
     
     ## escape if new.eps<0 or >1
-    if (new.param$current.eps<0 || new.param$current.eps>1) {
+    if (new.param$current.eps<=0 || new.param$current.eps>=1) {
       return(param)
     }
     
@@ -241,6 +241,30 @@ make.move.eps <- function(config, densities, rand) {
 }
 
 
+## The movement of the false contact rate 'xi' is the same as that for 'eps'
+
+make.move.xi <- function(config, densities, rand) {
+  function(param) {
+    ## get new proposed values
+    new.param <- param
+    new.param$current.xi <- stats::rnorm(1, mean=new.param$current.xi, sd=config$sd.xi)
+    
+    ## escape if new.xi<0 or >1
+    if (new.param$current.xi<0 || new.param$current.xi>1) {
+      return(param)
+    }
+    
+    ## compute log ratio  (assumes symmetric proposal)
+    logratio <- densities$posteriors$contact(new.param) -
+      densities$posteriors$contact(param)
+    
+    ## accept/reject
+    if (logratio >= log(stats::runif(1))) {
+      return(new.param)
+    }
+    return(param)
+  }
+}
 
 
 ## Movement of the number of generations on transmission chains ('kappa') is done for one ancestry

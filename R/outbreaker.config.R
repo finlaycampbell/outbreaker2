@@ -152,7 +152,7 @@ outbreaker.config <- function(..., data=NULL, config=NULL) {
                    sample.every.import=100,
                    prior.mu=1000,
                    prior.pi=c(10,1),
-                   prior.eps=c(0,1)
+                   prior.eps=c(0,1),
                    prior.xi=c(0,1))
   
   ## MODIFY CONFIG WITH ARGUMENTS ##

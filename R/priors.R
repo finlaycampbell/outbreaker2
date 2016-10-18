@@ -37,13 +37,24 @@ make.prior.pi <- function(config) {
 }
 
 
-## The prior of eps is uniform and must be constrained between 0.5 and 1 in order to positively 
-## weight transmission networks supported by contact tracing data 
+## The default prior distribution of eps is uniform between 0 and 1, assuming we have no prior knowledge
+## on the value of the contact reporting converage
 
 make.prior.eps <- function(config) {
   min <- config$prior.eps[1]
   max <- config$prior.eps[2]
   function(param) {
     stats::dunif(param$current.eps, min, max, log=TRUE)
+  }
+}
+
+## The default prior distribution of xi is uniform between 0 and 1, assuming we have no prior knowledge
+## on the value of the false contact rate
+
+make.prior.xi <- function(config) {
+  min <- config$prior.xi[1]
+  max <- config$prior.xi[2]
+  function(param) {
+    stats::dunif(param$current.xi, min, max, log=TRUE)
   }
 }

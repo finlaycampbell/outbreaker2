@@ -41,8 +41,9 @@ make.post.reporting <- function(loglike, priors) {
 make.post.contact <- function(loglike, priors) {
   ll.contact <- loglike$contact
   prior.eps <- priors$eps
+  prior.xi <- priors$xi
   function(param) {
-    ll.contact(param) + prior.eps(param)
+    ll.contact(param) + prior.eps(param) + prior.xi(param)
   }
 }
 
