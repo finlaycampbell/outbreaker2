@@ -18,8 +18,11 @@
 
 simCTD <- function(outbreak,eps=1,xi=0,plot=FALSE){
   
-  if(outbreak$n==1) return("No transmission observed")
-  
+  if(outbreak$n==1) {
+    warning("No transmission observed, returning NULL")
+    return(NULL)
+  }
+    
   is.contact <- function(pair) return(any(pair[1] == infec.contact[,1] & pair[2] == infec.contact[,2]))
   
   accept.reject <- function(pair){

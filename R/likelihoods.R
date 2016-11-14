@@ -153,14 +153,35 @@ make.ll.contact <- function(data) {
       i <- i[!is.na(param$current.alpha[i])]
       
       #Look up if contact is observed from the contact data matrix (data$contact)
-      cij <- data$contact[cbind(i, param$current.alpha[i], deparse.level=0)]
+      #cij <- data$contact[cbind(i, param$current.alpha[i], deparse.level=0)]
       
-      list.ll <- sapply(cij,function(cij) {
-        if(cij) return((param$current.eps)/(param$current.eps+param$current.eps*param$current.xi))
-        else return((1-param$current.eps)/(2-param$current.eps-param$current.eps*param$current.xi))
-      })
+      #list.ll <- sapply(cij,function(cij) {
+      #  if(cij) return((param$current.eps)/(param$current.eps+param$current.eps*param$current.xi))
+      #  else return((1-param$current.eps)/(2-param$current.eps-param$current.eps*param$current.xi))
+      #})
       
-      sum(log(list.ll))
+      ## Infer xi from eps, n.combn and nrow(CTD)
+      
+      nrow.CTD <- nrow(data$CTD)
+      #NTC <- data$n.combn - (data$N-1)
+      #xi <- nrow.CTD/(param$current.eps*NTC) - (data$N-1)/NTC
+
+      ## p(cij=1 | alpha_i = j) || observing contact between a putative transmission pair
+      true.pos <- sum(sapply(i,function(i) data$contact[cbind(i,param$current.alpha[i],deparse.level=0)]))
+      
+      ## p(cij=1 | alpha_i != j) || observing the remaining contacts, ie those between putative NTP
+      false.pos <- nrow.CTD - true.pos
+      
+      ## p(cij=0 | alpha_i = j) || not observing contact between a putative transmission pair
+      false.neg <- length(i) - true.pos
+      
+      ## p(cij=0 | alpha_i != j) || not observing contact between NTP
+      true.neg <- data$n.combn - true.pos - false.pos - false.neg
+      
+      ll.contact <- true.pos*log(param$current.eps) + false.pos*log(param$current.eps*param$current.xi) +
+                    false.neg*log(1-param$current.eps) + true.neg*log(1-param$current.eps*param$current.xi)
+            
+      return(ll.contact)
       
     }
   } else {

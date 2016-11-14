@@ -45,7 +45,7 @@
 outbreaker.data <- function(..., data=list(...)) {
 
     ## SET DEFAULTS ##
-    defaults <- list(dates=NULL, w.dens=NULL, f.dens=NULL, dna=NULL, CTD=NULL, contact=NULL,
+    defaults <- list(dates=NULL, w.dens=NULL, f.dens=NULL, dna=NULL, CTD=NULL, contact=NULL, n.combn=NULL,
                      N=0L, L=0L, D=NULL, max.range=NA, can.be.ances=NULL,
                      log.w.dens=NULL, log.f.dens=NULL)
 
@@ -114,6 +114,7 @@ outbreaker.data <- function(..., data=list(...)) {
       contact <- matrix(FALSE,data$N,data$N)
       for(cij in seq_len(nrow(data$CTD))) contact[data$CTD[cij,1],data$CTD[cij,2]] <- TRUE
       data$contact <- contact | t(contact)
+      data$n.combn <- data$N*(data$N-1)/2
     } else {
       data$contact <- matrix(numeric(0), ncol=0, nrow=0)
     }
