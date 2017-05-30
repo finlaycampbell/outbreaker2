@@ -172,7 +172,7 @@ outbreaker_data <- function(..., data = list(...)) {
             stop("ctd is not a matrix or data.frame")
         }
         if (!is.matrix(data$ctd)) data$ctd <- as.matrix(data$ctd)
-        not.found <- data$ctd[any(!data$ctd %in% 1:data$N)]
+        not.found <- data$ctd[any(!data$ctd[,1:2] %in% 1:data$N)]
         if (length(not.found) != 0) {
             not.found <- sort(unique(not.found))
             stop(paste("Individual(s)", paste(not.found, collapse = ", "),
@@ -182,7 +182,7 @@ outbreaker_data <- function(..., data = list(...)) {
         contacts <- matrix(0, data$N, data$N)
         for(i in seq_len(nrow(data$ctd))) {
             pair <- data$ctd[i,]
-            contacts[pair[[1]], pair[[2]]] <- contacts[pair[[2]], pair[[1]]] <- 1
+            contacts[pair[[1]], pair[[2]]] <- contacts[pair[[2]], pair[[1]]] <- pair[[3]]
         }
         data$contacts <- contacts
         data$C_combn <- data$N*(data$N - 1)/2

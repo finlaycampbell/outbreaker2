@@ -78,13 +78,13 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
     ances[0] = NA_INTEGER;
     n_generations[0] = NA_INTEGER;
 
-  
+
     // Invalid values of mu
     if (mu < 0.0 || mu > 1.0) {
       return R_NegInf;
     }
 
-    
+
     // NOTE ON MISSING SEQUENCES
 
     // Terms participating to the genetic likelihood correspond to pairs
@@ -93,13 +93,13 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
     // ommitted. Note the possible source of confusion in indices here:
 
     // 'has_dna' is a vector, thus indexed from 0:(N-1)
-	  
+
     // 'cpp_get_n_mutations' is a function, and thus takes indices on 1:N
 
 
-    
+
     // all cases are retained
-    
+
     if (i == R_NilValue) {
       for (size_t j = 0; j < N; j++) { // 'j' on 0:(N-1)
 	if (alpha[j] != NA_INTEGER) {
@@ -111,9 +111,9 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
 	  }
 
 	  // missing sequences handled here
-	  
+
 	  if (has_dna[j]) {
-	 
+
 	    lookup_sequenced_ancestor(alpha, kappa, has_dna, j + 1,
 				      ances, n_generations, found);
 
@@ -141,10 +141,10 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
 	  }
 
 	  // missing sequences handled here
-	  	  
+
 	  if (has_dna[j]) {
-	 
-	    lookup_sequenced_ancestor(alpha, kappa, has_dna, j + 1, 
+
+	    lookup_sequenced_ancestor(alpha, kappa, has_dna, j + 1,
 				      ances, n_generations, found);
 
 	    if (found[0]) {
@@ -155,7 +155,7 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
 
 	    }
 	  }
-	  
+
 	}
 
       }
@@ -429,7 +429,7 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
     Rcpp::IntegerVector alpha = param["alpha"];
     Rcpp::IntegerVector kappa = param["kappa"];
 
-    size_t true_pos = 0;
+    double true_pos = 1;
     size_t false_pos = 0;
     size_t false_neg = 0;
     size_t true_neg = 0;
@@ -441,25 +441,18 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
       return R_NegInf;
     }
 
-    // all cases are retained (currently no support for i subsetting)
+    //
     for (size_t j = 0; j < N; j++) {
       if (alpha[j] == NA_INTEGER) {
 	imports += 1;
       } else if (kappa[j] > 1) {
 	unobsv_case += 1;
       } else {
-	true_pos += contacts(j, alpha[j] - 1); // offset
+	true_pos *= contacts(j, alpha[j] - 1); // offset
       }
     }
 
-    false_pos = C_nrow - true_pos;
-    false_neg = N - imports - unobsv_case - true_pos;
-    true_neg = C_combn - true_pos - false_pos - false_neg;
-
-    return log(eps) * (double) true_pos +
-      log(eps*lambda) * (double) false_pos +
-      log(1 - eps) * (double) false_neg +
-      log(1 - eps*lambda) * (double) true_neg;
+    return log(true_pos);
 
   } else { //use of a customized likelihood function
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
