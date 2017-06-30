@@ -348,11 +348,11 @@ Rcpp::List cpp_move_t_inf(Rcpp::List param, Rcpp::List data,
 
     // loglike with new value
     // new_loglike = cpp_ll_timing(data, new_param, R_NilValue);
-    new_loc_loglike = cpp_ll_timing(data, new_param, i+1, list_custom_ll); // term for case 'i' with offset
+    new_loc_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll); // term for case 'i' with offset
 
     // term descendents of 'i'
     if (local_cases.size() > 0) {
-      new_loc_loglike += cpp_ll_timing(data, new_param, local_cases, list_custom_ll);
+      new_loc_loglike += cpp_ll_all(data, new_param, local_cases, list_custom_ll);
     }
 
 
