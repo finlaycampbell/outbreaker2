@@ -503,17 +503,18 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, size_t i,
 
 double cpp_ll_offspring(Rcpp::List data, Rcpp::List param, SEXP i,
 		       Rcpp::RObject custom_function) {
-  Rcpp::NumericMatrix contacts = data["contacts"];
-  if (contacts.ncol() < 1) return 0.0;
-
-  size_t C_combn = static_cast<size_t>(data["C_combn"]);
-  size_t C_nrow = static_cast<size_t>(data["C_nrow"]);
 
   size_t N = static_cast<size_t>(data["N"]);
   if (N < 2) return 0.0;
 
   if (custom_function == R_NilValue) {
 
+    Rcpp::NumericMatrix contacts = data["contacts"];
+    if (contacts.ncol() < 1) return 0.0;
+
+    size_t C_combn = static_cast<size_t>(data["C_combn"]);
+    size_t C_nrow = static_cast<size_t>(data["C_nrow"]);
+    
     double eps = Rcpp::as<double>(param["eps"]);
     double lambda = Rcpp::as<double>(param["lambda"]);
     Rcpp::IntegerVector alpha = param["alpha"];
