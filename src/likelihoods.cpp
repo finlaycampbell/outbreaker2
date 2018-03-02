@@ -489,6 +489,87 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, size_t i,
 
 
 
+
+// ---------------------------
+
+// This likelihood corresponds to the probability of observing a given number of
+// offspring for each case.
+//
+// with:
+// 'R' is the reproduction number
+// 'k' is the dispersion parameter
+//
+// uncompleted - subsetting by i in this case should work
+
+double cpp_ll_offspring(Rcpp::List data, Rcpp::List param, SEXP i,
+		       Rcpp::RObject custom_function) {
+  Rcpp::NumericMatrix contacts = data["contacts"];
+  if (contacts.ncol() < 1) return 0.0;
+
+  size_t C_combn = static_cast<size_t>(data["C_combn"]);
+  size_t C_nrow = static_cast<size_t>(data["C_nrow"]);
+
+  size_t N = static_cast<size_t>(data["N"]);
+  if (N < 2) return 0.0;
+
+  if (custom_function == R_NilValue) {
+
+    double eps = Rcpp::as<double>(param["eps"]);
+    double lambda = Rcpp::as<double>(param["lambda"]);
+    Rcpp::IntegerVector alpha = param["alpha"];
+    Rcpp::IntegerVector kappa = param["kappa"];
+
+    size_t true_pos = 0;
+    size_t false_pos = 0;
+    size_t false_neg = 0;
+    size_t true_neg = 0;
+    size_t imports = 0;
+    size_t unobsv_case = 0;
+
+    // p(eps < 0 || lambda < 0) = 0
+    if (eps < 0.0 || lambda < 0.0) {
+      return R_NegInf;
+    }
+
+    // all cases are retained (currently no support for i subsetting)
+    for (size_t j = 0; j < N; j++) {
+      if (alpha[j] == NA_INTEGER) {
+	imports += 1;
+      } else if (kappa[j] > 1) {
+	unobsv_case += 1;
+      } else {
+	true_pos += contacts(j, alpha[j] - 1); // offset
+      }
+    }
+
+    false_pos = C_nrow - true_pos;
+    false_neg = N - imports - unobsv_case - true_pos;
+    true_neg = C_combn - true_pos - false_pos - false_neg;
+
+    return log(eps) * (double) true_pos +
+      log(eps*lambda) * (double) false_pos +
+      log(1 - eps) * (double) false_neg +
+      log(1 - eps*lambda) * (double) true_neg;
+
+  } else { //use of a customized likelihood function
+    Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
+
+    return Rcpp::as<double>(f(data, param));
+  }
+}
+
+
+double cpp_ll_offspring(Rcpp::List data, Rcpp::List param, size_t i,
+              Rcpp::RObject custom_function) {
+  SEXP si = PROTECT(Rcpp::wrap(i));
+  double ret = cpp_ll_offspring(data, param, si, custom_function);
+  UNPROTECT(1);
+  return ret;
+}
+
+
+
+
 // ---------------------------
 
 // This likelihood corresponds to the sums of the separate timing likelihoods,
@@ -502,11 +583,13 @@ double cpp_ll_timing(Rcpp::List data, Rcpp::List param, SEXP i,
 
   if (custom_functions == R_NilValue) {
     return cpp_ll_timing_infections(data, param, i) +
-      cpp_ll_timing_sampling(data, param, i);
+      cpp_ll_timing_sampling(data, param, i) +
+      cpp_ll_offspring(data, param, i);
   } else { // use of a customized likelihood functions
     Rcpp::List list_functions = Rcpp::as<Rcpp::List>(custom_functions);
     return cpp_ll_timing_infections(data, param, i, list_functions["timing_infections"]) +
-      cpp_ll_timing_sampling(data, param, i, list_functions["timing_sampling"]);
+      cpp_ll_timing_sampling(data, param, i, list_functions["timing_sampling"]) +
+      cpp_ll_offspring(data, param, i, list_functions["offspring"]);
 
   }
 }
@@ -543,7 +626,8 @@ double cpp_ll_all(Rcpp::List data, Rcpp::List param, SEXP i,
       cpp_ll_timing_sampling(data, param, i) +
       cpp_ll_genetic(data, param, i) +
       cpp_ll_reporting(data, param, i) +
-      cpp_ll_contact(data, param, i);
+      cpp_ll_contact(data, param, i) +
+      cpp_ll_offspring(data, param, i);
 
   }  else { // use of a customized likelihood functions
     Rcpp::List list_functions = Rcpp::as<Rcpp::List>(custom_functions);
@@ -552,7 +636,8 @@ double cpp_ll_all(Rcpp::List data, Rcpp::List param, SEXP i,
       cpp_ll_timing_sampling(data, param, i, list_functions["timing_sampling"]) +
       cpp_ll_genetic(data, param, i, list_functions["genetic"]) +
       cpp_ll_reporting(data, param, i, list_functions["reporting"]) +
-      cpp_ll_contact(data, param, i, list_functions["contact"]);
+      cpp_ll_contact(data, param, i, list_functions["contact"]) +
+      cpp_ll_offspring(data, param, i, list_functions["offspring"]);
 
   }
 }

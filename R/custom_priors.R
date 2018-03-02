@@ -132,7 +132,9 @@ custom_priors <- function(...) {
     defaults <- list(mu = NULL, # mutation rate
                      pi = NULL, # reporting probability
                      eps = NULL, # contact reporting coverage
-                     lambda = NULL # non-infectious contact rate
+                     lambda = NULL, # non-infectious contact rate
+                     R = NULL, # reproduction number
+                     k = NULL # dispersion parameter of offspring distribution
                      )
 
     priors <- modify_defaults(defaults, priors, FALSE)

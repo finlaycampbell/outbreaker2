@@ -293,6 +293,138 @@ Rcpp::List cpp_move_lambda(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
 // ---------------------------
 
+// movement of the reproduction number 'R' is done using a dumb
+// normal proposal. This is satisfying for now - we only reject a few
+// non-sensical values outside the range R < 0. The SD of the proposal is
+// provided through 'config'; this seems fine as the range of real values will
+// never change much. Probably not much point in using auto-tuning here.
+
+// [[Rcpp::export(rng = true)]]
+Rcpp::List cpp_move_R(Rcpp::List param, Rcpp::List data, Rcpp::List config,
+		      Rcpp::RObject custom_ll = R_NilValue,
+		      Rcpp::RObject custom_prior = R_NilValue) {
+
+  // deep copy here for now, ultimately should be an arg.
+
+  Rcpp::List new_param = clone(param);
+  Rcpp::NumericVector R = param["R"]; // these are just pointers
+  Rcpp::NumericVector new_R = new_param["R"]; // these are just pointers
+
+  double sd_R = static_cast<double>(config["sd_R"]);
+
+  double old_logpost = 0.0, new_logpost = 0.0, p_accept = 0.0;
+
+
+  // proposal (normal distribution with SD: config$sd_R)
+
+  new_R[0] += R::rnorm(0.0, sd_R); // new proposed value
+
+
+  // automatic rejection of R < 0
+
+  if (new_R[0] < 0.0) {
+    return param;
+  }
+
+
+  // compute likelihoods
+  old_logpost = cpp_ll_offspring(data, param, R_NilValue, custom_ll);
+  new_logpost = cpp_ll_offspring(data, new_param, R_NilValue, custom_ll);
+
+
+  // compute priors
+
+  old_logpost += cpp_prior_R(param, config, custom_prior);
+  new_logpost += cpp_prior_R(new_param, config, custom_prior);
+
+
+  // acceptance term
+
+  p_accept = exp(new_logpost - old_logpost);
+
+
+  // acceptance: the new value is already in R, so we only act if the move is
+  // rejected, in which case we restore the previous ('old') value
+
+  if (p_accept < unif_rand()) { // reject new values
+    return param;
+  }
+
+  return new_param;
+}
+
+
+
+
+
+
+// ---------------------------
+
+// movement of the dispersion parameter 'k' is done using a dumb
+// normal proposal. This is satisfying for now - we only reject a few
+// non-sensical values outside the range k < 0. The SD of the proposal is
+// provided through 'config'; this seems fine as the range of real values will
+// never change much. Probably not much point in using auto-tuning here.
+
+// [[Rcpp::export(rng = true)]]
+Rcpp::List cpp_move_k(Rcpp::List param, Rcpp::List data, Rcpp::List config,
+		       Rcpp::RObject custom_ll = R_NilValue,
+		       Rcpp::RObject custom_prior = R_NilValue) {
+
+  // deep copy here for now, ultimately should be an arg.
+
+  Rcpp::List new_param = clone(param);
+  Rcpp::NumericVector k = param["k"]; // these are just pointers
+  Rcpp::NumericVector new_k = new_param["k"]; // these are just pointers
+
+  double sd_k = static_cast<double>(config["sd_k"]);
+
+  double old_logpost = 0.0, new_logpost = 0.0, p_accept = 0.0;
+
+
+  // proposal (normal distribution with SD: config$sd_k)
+
+  new_k[0] += R::rnorm(0.0, sd_k); // new proposed value
+
+
+  // automatic rejection of k < 0
+
+  if (new_k[0] < 0.0) {
+    return param;
+  }
+
+
+  // compute likelihoods
+  old_logpost = cpp_ll_offspring(data, param, R_NilValue, custom_ll);
+  new_logpost = cpp_ll_offspring(data, new_param, R_NilValue, custom_ll);
+
+
+  // compute priors
+
+  old_logpost += cpp_prior_k(param, config, custom_prior);
+  new_logpost += cpp_prior_k(new_param, config, custom_prior);
+
+
+  // acceptance term
+
+  p_accept = exp(new_logpost - old_logpost);
+
+
+  // acceptance: the new value is already in k, so we only act if the move is
+  // rejected, in which case we restore the previous ('old') value
+
+  if (p_accept < unif_rand()) { // reject new values
+    return param;
+  }
+
+  return new_param;
+}
+
+
+
+
+// ---------------------------
+
 // Movement of infection dates are +/- 1 from current states. These movements
 // are currently vectorised, i.e. a bunch of dates are proposed all together;
 // this may not be sustainable for larger datasets. The non-vectorised option

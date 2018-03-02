@@ -53,6 +53,10 @@ cpp_ll_contact <- function(data, param, i = NULL, custom_function = NULL) {
     .Call(`_outbreaker2_cpp_ll_contact`, data, param, i, custom_function)
 }
 
+cpp_ll_offspring <- function(data, param, i = NULL, custom_function = NULL) {
+    .Call(`_outbreaker2_cpp_ll_offspring`, data, param, i, custom_function)
+}
+
 cpp_ll_timing <- function(data, param, i = NULL, custom_functions = NULL) {
     .Call(`_outbreaker2_cpp_ll_timing`, data, param, i, custom_functions)
 }
@@ -75,6 +79,14 @@ cpp_move_eps <- function(param, data, config, custom_ll = NULL, custom_prior = N
 
 cpp_move_lambda <- function(param, data, config, custom_ll = NULL, custom_prior = NULL) {
     .Call(`_outbreaker2_cpp_move_lambda`, param, data, config, custom_ll, custom_prior)
+}
+
+cpp_move_R <- function(param, data, config, custom_ll = NULL, custom_prior = NULL) {
+    .Call(`_outbreaker2_cpp_move_R`, param, data, config, custom_ll, custom_prior)
+}
+
+cpp_move_k <- function(param, data, config, custom_ll = NULL, custom_prior = NULL) {
+    .Call(`_outbreaker2_cpp_move_k`, param, data, config, custom_ll, custom_prior)
 }
 
 cpp_move_t_inf <- function(param, data, list_custom_ll = NULL) {
@@ -107,6 +119,14 @@ cpp_prior_eps <- function(param, config, custom_function = NULL) {
 
 cpp_prior_lambda <- function(param, config, custom_function = NULL) {
     .Call(`_outbreaker2_cpp_prior_lambda`, param, config, custom_function)
+}
+
+cpp_prior_R <- function(param, config, custom_function = NULL) {
+    .Call(`_outbreaker2_cpp_prior_R`, param, config, custom_function)
+}
+
+cpp_prior_k <- function(param, config, custom_function = NULL) {
+    .Call(`_outbreaker2_cpp_prior_k`, param, config, custom_function)
 }
 
 cpp_prior_all <- function(param, config, custom_functions = NULL) {

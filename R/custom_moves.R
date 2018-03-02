@@ -85,6 +85,8 @@ custom_moves <- function(...) {
                      pi = cpp_move_pi,
                      eps = cpp_move_eps,
                      lambda = cpp_move_lambda,
+                     R = cpp_move_R,
+                     k = cpp_move_k,
                      alpha = cpp_move_alpha,
                      swap_cases = cpp_move_swap_cases,
                      t_inf = cpp_move_t_inf,

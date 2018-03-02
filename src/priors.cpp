@@ -135,6 +135,59 @@ double cpp_prior_lambda(Rcpp::List param, Rcpp::List config,
 
 
 
+// The prior for the reproduction number 'R' is a gamma distribution
+
+// [[Rcpp::export(rng = false)]]
+double cpp_prior_R(Rcpp::List param, Rcpp::List config,
+		   Rcpp::RObject custom_function = R_NilValue) {
+
+  if (custom_function == R_NilValue) {
+    Rcpp::NumericVector shape = config["prior_R_mod"];
+
+    return R::dgamma(Rcpp::as<double>(param["R"]),
+		     (double) shape[0],
+		     (double) shape[1],
+		     1);
+  } else {
+    Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
+
+    return Rcpp::as<double>(f(param));
+  }
+
+}
+
+
+
+
+
+// The prior for the dispersion parameter 'k' is a gamma distribution
+
+// [[Rcpp::export(rng = false)]]
+double cpp_prior_k(Rcpp::List param, Rcpp::List config,
+		   Rcpp::RObject custom_function = R_NilValue) {
+
+  if (custom_function == R_NilValue) {
+    Rcpp::NumericVector shape = config["prior_k_mod"];
+
+    return R::dgamma(Rcpp::as<double>(param["k"]),
+		     (double) shape[0],
+		     (double) shape[1],
+		     1);
+  } else {
+    Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
+
+    return Rcpp::as<double>(f(param));
+  }
+
+}
+
+
+
+
+
+
+
+
 // [[Rcpp::export(rng = false)]]
 double cpp_prior_all(Rcpp::List param, Rcpp::List config,
 		     Rcpp::RObject custom_functions = R_NilValue
@@ -144,7 +197,9 @@ double cpp_prior_all(Rcpp::List param, Rcpp::List config,
     return cpp_prior_mu(param, config) +
       cpp_prior_pi(param, config) +
       cpp_prior_eps(param, config) +
-      cpp_prior_lambda(param, config);
+      cpp_prior_lambda(param, config) +
+      cpp_prior_R(param, config) +
+      cpp_prior_k(param, config);
 
   } else {
 
@@ -153,6 +208,8 @@ double cpp_prior_all(Rcpp::List param, Rcpp::List config,
     return cpp_prior_mu(param, config, list_functions["mu"]) +
       cpp_prior_pi(param, config, list_functions["pi"]) +
       cpp_prior_eps(param, config, list_functions["eps"]) +
-      cpp_prior_lambda(param, config, list_functions["lambda"]);
+      cpp_prior_lambda(param, config, list_functions["lambda"]) +
+      cpp_prior_R(param, config, list_functions["R"]) +
+      cpp_prior_k(param, config, list_functions["k"]);
   }
 }

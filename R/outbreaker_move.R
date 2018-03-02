@@ -22,13 +22,18 @@ outbreaker_move <- function(moves, data, param_current,
                             likelihoods, priors) {
     ## get number of moves ##
     J <- length(moves)
-    
+
     ## RUN MCMC ##
     for (i in seq.int(2, config$n_iter, 1)) {
         ## move parameters / augmented data
         for (j in seq_len(J)) {
             ## move parameters
             param_current <- moves[[j]](param_current)
+
+          if(j == 3) {
+            store[klopp] <<- ll_offspring(data, param_current)
+            klopp <<- klopp + 1
+          }
 
             ## safemode
             if (config$paranoid) {

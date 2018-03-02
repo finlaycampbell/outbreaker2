@@ -15,6 +15,12 @@ double cpp_prior_eps(Rcpp::List param, Rcpp::List config,
 double cpp_prior_lambda(Rcpp::List param, Rcpp::List config,
 			Rcpp::RObject custom_function);
 
+double cpp_prior_R(Rcpp::List param, Rcpp::List config,
+		   Rcpp::RObject custom_function);
+
+double cpp_prior_k(Rcpp::List param, Rcpp::List config,
+		   Rcpp::RObject custom_function);
+
 double cpp_prior_all(Rcpp::List param, Rcpp::List config,
 		     Rcpp::RObject custom_functions = R_NilValue);
 
