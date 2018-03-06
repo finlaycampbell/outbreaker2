@@ -30,11 +30,6 @@ outbreaker_move <- function(moves, data, param_current,
             ## move parameters
             param_current <- moves[[j]](param_current)
 
-          if(j == 3) {
-            store[klopp] <<- ll_offspring(data, param_current)
-            klopp <<- klopp + 1
-          }
-
             ## safemode
             if (config$paranoid) {
                 diagnostic <- look_for_trouble(param_current, param_store, data)

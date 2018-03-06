@@ -78,13 +78,13 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
     ances[0] = NA_INTEGER;
     n_generations[0] = NA_INTEGER;
 
-  
+
     // Invalid values of mu
     if (mu < 0.0 || mu > 1.0) {
       return R_NegInf;
     }
 
-    
+
     // NOTE ON MISSING SEQUENCES
 
     // Terms participating to the genetic likelihood correspond to pairs
@@ -93,13 +93,13 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
     // ommitted. Note the possible source of confusion in indices here:
 
     // 'has_dna' is a vector, thus indexed from 0:(N-1)
-	  
+
     // 'cpp_get_n_mutations' is a function, and thus takes indices on 1:N
 
 
-    
+
     // all cases are retained
-    
+
     if (i == R_NilValue) {
       for (size_t j = 0; j < N; j++) { // 'j' on 0:(N-1)
 	if (alpha[j] != NA_INTEGER) {
@@ -111,9 +111,9 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
 	  }
 
 	  // missing sequences handled here
-	  
+
 	  if (has_dna[j]) {
-	 
+
 	    lookup_sequenced_ancestor(alpha, kappa, has_dna, j + 1,
 				      ances, n_generations, found);
 
@@ -141,10 +141,10 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
 	  }
 
 	  // missing sequences handled here
-	  	  
+
 	  if (has_dna[j]) {
-	 
-	    lookup_sequenced_ancestor(alpha, kappa, has_dna, j + 1, 
+
+	    lookup_sequenced_ancestor(alpha, kappa, has_dna, j + 1,
 				      ances, n_generations, found);
 
 	    if (found[0]) {
@@ -155,7 +155,7 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
 
 	    }
 	  }
-	  
+
 	}
 
       }
@@ -501,64 +501,78 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, size_t i,
 //
 // uncompleted - subsetting by i in this case should work
 
-double cpp_ll_offspring(Rcpp::List data, Rcpp::List param, SEXP i,
-		       Rcpp::RObject custom_function) {
+double cpp_ll_offspring(Rcpp::List data, Rcpp::List param,
+	   SEXP i, Rcpp::RObject custom_function) {
 
-  size_t N = static_cast<size_t>(data["N"]);
-  if (N < 2) return 0.0;
+  int N = static_cast<int>(data["N"]);
+  if(N < 2) return 0.0;
 
   if (custom_function == R_NilValue) {
 
-    Rcpp::NumericMatrix contacts = data["contacts"];
-    if (contacts.ncol() < 1) return 0.0;
-
-    size_t C_combn = static_cast<size_t>(data["C_combn"]);
-    size_t C_nrow = static_cast<size_t>(data["C_nrow"]);
-    
-    double eps = Rcpp::as<double>(param["eps"]);
-    double lambda = Rcpp::as<double>(param["lambda"]);
     Rcpp::IntegerVector alpha = param["alpha"];
-    Rcpp::IntegerVector kappa = param["kappa"];
+    double R = Rcpp::as<double>(param["R"]);
+    double k = Rcpp::as<double>(param["k"]);
 
-    size_t true_pos = 0;
-    size_t false_pos = 0;
-    size_t false_neg = 0;
-    size_t true_neg = 0;
-    size_t imports = 0;
-    size_t unobsv_case = 0;
-
-    // p(eps < 0 || lambda < 0) = 0
-    if (eps < 0.0 || lambda < 0.0) {
+    // p(R < 0 || k < 0) = 0
+    if (R < 0.0 || k < 0.0) {
       return R_NegInf;
     }
 
-    // all cases are retained (currently no support for i subsetting)
-    for (size_t j = 0; j < N; j++) {
-      if (alpha[j] == NA_INTEGER) {
-	imports += 1;
-      } else if (kappa[j] > 1) {
-	unobsv_case += 1;
+    int offsp = 0;
+    double out = 0;
+
+
+    if (i == R_NilValue) {
+      if(Rf_isNull(data["t_end"])) {
+	for(size_t j = 0; j < N; j++) {
+	  offsp = std::count (alpha.begin(), alpha.end(), j + 1);
+	  out += R::dnbinom_mu(offsp, k, R, 1);
+	}
       } else {
-	true_pos += contacts(j, alpha[j] - 1); // offset
+	int diff = 0;
+	int t_end = Rcpp::as<int>(data["t_end"]);
+	double prop = 0;
+	Rcpp::NumericVector prop_offsp = data["prop_offsp"];
+	Rcpp::IntegerVector t_inf = param["t_inf"];
+	for(size_t j = 0; j < N; j++) {
+	  diff = t_end - t_inf[j] - 1; // adjust for indexing by 1
+	  prop = prop_offsp[diff];
+	  offsp = std::count (alpha.begin(), alpha.end(), j + 1);
+	  out += R::dnbinom_mu(offsp, k, prop*R, 1);
+	}
+      }
+    } else {
+      size_t length_i = static_cast<size_t>(LENGTH(i));
+      Rcpp::IntegerVector vec_i(i);
+      if(Rf_isNull(data["t_end"])) {
+	for(size_t m = 0; m < length_i; m++) {
+	  size_t j = vec_i[m]; // here j is the case ID not the index
+	  offsp = std::count (alpha.begin(), alpha.end(), j); // count j
+	  out += R::dnbinom_mu(offsp, k, R, 1);
+	}
+      } else {
+	int diff = 0;
+	int t_end = Rcpp::as<int>(data["t_end"]);
+	double prop = 0;
+	Rcpp::NumericVector prop_offsp = data["prop_offsp"];
+	Rcpp::IntegerVector t_inf = param["t_inf"];
+	for(size_t m = 0; m < length_i; m++) {
+	  size_t j = vec_i[m] - 1; // here j is the index NOT the case ID
+	  diff = t_end - t_inf[j] - 1; // adjust for indexing by 1
+	  prop = prop_offsp[diff];
+	  offsp = std::count (alpha.begin(), alpha.end(), j + 1);
+	  out += R::dnbinom_mu(offsp, k, prop*R, 1);
+	}
       }
     }
 
-    false_pos = C_nrow - true_pos;
-    false_neg = N - imports - unobsv_case - true_pos;
-    true_neg = C_combn - true_pos - false_pos - false_neg;
-
-    return log(eps) * (double) true_pos +
-      log(eps*lambda) * (double) false_pos +
-      log(1 - eps) * (double) false_neg +
-      log(1 - eps*lambda) * (double) true_neg;
-
-  } else { //use of a customized likelihood function
+    return(out);
+  } else { // use of a customized likelihood function
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
 
     return Rcpp::as<double>(f(data, param));
   }
 }
-
 
 double cpp_ll_offspring(Rcpp::List data, Rcpp::List param, size_t i,
               Rcpp::RObject custom_function) {
@@ -616,7 +630,7 @@ double cpp_ll_timing(Rcpp::List data, Rcpp::List param, size_t i,
 // - p(collection dates): see function cpp_ll_timing_sampling
 // - p(genetic diversity): see function cpp_ll_genetic
 // - p(missing cases): see function cpp_ll_reporting
-// - p(contact): see function cpp_ll_contact 
+// - p(contact): see function cpp_ll_contact
 
 double cpp_ll_all(Rcpp::List data, Rcpp::List param, SEXP i,
 		  Rcpp::RObject custom_functions) {

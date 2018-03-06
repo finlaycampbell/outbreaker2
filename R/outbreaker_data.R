@@ -207,11 +207,18 @@ outbreaker_data <- function(..., data = list(...)) {
       stop("t_end is non-finite")
     }
 
-    # Calculate proportion of expected offspring that are sampled
+    ## Calculate proportion of expected offspring that are sampled
     conv <- stats::convolve(data$w_dens, rev(data$f_dens), type = "open")
     data$prop_offsp <- cumsum(conv)
+
+    ## Add tail of 1s to prevent indexing errors in likelihood
+    if (length(data$prop_offsp) < data$max_range) {
+      num <- (data$max_range-length(data$f_dens)) + 10 # +10 to be on the safe side
+      data$prop_offsp <- c(data$prop_offsp, rep(1, num))
+    }
+
   }
-  
+
   ## output is a list of checked data
   return(data)
 
