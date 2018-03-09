@@ -4,7 +4,6 @@
 [![Coverage Status](https://codecov.io/github/reconhub/outbreaker2/coverage.svg?branch=master)](https://codecov.io/github/reconhub/outbreaker2?branch=master)
 [![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/outbreaker2)](https://cran.r-project.org/package=outbreaker2)
 
-
 *outbreaker2: a framework for reconstructing disease outbreaks*
 ---------------------------------------------------------------
 
@@ -79,8 +78,6 @@ Contributors
 
 See details of contributions
 [here](https://github.com/reconhub/outbreaker2/graphs/contributors).
-
-<br>
 
 Contributions are welcome via **pull requests**.
 
