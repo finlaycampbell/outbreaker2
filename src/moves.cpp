@@ -326,18 +326,18 @@ Rcpp::List cpp_move_R(Rcpp::List param, Rcpp::List data, Rcpp::List config,
     return param;
   }
 
-
   // compute likelihoods
+  
   old_logpost = cpp_ll_offspring(data, param, R_NilValue, custom_ll);
   new_logpost = cpp_ll_offspring(data, new_param, R_NilValue, custom_ll);
 
-
+  
   // compute priors
 
   old_logpost += cpp_prior_R(param, config, custom_prior);
   new_logpost += cpp_prior_R(new_param, config, custom_prior);
 
-
+  
   // acceptance term
 
   p_accept = exp(new_logpost - old_logpost);

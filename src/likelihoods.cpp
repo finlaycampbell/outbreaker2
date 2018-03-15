@@ -521,6 +521,7 @@ double cpp_ll_offspring(Rcpp::List data, Rcpp::List param,
     int offsp = 0;
     double out = 0;
 
+    k = 1/k;
 
     if (i == R_NilValue) {
       if(Rf_isNull(data["t_end"])) {
