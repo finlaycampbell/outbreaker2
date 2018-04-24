@@ -5,7 +5,6 @@
 #include "priors.h"
 
 
-
 // IMPORTANT: ON INDEXING VECTORS AND ANCESTRIES
 
 // Most of the functions implemented here are susceptible to be called from R
@@ -331,6 +330,9 @@ Rcpp::List cpp_move_R(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   old_logpost = cpp_ll_offspring(data, param, R_NilValue, custom_ll);
   new_logpost = cpp_ll_offspring(data, new_param, R_NilValue, custom_ll);
 
+  //Rcpp::Rcout << "old_R: " << R << " | new_R: " << new_R;
+  //std::cout << "| old_ll: " << old_logpost << " | new_ll: " << new_logpost;  
+
   
   // compute priors
 
@@ -342,12 +344,16 @@ Rcpp::List cpp_move_R(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
   p_accept = exp(new_logpost - old_logpost);
 
-
+  //std::cout << "| p_acc: " << p_accept;
+  
   // acceptance: the new value is already in R, so we only act if the move is
   // rejected, in which case we restore the previous ('old') value
 
   if (p_accept < unif_rand()) { // reject new values
+    //std::cout << " | REJECT" << std::endl;
     return param;
+  } else {
+    //std::cout << " | ACCEPT" << std::endl;
   }
 
   return new_param;

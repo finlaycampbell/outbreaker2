@@ -192,8 +192,7 @@ create_config <- function(..., data = NULL) {
                    prior_lambda = c(1,1),
                    prior_R = c(1, 1),
                    prior_k = c(1, 1),
-                   prior_R_mod = NULL,
-                   prior_k_mod = NULL)
+                   prior_R_mod = NULL)
 
   ## MODIFY CONFIG WITH ARGUMENTS ##
   config <- modify_defaults(defaults, config)
@@ -675,9 +674,6 @@ create_config <- function(..., data = NULL) {
   ## convert prior_R and prior_k values to proper paramterisation
   config$prior_R_mod <- c((config$prior_R[1]/config$prior_R[2])^2,
                           config$prior_R[2]^2/config$prior_R[1])
-
-  config$prior_k_mod <- c((config$prior_k[1]/config$prior_k[2])^2,
-                          config$prior_k[2]^2/config$prior_k[1])
 
   ## output is a list of checked settings with a dedicated class (for
   ## printing)

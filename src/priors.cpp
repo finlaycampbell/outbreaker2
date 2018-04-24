@@ -143,7 +143,7 @@ double cpp_prior_R(Rcpp::List param, Rcpp::List config,
 
   if (custom_function == R_NilValue) {
     Rcpp::NumericVector shape = config["prior_R_mod"];
-
+    
     return R::dgamma(Rcpp::as<double>(param["R"]),
 		     (double) shape[0],
 		     (double) shape[1],
@@ -167,12 +167,12 @@ double cpp_prior_k(Rcpp::List param, Rcpp::List config,
 		   Rcpp::RObject custom_function = R_NilValue) {
 
   if (custom_function == R_NilValue) {
-    Rcpp::NumericVector shape = config["prior_k_mod"];
+    Rcpp::NumericVector shape = config["prior_k"];
 
-    return R::dgamma(Rcpp::as<double>(param["k"]),
-		     (double) shape[0],
-		     (double) shape[1],
-		     1);
+    return R::dbeta(Rcpp::as<double>(param["k"]),
+		    (double) shape[0],
+		    (double) shape[1],
+		    1);
   } else {
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
 

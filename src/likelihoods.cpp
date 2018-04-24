@@ -514,14 +514,14 @@ double cpp_ll_offspring(Rcpp::List data, Rcpp::List param,
     double k = Rcpp::as<double>(param["k"]);
 
     // p(R < 0 || k < 0) = 0
-    if (R < 0.0 || k < 0.0) {
+    if (R < 0.0 || k < 0.0 || k > 1.0) {
       return R_NegInf;
     }
 
+    k = k/(1 - k);
+
     int offsp = 0;
     double out = 0;
-
-    k = 1/k;
 
     if (i == R_NilValue) {
       if(Rf_isNull(data["t_end"])) {
