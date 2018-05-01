@@ -220,6 +220,14 @@ outbreaker_data <- function(..., data = list(...)) {
 
   }
 
+  ## CHECK EST_F This function will estimate the distribution of incubation
+  ## periods on a given day of sampling.
+  data$est_f_dens <- .get_est_f(data$dates, data$f_dens)
+  data$log_est_f_dens <- log(data$est_f_dens)
+  data$f_ind <- vapply(data$dates,
+                       function(dates) which(as.numeric(colnames(data$est_f_dens)) == dates) - 1,
+                       numeric(1))
+
   ## output is a list of checked data
   return(data)
 

@@ -321,9 +321,82 @@ add_convolutions <- function(data, config) {
 
 
 
+## This will estimate the distribution of f on each day you have a sampled case
+## for - using only dates of sampling and the incubation period distribution f
+.get_est_f <- function(sampling, f) {
 
+  inf <- .get_est_inf(sampling, f)
+  inc <- incidence(sampling)
+  
+  out <- sapply(inc$dates, function(i) .calc_f_dist(i, f, inf, inc)[,2])
+  colnames(out) <- inc$dates
 
+  return(out)
+  
+}
 
+## This will calculate the distribution of f on a given day T
+.calc_f_dist <- function(T, f, inf, inc) {
+
+  ## Determine the range of potential infection dates of cases on day T
+  range <- (T - length(f)):(T - 1)
+
+  ## Calculate f(T - t)*ncases(t) for all days t in range
+  dist.f <- sapply(range, .sum_f_dens, T = T, f = f, inf = inf)
+
+  ## To make it a probability *given that day* (instead of an absolute
+  ## probability), adjust the sum to 1
+  dist.f %<>% divide_by(sum(.))
+  
+  ## Align the incubation times with their densities
+  data.frame(day = (T - range),
+             density = dist.f) %>%
+    apply(2, rev) %>%
+    return
+
+}
+
+## Calculate the number of cases with that given f, times the probability of
+## that f. When summing up the individual f distributions, in this cases we're
+## looking from time T back to time T, and then looking what the probability
+## density of that given incubation time (T - t) is, times the number of cases
+## infected on that day. 
+.sum_f_dens <- function(t, T, f, inf) {
+  if(.ncases(t, inf) == 0) return(0)
+  else (.ncases(t, inf)*.d_f(T - t, f))
+}
+
+## Returns the number of cases on day t, from the incidence object dist
+.ncases <- function(t, dist) {
+  if(!t %in% dist$dates) return(0)
+  else dist$counts[which(dist$dates == t)]
+}
+
+## f starts on DAY 1
+.d_f <- function(t, f) {
+  if(t <= 0 | t > length(f)) return(0)
+  else f[t]
+}
+
+## Estimate the average number of people infected on a given day from sampling
+## times and f - essentially applying f backwards on the sampling dates
+.get_est_inf <- function(sampling, f) {
+
+  inc <- incidence(sampling)
+  out <- data.frame(dates = (min(sampling) - length(f)):(max(sampling) - 1),
+                    counts = 0)
+
+  for(T in inc$dates) {
+    cases <- .ncases(T, inc)
+    for(inc_period in seq_along(f)){
+      dates <- T - inc_period
+      out$counts[which(out$dates == dates)] %<>% add(cases*f[inc_period])
+    }
+  }
+
+  return(out)
+  
+}
 
 
 
