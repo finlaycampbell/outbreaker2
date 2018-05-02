@@ -287,7 +287,7 @@ double cpp_ll_timing_sampling(Rcpp::List data, Rcpp::List param, SEXP i,
 	if (delay < 1 || delay > f_dens.size()) {
 	  return  R_NegInf;
 	}
-	out += est_f_dens[delay - 1, f_ind[j]];
+	out += est_f_dens(delay - 1, f_ind[j]);
       }
     } else {
       // only the cases listed in 'i' are retained
@@ -299,7 +299,7 @@ double cpp_ll_timing_sampling(Rcpp::List data, Rcpp::List param, SEXP i,
 	if (delay < 1 || delay > f_dens.size()) {
 	  return  R_NegInf;
 	}
-	out += est_f_dens[delay - 1, f_ind[j]];
+	out += est_f_dens(delay - 1, f_ind[j]);
       }
     }
 
