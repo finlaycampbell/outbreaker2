@@ -596,13 +596,13 @@ create_config <- function(..., data = NULL) {
       ## check initial tree
       if (config$init_tree=="seqTrack" &&
           nrow(data$dna) != data$N) {
-        msg <- sprintf(paste("Can't use seqTrack initialization when", 
+        msg <- sprintf(paste("Can't use seqTrack initialization when",
                              "numbers of sequences and cases differ",
                              "(%d vs %d)"), nrow(data$dna), data$N)
         message(msg)
         config$init_tree <- "star"
       }
-      
+
       ## seqTrack init
       if (config$init_tree=="seqTrack") {
         D_temp <- data$D
@@ -636,9 +636,11 @@ create_config <- function(..., data = NULL) {
       }
     } else {
       ## set to most likely delay if t_inf not set
-      max_like_delay <- which.max(data$f_dens)
-      if (!is.finite(max_like_delay)) {
-        max_like_delay <- 1L
+      max_like_delay <- vapply(data$f_ind + 1,
+                               function(i) which.max(data$est_f_dens[,i]),
+                               numeric(1))
+      if (any(!is.finite(max_like_delay))) {
+        max_like_delay[!is.finite(max_like_delay)] <- 1L
       }
       config$init_t_inf <- as.integer(data$dates - max_like_delay)
     }

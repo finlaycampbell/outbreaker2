@@ -126,8 +126,15 @@ create_param <- function(data = outbreaker_data(),
   current_lambda <- lambda[1] <- config$init_lambda
   current_R <- R[1] <- config$init_R
   current_k <- k[1] <- config$init_k
+
+  ## init_t_inf is already defined in create_config
   if (is.null(config$init_t_inf)) {
-    current_t_inf <- t_inf[[1]] <- data$dates - which.max(data$f_dens) + 1L
+    ##most_likely_f <- vapply(data$f_ind + 1,
+    ##                        function(i) which.max(data$est_f_dens[,i]),
+    ##                        numeric(1))
+    ##    current_t_inf <- t_inf[[1]] <- data$dates - which.max(data$f_dens) + 1L
+    ##current_t_inf <- t_inf[[1]] <- data$dates - most_likely_f + 1L
+
   } else {
     current_t_inf <- t_inf[[1]] <- config$init_t_inf
   }
@@ -138,7 +145,7 @@ create_param <- function(data = outbreaker_data(),
     size = size, step = step,
     post = post, like = like, prior = prior,
     alpha = alpha, t_inf = t_inf, mu = mu, kappa = kappa, pi = pi,
-    eps = eps, lambda = lambda, R = R, k = k, 
+    eps = eps, lambda = lambda, R = R, k = k,
     counter = counter
   )
   class(store) <- c("outbreaker_store", "list")
