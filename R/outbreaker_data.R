@@ -228,9 +228,7 @@ outbreaker_data <- function(..., data = list(...)) {
   data$log_est_f_dens <- log(data$est_f_dens)
 
   ## This is indexed by 0! (for use in c++)
-  data$f_ind <- vapply(data$dates,
-                       function(dates) which(as.numeric(colnames(data$est_f_dens)) == dates) - 1,
-                       numeric(1))
+  data$f_ind <- match(data$dates, colnames(data$est_f_dens)) - 1
 
   ## output is a list of checked data
   return(data)
