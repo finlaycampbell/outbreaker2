@@ -323,7 +323,7 @@ add_convolutions <- function(data, config) {
 
 ## This will estimate the distribution of f on each day you have a sampled case
 ## for - using only dates of sampling and the incubation period distribution f
-.get_est_f <- function(sampling, f) {
+.get_est_f <- function(sampling, f, t.end) {
 
   inf <- .get_est_inf(sampling, f)
   inc <- incidence(sampling)
@@ -379,8 +379,10 @@ add_convolutions <- function(data, config) {
 }
 
 ## Estimate the average number of people infected on a given day from sampling
-## times and f - essentially applying f backwards on the sampling dates
-.get_est_inf <- function(sampling, f) {
+## times and f - essentially applying f backwards on the sampling dates. If
+## t.end is supplied, we adjust the estimate of the infectious counts for the
+## fact that we haven't sampled all the cases.
+.get_est_inf <- function(sampling, f, t.end) {
 
   inc <- incidence(sampling)
   out <- data.frame(dates = (min(sampling) - length(f)):(max(sampling) - 1),
@@ -394,6 +396,23 @@ add_convolutions <- function(data, config) {
     }
   }
 
+  if(!is.null(t.end)) {
+    ## Calculate the cumulative proportion of cases infected on day x that you
+    ## will have sampled by t_end (i.e. cumul[t_end - x] will tell you the
+    ## proportion of cases infected on day x that you will end up sampling)
+    cumul <- cumsum(f[seq_along(f)])
+
+    .f <- function(i, cumul) {
+      if(i < 1) stop("Infection occured on t_end or after - not possible")
+      else if(i > length(cumul)) return(1)
+      else return(cumul[i])
+    }
+
+    ## Adjust the inferred infections per day by the proportion sampled
+    out$counts <- out$counts/sapply(t.end - out$dates, .f, cumul)
+
+  }
+  
   return(out)
   
 }
