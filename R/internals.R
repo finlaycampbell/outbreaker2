@@ -326,7 +326,7 @@ add_convolutions <- function(data, config) {
 .get_est_f <- function(sampling, f, t_end) {
 
   inf <- .get_est_inf(sampling, f, t_end)
-  inc <- incidence(sampling)
+  inc <- incidence::incidence(sampling)
   
   out <- sapply(inc$dates, function(i) .calc_f_dist(i, f, inf, inc)[,2])
   colnames(out) <- inc$dates
@@ -346,13 +346,13 @@ add_convolutions <- function(data, config) {
 
   ## To make it a probability *given that day* (instead of an absolute
   ## probability), adjust the sum to 1
-  dist.f %<>% divide_by(sum(.))
+  dist.f <- dist.f/sum(dist.f)
   
   ## Align the incubation times with their densities
-  data.frame(day = (T - range),
-             density = dist.f) %>%
-    apply(2, rev) %>%
-    return
+  df <- data.frame(day = (T - range),
+                   density = dist.f)
+  df <- apply(df, 2, rev)
+  return(df)
 
 }
 
@@ -384,7 +384,7 @@ add_convolutions <- function(data, config) {
 ## fact that we haven't sampled all the cases.
 .get_est_inf <- function(sampling, f, t_end) {
 
-  inc <- incidence(sampling)
+  inc <- incidence::incidence(sampling)
   out <- data.frame(dates = (min(sampling) - length(f)):(max(sampling) - 1),
                     counts = 0)
 
@@ -392,7 +392,7 @@ add_convolutions <- function(data, config) {
     cases <- .ncases(T, inc)
     for(inc_period in seq_along(f)){
       dates <- T - inc_period
-      out$counts[which(out$dates == dates)] %<>% add(cases*f[inc_period])
+      out$counts[which(out$dates == dates)] <- out$counts[which(out$dates == dates)] + cases*f[inc_period]
     }
   }
 
