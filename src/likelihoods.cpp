@@ -1,5 +1,6 @@
 #include <Rmath.h>
 #include <Rcpp.h>
+#include <algorithm>
 #include "internals.h"
 #include "likelihoods.h"
 
@@ -420,9 +421,23 @@ double cpp_ll_reporting(Rcpp::List data, Rcpp::List param, size_t i,
 // 'true_neg' is the number of non-transmission pairs without contact
 
 double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
-		       Rcpp::RObject custom_function) {
-  Rcpp::NumericMatrix contacts = data["contacts"];
-  if (contacts.ncol() < 1) return 0.0;
+		      Rcpp::RObject custom_function) {
+  Rcpp::RObject contacts = data["contacts"];
+  Rcpp::RObject contacts_timed = data["contacts_timed"];
+
+  Rcpp::NumericMatrix contacts_;
+  Rcpp::IntegerVector contacts_timed_;
+  size_t C_ind_;
+  
+  if(contacts != R_NilValue) {
+    contacts_ = Rcpp::as<Rcpp::NumericMatrix>(contacts);
+    if (contacts_.ncol() < 1) return 0.0;
+  }
+  if(contacts_timed != R_NilValue) {
+    contacts_timed_ = Rcpp::as<Rcpp::IntegerVector>(contacts_timed);
+    C_ind_ = static_cast<size_t>(data["C_ind"]);
+    if (contacts_timed_.size() < 1) return 0.0;
+  }
 
   size_t C_combn = static_cast<size_t>(data["C_combn"]);
   size_t C_nrow = static_cast<size_t>(data["C_nrow"]);
@@ -436,13 +451,16 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
     double lambda = Rcpp::as<double>(param["lambda"]);
     Rcpp::IntegerVector alpha = param["alpha"];
     Rcpp::IntegerVector kappa = param["kappa"];
-
+    
     size_t true_pos = 0;
     size_t false_pos = 0;
     size_t false_neg = 0;
     size_t true_neg = 0;
     size_t imports = 0;
     size_t unobsv_case = 0;
+
+    Rcpp::IntegerVector t_inf = param["t_inf"];
+    size_t coor = 0;
 
     // p(eps < 0 || lambda < 0) = 0
     if (eps < 0.0 || lambda < 0.0) {
@@ -456,7 +474,18 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
       } else if (kappa[j] > 1) {
 	unobsv_case += 1;
       } else {
-	true_pos += contacts(j, alpha[j] - 1); // offset
+	if (contacts_timed == R_NilValue) {
+	  true_pos += contacts_(j, alpha[j] - 1); // offset	  
+	} else {
+	  coor = N*N*(t_inf[j] + C_ind_) + N*j + alpha[j] - 1;
+	  //true_pos += contacts_timed_(coor);
+	  //std::cout << coor << std::endl;
+	  //std::cout << N*N*(41 + C_ind_) + N*4 + 8 - 1 << std::endl;
+	  if(std::find(contacts_timed_.begin(), contacts_timed_.end(), coor) != contacts_timed_.end()) {
+	  //if(std::binary_search (contacts_timed_.begin(), contacts_timed_.end(), coor)) {
+	    true_pos += 1;
+	  }
+	}
       }
     }
 
@@ -520,12 +549,13 @@ double cpp_ll_timing(Rcpp::List data, Rcpp::List param, SEXP i,
 
   if (custom_functions == R_NilValue) {
     return cpp_ll_timing_infections(data, param, i) +
-      cpp_ll_timing_sampling(data, param, i);
+      cpp_ll_timing_sampling(data, param, i) +
+      cpp_ll_contact(data, param, i);
   } else { // use of a customized likelihood functions
     Rcpp::List list_functions = Rcpp::as<Rcpp::List>(custom_functions);
     return cpp_ll_timing_infections(data, param, i, list_functions["timing_infections"]) +
-      cpp_ll_timing_sampling(data, param, i, list_functions["timing_sampling"]);
-
+      cpp_ll_timing_sampling(data, param, i, list_functions["timing_sampling"]) +
+      cpp_ll_contact(data, param, i, list_functions["contact"]);
   }
 }
 
