@@ -26,5 +26,11 @@ void lookup_sequenced_ancestor(Rcpp::IntegerVector alpha, Rcpp::IntegerVector ka
 			       bool *found_sequenced_ancestor
 			       );
 
+bool is_between_ward(Rcpp::NumericMatrix ward_matrix,
+		     Rcpp::IntegerVector t_inf,
+		     Rcpp::IntegerVector t_onw,
+		     Rcpp::IntegerVector alpha,
+		     int C_ind,
+		     size_t j);
 
 #endif

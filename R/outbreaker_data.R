@@ -38,6 +38,8 @@
 #'
 #' @author Thibaut Jombart (\email{thibautjombart@@gmail.com})
 #'
+#' @importFrom magrittr %>%
+#'
 #' @export
 #'
 #' @examples
@@ -49,11 +51,12 @@ outbreaker_data <- function(..., data = list(...)) {
 
   ## SET DEFAULTS ##
   defaults <- list(dates = NULL, w_dens = NULL, f_dens = NULL, dna = NULL,
-                   ctd = NULL, wards = NULL, ids = NULL, N = 0L, L = 0L,
-                   D = NULL, max_range = NA, can_be_ances = NULL,
-                   log_w_dens = NULL, log_f_dens = NULL, contacts = NULL,
-                   C_combn = NULL, C_nrow = NULL, contacts_timed = NULL,
-                   C_ind = NULL, has_dna = logical(0), id_in_dna = integer(0))
+                   ctd = NULL, wards = NULL, ids = NULL, w_unobs = NULL, N = 0L,
+                   L = 0L, D = NULL, max_range = NA, can_be_ances = NULL,
+                   log_w_dens = NULL, log_w_unobs = NULL, log_f_dens = NULL,
+                   contacts = NULL, C_combn = NULL, C_nrow = NULL,
+                   contacts_timed = NULL, C_ind = NULL, has_dna = logical(0),
+                   move_t_onw = NULL, between_wards = NULL, id_in_dna = integer(0))
 
   ## MODIFY DATA WITH ARGUMENTS ##
   data <- modify_defaults(defaults, data, FALSE)
@@ -70,9 +73,105 @@ outbreaker_data <- function(..., data = list(...)) {
       data$dates <- difftime(data$dates, min_date, units="days")
     }
     data$dates <- as.integer(round(data$dates))
+    data$dates <- data$dates - min(data$dates)
     data$N <- length(data$dates)
     data$max_range <- diff(range(data$dates))
-    ## get temporal ordering constraint:
+  }
+
+  ## CHECK ID
+  if(!is.null(data$ids)) {
+    data$ids <- as.character(data$ids)
+  } else {
+    data$ids <- seq_len(data$N)
+  }
+
+  ## CHECK W_DENS
+  if (!is.null(data$w_dens)) {
+    if (any(data$w_dens<0)) {
+      stop("w_dens has negative entries (these should be probabilities!)")
+    }
+
+    if (any(!is.finite(data$w_dens))) {
+      stop("non-finite values detected in w_dens")
+    }
+
+
+    ## Remove trailing zeroes to prevent starting with -Inf temporal loglike
+    if(data$w_dens[length(data$w_dens)] == 0) {
+      final_index <- max(which(data$w_dens > 0))
+      data$w_dens <- data$w_dens[1:final_index]
+      warning("Removed trailing zeroes found in w_dens")
+    }
+
+    ## add an exponential tail summing to 1e-4 to 'w'
+    ## to cover the span of the outbreak
+    ## (avoids starting with -Inf temporal loglike)
+    if (length(data$w_dens) < data$max_range) {
+      length_to_add <- (data$max_range-length(data$w_dens)) + 10 # +10 to be on the safe side
+      val_to_add <- stats::dexp(seq_len(length_to_add), 1)
+      val_to_add <- 1e-4*(val_to_add/sum(val_to_add))
+      data$w_dens <- c(data$w_dens, val_to_add)
+    }
+
+    ## standardize the mass function
+    data$w_dens <- data$w_dens / sum(data$w_dens)
+    data$log_w_dens <- matrix(log(data$w_dens), nrow = 1)
+  }
+
+  ## CHECK W_UNOBS
+  if (!is.null(data$w_unobs)) {
+    if (any(data$w_unobs<0)) {
+      stop("w_unobs has negative entries (these should be probabilities!)")
+    }
+
+    if (any(!is.finite(data$w_unobs))) {
+      stop("non-finite values detected in w_unobs")
+    }
+
+    ## Remove trailing zeroes to prevent starting with -Inf temporal loglike
+    if(data$w_unobs[length(data$w_unobs)] == 0) {
+      final_index <- max(which(data$w_unobs > 0))
+      data$w_unobs <- data$w_unobs[1:final_index]
+      warning("Removed trailing zeroes found in w_unobs")
+    }
+
+    ## add an exponential tail summing to 1e-4 to 'w'
+    ## to cover the span of the outbreak
+    ## (avoids starting with -Inf temporal loglike)
+    if (length(data$w_unobs) < data$max_range) {
+      length_to_add <- (data$max_range-length(data$w_unobs)) + 10 # +10 to be on the safe side
+      val_to_add <- stats::dexp(seq_len(length_to_add), 1)
+      val_to_add <- 1e-4*(val_to_add/sum(val_to_add))
+      data$w_unobs <- c(data$w_unobs, val_to_add)
+    }
+
+    ## standardize the mass function
+    data$w_unobs <- data$w_unobs / sum(data$w_unobs)
+    data$log_w_unobs <- matrix(log(data$w_unobs), nrow = 1)
+  } else {
+    data$w_unobs <- data$w_dens
+    data$log_w_unobs <- data$log_w_dens
+  }
+  
+  ## CHECK F_DENS
+  if (!is.null(data$w_dens) && is.null(data$f_dens)) {
+    data$f_dens <- data$w_dens
+  }
+  if (!is.null(data$f_dens)) {
+    if (any(data$f_dens<0)) {
+      stop("f_dens has negative entries (these should be probabilities!)")
+    }
+
+    if (any(!is.finite(data$f_dens))) {
+      stop("non-finite values detected in f_dens")
+    }
+
+    data$f_dens <- data$f_dens / sum(data$f_dens)
+    data$log_f_dens <- log(data$f_dens)
+  }
+
+  ## Add temporal ordering constraints using Serial Interval
+  if(!is.null(data$dates)) {
     ## canBeAnces[i,j] is 'i' can be ancestor of 'j'
     ## Calculate the serial interval from w_dens and f_dens
     .get_SI <- function(w_dens, f_dens) {
@@ -96,64 +195,6 @@ outbreaker_data <- function(..., data = list(...)) {
                                SI = SI) # strict < is needed as we impose w(0)=0
     diag(data$can_be_ances) <- FALSE
   }
-
-  ## CHECK ID
-  if(!is.null(data$ids)) {
-
-  } else {
-    data$ids <- seq_len(data$N)
-  }
-
-  ## CHECK W_DENS
-  if (!is.null(data$w_dens)) {
-    if (any(data$w_dens<0)) {
-      stop("w_dens has negative entries (these should be probabilities!)")
-    }
-
-    if (any(!is.finite(data$w_dens))) {
-      stop("non-finite values detected in w_dens")
-    }
-
-
-    ## Remove trailing zeroes to prevent starting with -Inf temporal loglike
-    if(data$w_dens[length(data$w_dens)] < 1e-15) {
-      final_index <- max(which(data$w_dens > 1e-15))
-      data$w_dens <- data$w_dens[1:final_index]
-      warning("Removed trailing zeroes found in w_dens")
-    }
-
-    ## add an exponential tail summing to 1e-4 to 'w'
-    ## to cover the span of the outbreak
-    ## (avoids starting with -Inf temporal loglike)
-    if (length(data$w_dens) < data$max_range) {
-      length_to_add <- (data$max_range-length(data$w_dens)) + 10 # +10 to be on the safe side
-      val_to_add <- stats::dexp(seq_len(length_to_add), 1)
-      val_to_add <- 1e-4*(val_to_add/sum(val_to_add))
-      data$w_dens <- c(data$w_dens, val_to_add)
-    }
-
-    ## standardize the mass function
-    data$w_dens <- data$w_dens / sum(data$w_dens)
-    data$log_w_dens <- matrix(log(data$w_dens), nrow = 1)
-  }
-
-  ## CHECK F_DENS
-  if (!is.null(data$w_dens) && is.null(data$f_dens)) {
-    data$f_dens <- data$w_dens
-  }
-  if (!is.null(data$f_dens)) {
-    if (any(data$f_dens<0)) {
-      stop("f_dens has negative entries (these should be probabilities!)")
-    }
-
-    if (any(!is.finite(data$f_dens))) {
-      stop("non-finite values detected in f_dens")
-    }
-
-    data$f_dens <- data$f_dens / sum(data$f_dens)
-    data$log_f_dens <- log(data$f_dens)
-  }
-
 
   ## CHECK DNA
 
@@ -209,7 +250,7 @@ outbreaker_data <- function(..., data = list(...)) {
                    "are unknown cases (idx < 1 or > N")
              )
       }
-      data$contacts <- matrix(0, data$N, data$N)
+      data$contacts <- data$contacts_timed <- matrix(0, data$N, data$N)
       data$contacts[data$ctd] <- data$contacts[data$ctd[,c(2, 1)]] <- 1
       data$C_combn <- data$N*(data$N - 1)/2
       data$C_nrow <- nrow(data$ctd)
@@ -230,6 +271,7 @@ outbreaker_data <- function(..., data = list(...)) {
 
       ## Set up an array to cover all transmission pairs and times
       data$contacts_timed <- array(0, c(data$N, data$N, diff(range(data$ctd[,3])) + 1))
+      data$contacts <- matrix(0, nrow = 0, ncol = 0)
       data$C_ind <- -min(data$ctd$date)
 
       ## Assign a unique identifier to each combination of ID | ID | Date,
@@ -255,11 +297,15 @@ outbreaker_data <- function(..., data = list(...)) {
       stop("ctd must have two or three columns")
     }
   } else {
-    data$contacts <- data$contacts_timed <- matrix(integer(0), ncol = 0, nrow = 0)
+    data$contacts <- data$contacts_timed <- matrix(0, nrow = 0, ncol = 0)
   }
 
   if(!is.null(data$wards)) {
-    
+
+    if(ncol(wards) != 4) {
+      stop(paste0("Ward data must have four columns (ID | Ward",
+                  " | Admission date | Discharge date)"))
+    }
     if(!is.null(data$ctd)) {
       stop("Cannot use ward data and contact data; remove one.")
     }
@@ -267,11 +313,23 @@ outbreaker_data <- function(..., data = list(...)) {
        class(min_date) != class(data$wards[,4])) {
       stop("Sampling dates and ward dates are not in the same format.")
     }
-    if(!inherits(data$wards[,1], c("numeric", "character", "integer"))) {
-      stop("IDs in ward data must be numbers of characters")
+    if(inherits(data$wards[,1], "factor")) {
+      data$wards[,1] <- as.character(data$wards[,1])
     }
+    if(!inherits(data$wards[,1], c("numeric", "character", "integer"))) {
+      stop("IDs in ward data must be numbers or characters")
+    }
+    if(any(!data$wards[,1] %in% data$ids)) {
+      stop("IDs in ward data not found in case IDs.")
+    }
+
+    ## Replace IDs with their numeric indices
+    data$wards[,1] <- as.character(data$wards[,1])
+
+    ## Set ward names as characters to prevent accidental indicing with numbers
+    data$wards[,2] <- as.character(data$wards[,2])
     
-    ## Set min(data$date) as day = 1 and adjust contact dates accordingly
+    ## Set min(data$date) as day = 0 and adjust contact dates accordingly
     if (inherits(data$wards[,3], "Date")) {
       data$wards[,3] <- data$wards[,3] - min_date
       data$wards[,4] <- data$wards[,4] - min_date
@@ -283,30 +341,35 @@ outbreaker_data <- function(..., data = list(...)) {
     data$wards[,3] <- as.integer(round(data$wards[,3]))
     data$wards[,4] <- as.integer(round(data$wards[,4]))
 
-    if(any(data$wards[,4] - data$wards[,3] < 0) {
+    if(any(data$wards[,4] - data$wards[,3] < 0)) {
       stop("Ward discharge dates must be after admission dates.")
     }
 
-    if(any(!data$wards[,1] %in% data$ids)) {
-      stop("IDs in ward data not found in case IDs.")
-    }
-    
-    data$wards[,1] <- match(data$wards[,1], data$ids)
-    data$wards[,2] <- as.character(data$wards[,2])
-    
-    ward_dat <- matrix(0, nrow = data$N,
+    ward_matrix <- matrix(0, nrow = data$N,
                        ncol = max(data$wards[,4]) - min(data$wards[,3]) + 1)
-
     data$C_ind <- -min(data$wards$adm)
     ward_order <- unique(data$wards[,2])
 
     for(i in 1:nrow(data$wards)) {
       ind <- (data$wards[i,3] + data$C_ind + 1):(data$wards[i,4] + data$C_ind + 1)
-      ward_dat[data$wards[i, 1], ind] <- match(data$wards[i, 2], ward_order)
+      ward_matrix[match(data$wards[i, 1], data$ids), ind] <- match(data$wards[i, 2], ward_order)
     }
+
+    ## Calculate the number of contacts from ward data
+    n_contacts <- ward_matrix %>%
+      apply(2, function(i) table(i[i != 0])) %>%
+      lapply(function(i) i*(i - 1)/2) %>%
+      lapply(sum) %>%
+      unlist
+
+    ## Define the time of contacts as occuring between the first admission date
+    ## and last discharge date
+    data$C_nrow <- sum(n_contacts)
+    data$C_combn <- (data$N*(data$N - 1)/2)*ncol(ward_matrix)
+    data$ward_matrix <- ward_matrix
     
   } else {
-    data$ward_dat <- matrix(integer(0), ncol = 0, nrow = 0)
+    data$ward_matrix <- matrix(0, nrow = 0, ncol = 0)
   }
   
   ## output is a list of checked data

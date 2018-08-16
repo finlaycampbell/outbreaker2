@@ -33,6 +33,10 @@ cpp_lookup_sequenced_ancestor <- function(data, param, i) {
     .Call(`_outbreaker2_cpp_lookup_sequenced_ancestor`, data, param, i)
 }
 
+is_between_ward <- function(ward_matrix, t_inf, t_onw, alpha, C_ind, j) {
+    .Call(`_outbreaker2_is_between_ward`, ward_matrix, t_inf, t_onw, alpha, C_ind, j)
+}
+
 cpp_ll_genetic <- function(data, param, i = NULL, custom_function = NULL) {
     .Call(`_outbreaker2_cpp_ll_genetic`, data, param, i, custom_function)
 }
@@ -69,6 +73,10 @@ cpp_move_pi <- function(param, data, config, custom_ll = NULL, custom_prior = NU
     .Call(`_outbreaker2_cpp_move_pi`, param, data, config, custom_ll, custom_prior)
 }
 
+cpp_move_pi2 <- function(param, data, config, custom_ll = NULL, custom_prior = NULL) {
+    .Call(`_outbreaker2_cpp_move_pi2`, param, data, config, custom_ll, custom_prior)
+}
+
 cpp_move_eps <- function(param, data, config, custom_ll = NULL, custom_prior = NULL) {
     .Call(`_outbreaker2_cpp_move_eps`, param, data, config, custom_ll, custom_prior)
 }
@@ -85,6 +93,10 @@ cpp_move_alpha <- function(param, data, list_custom_ll = NULL) {
     .Call(`_outbreaker2_cpp_move_alpha`, param, data, list_custom_ll)
 }
 
+cpp_move_joint <- function(param, data, config, list_custom_ll = NULL) {
+    .Call(`_outbreaker2_cpp_move_joint`, param, data, config, list_custom_ll)
+}
+
 cpp_move_swap_cases <- function(param, data, list_custom_ll = NULL) {
     .Call(`_outbreaker2_cpp_move_swap_cases`, param, data, list_custom_ll)
 }
@@ -99,6 +111,10 @@ cpp_prior_mu <- function(param, config, custom_function = NULL) {
 
 cpp_prior_pi <- function(param, config, custom_function = NULL) {
     .Call(`_outbreaker2_cpp_prior_pi`, param, config, custom_function)
+}
+
+cpp_prior_pi2 <- function(param, config, custom_function = NULL) {
+    .Call(`_outbreaker2_cpp_prior_pi2`, param, config, custom_function)
 }
 
 cpp_prior_eps <- function(param, config, custom_function = NULL) {

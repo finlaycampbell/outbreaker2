@@ -108,52 +108,61 @@
 #'
 create_param <- function(data = outbreaker_data(),
                          config = create_config()) {
-    ## CREATE EMPTY OUTPUT VECTORS ##
-    size <- round(config$n_iter/config$sample_every)
-    step <- integer(size)
-    post <- prior <- like <- mu <- pi <- eps <- lambda <- double(size)
-    alpha <- as.list(integer(size))
-    t_inf <- as.list(integer(size))
-    kappa <- as.list(integer(size))
+  ## CREATE EMPTY OUTPUT VECTORS ##
+  size <- round(config$n_iter/config$sample_every)
+  step <- integer(size)
+  post <- prior <- like <- mu <- pi <- pi2 <- eps <- lambda <- double(size)
+  alpha <- as.list(integer(size))
+  t_inf <- as.list(integer(size))
+  t_onw <- as.list(integer(size))
+  kappa <- as.list(integer(size))
 
-    ## SET CURRENT VALUES AND COUNTER ##
-    step[1] <- 1L
-    current_mu <- mu[1] <- config$init_mu
-    current_alpha <- alpha[[1]] <- config$init_alpha
-    current_kappa <- kappa[[1]] <- config$init_kappa
-    current_pi <- pi[1] <- config$init_pi
-    current_eps <- eps[1] <- config$init_eps
-    current_lambda <- lambda[1] <- config$init_lambda
-    if (is.null(config$init_t_inf)) {
-        current_t_inf <- t_inf[[1]] <- data$dates - which.max(data$f_dens) + 1L
-    } else {
-        current_t_inf <- t_inf[[1]] <- config$init_t_inf
-    }
-    counter <- 1L
-
-
-    store <- list(
-                size = size, step = step,
-                post = post, like = like, prior = prior,
-                alpha = alpha, t_inf = t_inf, mu = mu, kappa = kappa, pi = pi,
-                eps = eps, lambda = lambda,
-                counter = counter
-                )
-    class(store) <- c("outbreaker_store", "list")
+  ## SET CURRENT VALUES AND COUNTER ##
+  step[1] <- 1L
+  current_mu <- mu[1] <- config$init_mu
+  current_alpha <- alpha[[1]] <- config$init_alpha
+  current_kappa <- kappa[[1]] <- config$init_kappa
+  current_pi <- pi[1] <- config$init_pi
+  current_pi2 <- pi2[1] <- config$init_pi2
+  current_eps <- eps[1] <- config$init_eps
+  current_lambda <- lambda[1] <- config$init_lambda
+  if (is.null(config$init_t_inf)) {
+    current_t_inf <- t_inf[[1]] <- data$dates - which.max(data$f_dens) + 1L
+  } else {
+    current_t_inf <- t_inf[[1]] <- config$init_t_inf
+  }
+  if (is.null(config$init_t_onw)) {
+    current_t_onw <- t_onw[[1]] <- round(config$init_t_inf -
+                                         sum(data$w_dens*seq_along(data$w_dens))/2)
+  } else {
+    current_t_onw <- t_onw[[1]] <- config$init_t_onw
+  }
+  counter <- 1L
 
 
-    current  <- list(
-        alpha = current_alpha, t_inf = current_t_inf, mu = current_mu,
-        kappa = current_kappa, pi = current_pi, eps = current_eps,
-        lambda = current_lambda
-    )
-    class(current) <- c("outbreaker_param", "list")
+  store <- list(
+    size = size, step = step,
+    post = post, like = like, prior = prior,
+    alpha = alpha, t_inf = t_inf, t_onw = t_onw,
+    mu = mu, kappa = kappa, pi = pi, pi2 = pi2,
+    eps = eps, lambda = lambda,
+    counter = counter
+  )
+  class(store) <- c("outbreaker_store", "list")
+
+
+  current  <- list(
+    alpha = current_alpha, t_inf = current_t_inf, t_onw = current_t_onw,
+    mu = current_mu, kappa = current_kappa, pi = current_pi, pi2 = current_pi2,
+    eps = current_eps, lambda = current_lambda
+  )
+  class(current) <- c("outbreaker_param", "list")
 
 
 
-    ## SHAPE CHAIN ##
-    out <- list(store = store,
-                current = current)
-    return(out)
+  ## SHAPE CHAIN ##
+  out <- list(store = store,
+              current = current)
+  return(out)
 }
 

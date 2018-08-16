@@ -217,13 +217,16 @@ Rcpp::IntegerVector cpp_find_local_cases(Rcpp::IntegerVector alpha, size_t i) {
 Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i) {
   Rcpp::IntegerVector alpha_in = param["alpha"];
   Rcpp::IntegerVector t_inf_in = param["t_inf"];
+  Rcpp::IntegerVector t_onw_in = param["t_onw"];
   Rcpp::IntegerVector kappa_in = param["kappa"];
   Rcpp::IntegerVector alpha_out = clone(alpha_in);
   Rcpp::IntegerVector t_inf_out = clone(t_inf_in);
+  Rcpp::IntegerVector t_onw_out = clone(t_onw_in);
   Rcpp::IntegerVector kappa_out = clone(kappa_in);
   Rcpp::List out;
   out["alpha"] = alpha_out;
   out["t_inf"] = t_inf_out;
+  out["t_onw"] = t_onw_out;
   out["kappa"] = kappa_out;
       
   size_t N = alpha_in.size();
@@ -269,6 +272,9 @@ Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i) {
   t_inf_out[i-1] =   t_inf_in[x-1];
   t_inf_out[x-1] =   t_inf_in[i-1];
 
+  t_onw_out[i-1] =   t_onw_in[x-1];
+  t_onw_out[x-1] =   t_onw_in[i-1];
+  
   kappa_out[i-1] =   kappa_in[x-1];
   kappa_out[x-1] =   kappa_in[i-1];
 
@@ -429,3 +435,38 @@ void lookup_sequenced_ancestor(Rcpp::IntegerVector alpha, Rcpp::IntegerVector ka
 }
 
 
+
+// ---------------------------
+
+// This function returns a boolean indicating if an unobserved case moved
+// between wards or not - this boils down to determining if the ward at the time
+// of infection (t_inf) is the same as the ward of the infector at the time of
+// onward infection (t_onw)
+
+// - 'i'
+// - the descendents of 'i'
+// - 'alpha[i-1]'
+// - the descendents of 'alpha[i]' (excluding 'i')
+
+// where 'alpha' is a IntegerVector storing ancestries. Note that 'i' and
+// 'alpha' are on the scale 1:N. 
+
+// [[Rcpp::export()]]
+bool is_between_ward(Rcpp::NumericMatrix ward_matrix, Rcpp::IntegerVector t_inf,
+		     Rcpp::IntegerVector t_onw, Rcpp::IntegerVector alpha,
+		     int C_ind, size_t j) {
+  
+  int ind1 = t_inf[j] + C_ind;
+  int ind2 = t_onw[j] + C_ind;
+  int ward1 = ward_matrix(j, ind1);
+  int ward2 = ward_matrix(alpha[j] - 1, ind2);
+  bool out = (ward1 != ward2 &&
+	      ward1 != 0 &&
+	      ward2 != 0 &&
+	      ind1 >= 0 &&
+	      ind2 >= 0 &&
+	      ind1 < ward_matrix.ncol() &&
+	      ind2 < ward_matrix.ncol());
+
+  return out;
+}

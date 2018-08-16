@@ -83,9 +83,11 @@ custom_moves <- function(...) {
 
     defaults <- list(mu = cpp_move_mu,
                      pi = cpp_move_pi,
+                     pi2 = cpp_move_pi2,
                      eps = cpp_move_eps,
                      lambda = cpp_move_lambda,
                      alpha = cpp_move_alpha,
+                     joint = cpp_move_joint,
                      swap_cases = cpp_move_swap_cases,
                      t_inf = cpp_move_t_inf,
                      kappa = cpp_move_kappa

@@ -279,13 +279,27 @@ add_convolutions <- function(data, config) {
                                             log(rev(data$w_dens))
                                )[seq_len(ncol(data$log_w_dens))]
       )
+      data$log_w_unobs <- rbind(data$log_w_unobs,
+                               convolve_log(data$log_w_unobs[i-1,],
+                                            log(rev(data$w_unobs))
+                               )[seq_len(ncol(data$log_w_unobs))]
+      )
     }
   }
+
+  ## The option to move t_onw needs to be available to the likelihood function -
+  ## use this function to pass information from config to data
+  data$move_t_onw <- config$move_t_onw
+  data$between_wards <- config$between_wards
+  data$move_pi2 <- config$move_pi2
   
   ## name rows/columns (useful if internal debugging needed)
   rownames(data$log_w_dens) <- paste("kappa", seq_len(nrow(data$log_w_dens)), sep="=")
   colnames(data$log_w_dens) <- seq_len(ncol(data$log_w_dens))
-  
+
+  rownames(data$log_w_unobs) <- paste("kappa", seq_len(nrow(data$log_w_unobs)), sep="=")
+  colnames(data$log_w_unobs) <- seq_len(ncol(data$log_w_unobs))
+    
   return(data)
 }
 

@@ -367,6 +367,11 @@ summary.outbreaker_chains <- function(object, burnin = 0, ...) {
   t_inf <- as.matrix(x[,grep("t_inf", names(x))])
   out$tree$time <- apply(t_inf, 2, median)
 
+  t_onw <- as.matrix(x[,grep("t_onw", names(x))])
+  if(ncol(t_onw) > 0) {
+    out$tree$onw <- apply(t_onw, 2, median)
+  }
+  
   ## function to get frequency of most frequent item
   f2 <- function(x) {
     (sort(table(x), decreasing = TRUE)/length(x))[1]
@@ -375,7 +380,10 @@ summary.outbreaker_chains <- function(object, burnin = 0, ...) {
 
   ## summary of kappa ##
   kappa <- as.matrix(x[,grep("kappa", names(x))])
-  out$tree$generations <- apply(kappa, 2, median)
+  ## Use the modal value instead of median (median doesn't make sense if you
+  ## have NA i.e. imports)
+  out$tree$generations <- apply(kappa, 2, f1)
+  ##out$tree$generations <- apply(kappa, 2, median)
 
   ## shape tree as a data.frame
   out$tree <- as.data.frame(out$tree)
