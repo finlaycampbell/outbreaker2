@@ -716,10 +716,6 @@ Rcpp::List cpp_move_kappa(Rcpp::List param, Rcpp::List data, Rcpp::List config,
     // only non-NA ancestries are moved
     if (alpha[i] != NA_INTEGER) {
 
-      // loglike with current parameters
-      old_loglike = cpp_ll_all(data, param, i+1, list_custom_ll);
-
-      
       // propose new kappa
       jump = (unif_rand() > 0.5) ? 1 : -1;
       new_kappa[i] = kappa[i] + jump;
@@ -732,9 +728,11 @@ Rcpp::List cpp_move_kappa(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	new_kappa[i] = kappa[i];
       } else {
 
+	// loglike with current parameters
+	old_loglike = cpp_ll_all(data, param, i+1, list_custom_ll);
+	
 	// loglike with new parameters
 	new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
-
 
 	// acceptance term
 	p_accept = exp(new_loglike - old_loglike);
@@ -743,7 +741,8 @@ Rcpp::List cpp_move_kappa(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	if (p_accept >= unif_rand()) { // accept new parameters
 	  //	  	  	   Rprintf("\naccepting kappa:%d  (p: %f  old ll:  %f  new ll: %f",
 				   //	   	   new_kappa[i], p_accept, old_loglike, new_loglike);
-	  param["kappa"] = new_kappa;
+	  kappa[i] = new_kappa[i];
+	  //param["kappa"] = new_kappa;
 	} else {
 	  new_kappa[i] = kappa[i];
 	}
