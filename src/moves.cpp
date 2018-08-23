@@ -168,8 +168,8 @@ Rcpp::List cpp_move_pi(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
 // [[Rcpp::export(rng = true)]]
 Rcpp::List cpp_move_pi2(Rcpp::List param, Rcpp::List data, Rcpp::List config,
-		       Rcpp::RObject custom_ll = R_NilValue,
-		       Rcpp::RObject custom_prior = R_NilValue) {
+			Rcpp::RObject custom_ll = R_NilValue,
+			Rcpp::RObject custom_prior = R_NilValue) {
 
   // deep copy here for now, ultimately should be an arg.
 
@@ -209,7 +209,8 @@ Rcpp::List cpp_move_pi2(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
   p_accept = exp(new_logpost - old_logpost);
 
-
+  std::cout << p_accept << std::endl;
+  
   // acceptance: the new value is already in pi2, so we only act if the move is
   // rejected, in which case we restore the previous ('old') value
 
@@ -235,8 +236,8 @@ Rcpp::List cpp_move_pi2(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
 // [[Rcpp::export(rng = true)]]
 Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
-		       Rcpp::RObject custom_ll = R_NilValue,
-		       Rcpp::RObject custom_prior = R_NilValue) {
+			Rcpp::RObject custom_ll = R_NilValue,
+			Rcpp::RObject custom_prior = R_NilValue) {
 
   // deep copy here for now, ultimately should be an arg.
 
@@ -302,8 +303,8 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
 // [[Rcpp::export(rng = true)]]
 Rcpp::List cpp_move_lambda(Rcpp::List param, Rcpp::List data, Rcpp::List config,
-		       Rcpp::RObject custom_ll = R_NilValue,
-		       Rcpp::RObject custom_prior = R_NilValue) {
+			   Rcpp::RObject custom_ll = R_NilValue,
+			   Rcpp::RObject custom_prior = R_NilValue) {
 
   // deep copy here for now, ultimately should be an arg.
 
@@ -468,7 +469,7 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
   size_t N = static_cast<size_t>(data["N"]);
 
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
-
+  
   for (size_t i = 0; i < N; i++) {
 
     // only non-NA ancestries are moved, if there is at least 1 choice
@@ -561,21 +562,65 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
       new_kappa[i] = kappa[i] + jump;
 
-      // proposal rnorm(0, sd_t_onw) We only move t_onw if we are inferring an
-      // unobserved case - otherwise we will move t_onw when kappa == 1 and the
-      // effect of moving t_onw on the likelihood will not be considered
-      if(new_kappa[i] > 1) {
-	 new_t_onw[i] += std::round(R::rnorm(0.0, sd_t_onw));
-      }
+      if (new_kappa[i] < 1 || new_kappa[i] > K) {
+	p_accept = R_NegInf;
+      } else {
       
-      // loglike with current value
-      new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
+	// jump from Model1 to Model2
+	if(kappa[i] == 1 && new_kappa[i] == 2) {
 
-      // acceptance term
-      p_accept = exp(new_loglike - old_loglike);
+	  // If kappa > 1, infection times must be at least two days apart
+	  if(t_inf[i] - t_inf[alpha[i] - 1] < 2) {
+	    p_accept = R_NegInf;
+	  } else {
 
-      //std::cout << old_loglike << " | " << new_loglike << std::endl;
+	    Rcpp::IntegerVector t_seq = Rcpp::seq(t_inf[alpha[i] - 1] + 1, t_inf[i] - 1);
+	    new_t_onw[i] = Rcpp::as<int>(Rcpp::sample(t_seq, 1, true));
+	  
+	    // loglike with current value
+	    new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
+
+	    // The ratio of proposal distributions is length((t_inf_i + 1):(t_inf(alpha_i)-1))
+	    p_accept = exp(new_loglike - old_loglike)*t_seq.size();
+	  }
+	  // Move from Model2 to Model1
+	} else if(kappa[i] == 2 && new_kappa[i] == 1) {
+
+	  // If kappa > 1, infection times must be at least two days apart
+	  if(t_inf[i] - t_inf[alpha[i] - 1] < 2) {
+	    p_accept = R_NegInf;
+	  } else {
+
+	    new_t_onw[i] = -1000;
+
+	    // loglike with current value
+	    new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
+
+	    // The ratio of proposal distributions is (t_inf_i + 1):(t_inf(alpha_i)-1)
+	    p_accept = exp(new_loglike - old_loglike)/(t_inf[i] - t_inf[alpha[i] - 1] - 1);
+
+	    //std::cout << new_loglike << " | " << old_loglike << " | " << p_accept << std::endl;
+	    
+	  }
+	  // Move within Model1 or Model2; if within Model2, don't move t_onw (stays NA)
+	} else {
+      
+	  // proposal rnorm(0, sd_t_onw) We only move t_onw if we are inferring an
+	  // unobserved case - otherwise we will move t_onw when kappa == 1 and the
+	  // effect of moving t_onw on the likelihood will not be considered
+	  if(new_kappa[i] > 1) {
+	    new_t_onw[i] += std::round(R::rnorm(0.0, sd_t_onw));
+	  }
+      
+	  // loglike with current value
+	  new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
+
+	  // acceptance term
+	  p_accept = exp(new_loglike - old_loglike);
 	
+	}
+	//std::cout << old_loglike << " | " << new_loglike << std::endl;
+      }	
       // which case we restore the previous ('old') value
       if (p_accept < unif_rand()) { // reject new values
 	new_alpha[i] = alpha[i];
@@ -588,6 +633,7 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   }
 
   return new_param;
+
 }
 
 
@@ -740,7 +786,7 @@ Rcpp::List cpp_move_kappa(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	// acceptance: change param only if new values is accepted
 	if (p_accept >= unif_rand()) { // accept new parameters
 	  //	  	  	   Rprintf("\naccepting kappa:%d  (p: %f  old ll:  %f  new ll: %f",
-				   //	   	   new_kappa[i], p_accept, old_loglike, new_loglike);
+	  //	   	   new_kappa[i], p_accept, old_loglike, new_loglike);
 	  kappa[i] = new_kappa[i];
 	  //param["kappa"] = new_kappa;
 	} else {

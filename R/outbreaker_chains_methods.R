@@ -369,7 +369,7 @@ summary.outbreaker_chains <- function(object, burnin = 0, ...) {
 
   t_onw <- as.matrix(x[,grep("t_onw", names(x))])
   if(ncol(t_onw) > 0) {
-    out$tree$onw <- apply(t_onw, 2, median)
+    out$tree$onw <- apply(t_onw, 2, f1)
   }
   
   ## function to get frequency of most frequent item

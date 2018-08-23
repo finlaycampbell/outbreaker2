@@ -629,6 +629,12 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
 	  true_pos += contacts(j, alpha[j] - 1); // offset
 	}
       }
+      
+      false_pos = C_nrow - true_pos;   
+      false_neg = N - imports - unobsv_case - true_pos;
+      true_neg = C_combn - true_pos - false_pos - false_neg;
+      
+      // Dated contacts
     } else if(contacts_timed.size() > 0) {
       C_ind = static_cast<int>(data["C_ind"]);
       for (size_t j = 0; j < N; j++) { 
@@ -645,6 +651,12 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
 	  }
 	}
       }
+      
+      false_pos = C_nrow - true_pos;   
+      false_neg = N - imports - unobsv_case - true_pos;
+      true_neg = C_combn - true_pos - false_pos - false_neg;
+
+      // Ward contacts; movement between wards is not allowed
     } else if(ward_matrix.ncol() > 0 && move_t_onw && !between_wards) {
       C_ind = static_cast<int>(data["C_ind"]);
       for (size_t j = 0; j < N; j++) {
@@ -657,20 +669,38 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
 	     ind1 >= 0 &&
 	     ind1 < ward_matrix.ncol()) {
 	    true_pos += 1;
+	  } else {
+	    false_neg += 1;
 	  }
 	} else if (kappa[j] > 1) {
 	  int ind1 = t_inf[j] + C_ind;
 	  int ind2 = t_onw[j] + C_ind;
+	  if(ward_matrix(alpha[j] - 1, ind2) != 0 &&
+	     ind2 >= 0 &&
+	     ind2 < ward_matrix.ncol()) {
+	    true_pos += 1;
+	      } else {
+	    false_neg += 1;
+	  }
+	  
 	  if(ward_matrix(j, ind1) == ward_matrix(alpha[j] - 1, ind2) &&
 	     ward_matrix(j, ind1) != 0 &&
 	     ind1 >= 0 &&
 	     ind2 >= 0 &&
 	     ind1 < ward_matrix.ncol() &&
 	     ind2 < ward_matrix.ncol()) {
-	    unobsv_case += 1;
+	    // This is two contacts - alpha_i to beta_i, and beta_i to i
+	    true_pos += 1;
+	  } else {
+	    false_neg += 1;
 	  }
 	}
       }
+
+      // The rjMCMC doesn't consider lambda moves
+      false_pos = 0;   
+      true_neg = 0;
+      
       // If we allow between ward movement of unobserved cases, the time of
       // onward infection and infection must be correct, but the wards don't
       // have to match - ie they just need to be on a ward (ward != 0)
@@ -686,22 +716,38 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
 	     ind1 >= 0 &&
 	     ind1 < ward_matrix.ncol()) {
 	    true_pos += 1;
+	  } else {
+	    false_neg += 1;
 	  }
 	} else if (kappa[j] > 1) {
 	  int ind1 = t_onw[j] + C_ind;
 	  int ind2 = t_inf[j] + C_ind;
 	  //	  std::cout << j << " | " << ind2 << " | " << ward_matrix(j, ind2) << " | " << ind1
 	  //	    << " | " << ward_matrix(alpha[j] - 1, ind1) << std::endl;
+	  // This is alpha_i contacting beta_i
 	  if(ward_matrix(alpha[j] - 1, ind1) != 0 &&
-	     ward_matrix(j, ind2) != 0 &&
 	     ind1 >= 0 &&
+	     ind1 < ward_matrix.ncol()) {
+	    true_pos += 1;
+	  } else {
+	    false_neg += 1;
+	  }
+
+	  // This is beta_i contacting i
+	  if(ward_matrix(j, ind2) != 0 &&
 	     ind2 >= 0 &&
-	     ind1 < ward_matrix.ncol() &&
 	     ind2 < ward_matrix.ncol()) {
-	    unobsv_case += 1;
+	    true_pos += 1;
+	  } else {
+	    false_neg += 1;
 	  }
 	}
       }
+
+      // The rjMCMC doesn't consider lambda moves
+      false_pos = 0;   
+      true_neg = 0;
+      
     } else if(ward_matrix.ncol() > 0 && !move_t_onw) {
       C_ind = static_cast<int>(data["C_ind"]);
       for (size_t j = 0; j < N; j++) {
@@ -714,12 +760,14 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
 	     ind1 >= 0 &&
 	     ind1 < ward_matrix.ncol()) {
 	    true_pos += 1;
+	  } else {
+	    false_neg += 1;
 	  }
 	} else if (kappa[j] > 1) {
 	  // If we allow between ward movement and are not respecting ward
 	  // times, then an unobserved case can go between wards at all times
 	  if(between_wards) {
-	    unobsv_case += 1;
+	    true_pos += 2;
 	  } else {
 	    // If we only allow movement within wards, and we are not inferring
 	    // onward infection times, then we have to consider which ward A
@@ -738,11 +786,18 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
 	       ward_matrix(j, ind1) != 0 &&
 	       ind1 >= 0 &&
 	       ind1 < ward_matrix.ncol()) {
-	      unobsv_case += 1;
-	    }
+	      true_pos += 2;
+	    } else {
+	      false_neg += 2;
+	    }		    
 	  }
 	}
       }
+      
+      // The rjMCMC doesn't consider lambda moves
+      false_pos = 0;   
+      true_neg = 0;
+      
     }
 
     // If we count A-U-B as a single contact for now which REPLACES A-B (so as
@@ -768,15 +823,12 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
     // unobsv_case)
 
     // This is a bit hacky atm - this will be done properly with rjMCMC
-    false_pos = C_nrow - true_pos;   
-    false_neg = N - imports - unobsv_case - true_pos;
-    true_neg = C_combn - true_pos - false_pos - false_neg;
 
     //    bool to_print = param["to_print"];
     //if(to_print) {
     //        std::cout << "unobsv_case = " << unobsv_case << " | false_neg = " << false_neg << std::endl;
       //}
-    
+
     // deal with special case when lambda == 0 and eps == 1, to avoid log(0)
     if(lambda == 0.0) {
       if(false_pos > 0) {
