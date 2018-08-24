@@ -488,6 +488,7 @@ double cpp_ll_reporting(Rcpp::List data, Rcpp::List param, SEXP i,
       Rcpp::IntegerVector alpha = param["alpha"];
       Rcpp::IntegerVector t_inf = param["t_inf"];
       Rcpp::IntegerVector t_onw = param["t_onw"];
+      Rcpp::IntegerVector sigma = param["sigma"];
       Rcpp::NumericMatrix ward_matrix = Rcpp::as<Rcpp::NumericMatrix>(data["ward_matrix"]);
       int C_ind;
       C_ind = static_cast<int>(data["C_ind"]);
@@ -504,10 +505,26 @@ double cpp_ll_reporting(Rcpp::List data, Rcpp::List param, SEXP i,
 	      return  R_NegInf;
 	    }
 	    if (kappa[j] > 1 && is_between_ward(ward_matrix, t_inf, t_onw, alpha, C_ind, j)) {
-	      if(pi2 == 1.0) {
+	      // pi2 = 0 says that between ward moves are impossible; therefore
+	      // sigma = 0 is impossible
+	      if(pi2 == 1.0 && sigma[j] == 0) {
 		return  R_NegInf;
 	      } else {
-		out += R::dgeom(kappa[j] - 1.0, pi, 1) + log(1 - std::pow(pi2, kappa[j] - 1));
+		// If j already moves between wards (sigma = 1) we don't need to
+		// calculate the additional probability of other the further
+		// unobserved cases moving between wards
+		if(sigma[j] == 0) {
+		  out += R::dgeom(kappa[j] - 1.0, pi, 1) +
+		    log(1 - pi2);
+		  // If j doesn't move between wards (sigma = 0) we need to
+		  // calculate the probability of any of the remaining
+		  // generations moving between wads, i.e. 1 - probability of
+		  // all staying on the same ward (pi)
+		} else if(sigma[j] == 1) {
+		  out += R::dgeom(kappa[j] - 1.0, pi, 1) +
+		    log(pi2) + 
+		    log(1 - std::pow(pi2, kappa[j] - 2));
+		}
 	      }
 	    } else {
 	      out += R::dgeom(kappa[j] - 1.0, pi, 1); // first arg must be cast to double
@@ -525,10 +542,26 @@ double cpp_ll_reporting(Rcpp::List data, Rcpp::List param, SEXP i,
 	      return  R_NegInf;
 	    }
 	    if (kappa[j] > 1 && is_between_ward(ward_matrix, t_inf, t_onw, alpha, C_ind, j)) {
-	      if(pi2 == 1.0) {
+	      // pi2 = 0 says that between ward moves are impossible; therefore
+	      // sigma = 0 is impossible
+	      if(pi2 == 1.0 && sigma[j] == 0) {
 		return  R_NegInf;
 	      } else {
-		out += R::dgeom(kappa[j] - 1.0, pi, 1) + log(1 - std::pow(pi2, kappa[j] - 1));
+		// If j already moves between wards (sigma = 1) we don't need to
+		// calculate the additional probability of other the further
+		// unobserved cases moving between wards
+		if(sigma[j] == 0) {
+		  out += R::dgeom(kappa[j] - 1.0, pi, 1) +
+		    log(1 - pi2);
+		  // If j doesn't move between wards (sigma = 0) we need to
+		  // calculate the probability of any of the remaining
+		  // generations moving between wads, i.e. 1 - probability of
+		  // all staying on the same ward (pi)
+		} else if(sigma[j] == 1) {
+		  out += R::dgeom(kappa[j] - 1.0, pi, 1) +
+		    log(pi2) + 
+		    log(1 - std::pow(pi2, kappa[j] - 2));
+		}
 	      }
 	    } else {
 	      out += R::dgeom(kappa[j] - 1.0, pi, 1); // first arg must be cast to double

@@ -115,6 +115,7 @@ create_param <- function(data = outbreaker_data(),
   alpha <- as.list(integer(size))
   t_inf <- as.list(integer(size))
   t_onw <- as.list(integer(size))
+  sigma <- as.list(integer(size))
   kappa <- as.list(integer(size))
 
   ## SET CURRENT VALUES AND COUNTER ##
@@ -137,6 +138,7 @@ create_param <- function(data = outbreaker_data(),
   } else {
     current_t_onw <- t_onw[[1]] <- config$init_t_onw
   }
+  current_sigma <- sigma[[1]] <- rep(1, data$N)
   counter <- 1L
 
 
@@ -145,7 +147,7 @@ create_param <- function(data = outbreaker_data(),
     post = post, like = like, prior = prior,
     alpha = alpha, t_inf = t_inf, t_onw = t_onw,
     mu = mu, kappa = kappa, pi = pi, pi2 = pi2,
-    eps = eps, lambda = lambda,
+    eps = eps, lambda = lambda, sigma = sigma,
     counter = counter
   )
   class(store) <- c("outbreaker_store", "list")
@@ -154,7 +156,7 @@ create_param <- function(data = outbreaker_data(),
   current  <- list(
     alpha = current_alpha, t_inf = current_t_inf, t_onw = current_t_onw,
     mu = current_mu, kappa = current_kappa, pi = current_pi, pi2 = current_pi2,
-    eps = current_eps, lambda = current_lambda
+    eps = current_eps, lambda = current_lambda, sigma = current_sigma
   )
   class(current) <- c("outbreaker_param", "list")
 

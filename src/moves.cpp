@@ -528,6 +528,7 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector t_inf = param["t_inf"]; // pointer to param$t_inf
   Rcpp::IntegerVector t_onw = param["t_onw"]; // pointer to param$t_onw
   Rcpp::IntegerVector kappa = param["kappa"]; // pointer to param$kappa
+  Rcpp::IntegerVector sigma = param["sigma"]; // pointer to param$kappa
 
   size_t N = static_cast<size_t>(data["N"]);
   size_t K = static_cast<size_t>(config["max_kappa"]);
@@ -535,6 +536,7 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector new_t_onw = new_param["t_onw"];
   Rcpp::IntegerVector new_kappa = new_param["kappa"];
   Rcpp::IntegerVector new_alpha = new_param["alpha"];
+  Rcpp::IntegerVector new_sigma = new_param["sigma"];
 
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
     
@@ -565,12 +567,14 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	  // Propose kappa between the 2 and max_kappa
 	  Rcpp::IntegerVector kappa_seq = Rcpp::seq(2, K);
 	  new_kappa[i] = Rcpp::as<int>(Rcpp::sample(kappa_seq, 1, true));
+
+	  new_sigma[i] = (unif_rand() > 0.5) ? 0 : 1;
 	  
 	  // loglike with current value
 	  new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
 
 	  // The ratio of proposal distributions is length((t_inf_i + 1):(t_inf(alpha_i)-1))
-	  p_accept = exp(new_loglike - old_loglike)*t_seq.size()*kappa_seq.size();
+	  p_accept = exp(new_loglike - old_loglike)*t_seq.size()*kappa_seq.size()*2;
 	}
 	// Jump from Model2 to Model1
       } else if(kappa[i] > 1) {
@@ -578,6 +582,7 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	// No longer inferring t_onw - set to -1000 (for some reason NA_INTEGER causes segfault)
 	new_t_onw[i] = -1000;
 	new_kappa[i] = 1;
+	new_sigma[i] = -1;
 
 	// loglike with current value
 	new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
@@ -586,7 +591,7 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	// only possible Model 1, in that we remove t_onw and kappa_beta_i); the
 	// proposal probability of going from M1 -> M2 is 1/(range of possible
 	// t_onw * range of possible kappa_beta_i) - we therefore need adjust for this
-	p_accept = exp(new_loglike - old_loglike)/((K - 1)*(t_inf[i] - t_inf[alpha[i] - 1] - 1));
+	p_accept = exp(new_loglike - old_loglike)/((K - 1)*(t_inf[i] - t_inf[alpha[i] - 1] - 1)*2);
 
       }
       // which case we restore the previous ('old') value
@@ -641,7 +646,8 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector new_t_onw = new_param["t_onw"];
   Rcpp::IntegerVector new_kappa = new_param["kappa"];
   Rcpp::IntegerVector new_alpha = new_param["alpha"];
-
+  Rcpp::IntegerVector new_sigma = new_param["sigma"];
+  
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
     
   for (size_t i = 0; i < N; i++) {
@@ -675,7 +681,14 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	if (new_kappa[i] < 2 || new_kappa[i] > K) {
 	  p_accept = R_NegInf;
 	} else {
+	  // Normal MH move from previous state
 	  new_t_onw[i] += std::round(R::rnorm(0.0, sd_t_onw));
+	  // Swap 0 and 1
+	  if(new_sigma[i] == 1) {
+	    new_sigma = 0;
+	  } else if(new_sigma[i] == 0) {
+	    new_sigma = 1;
+	  }
 	  // loglike with current value
 	  new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
 

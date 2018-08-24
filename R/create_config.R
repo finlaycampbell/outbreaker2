@@ -165,6 +165,7 @@ create_config <- function(..., data = NULL) {
                    init_kappa = 1,
                    init_t_inf = NULL,
                    init_t_onw = NULL,
+                   init_sigma = NULL,
                    init_pi = 0.9,
                    init_pi2 = 0.5,
                    init_eps = 0.5,

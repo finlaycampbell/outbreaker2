@@ -33,11 +33,18 @@ outbreaker_mcmc_shape <- function(param, data) {
     t_onw <- matrix(unlist(param$t_onw), ncol = data$N, byrow = TRUE)
     t_onw[t_onw == -1000] <- NA
     colnames(t_onw) <- paste("t_onw", seq_len(data$N), sep=".")
+
+    if (!all(vapply(param$sigma, length, integer(1))==data$N)) {
+      stop("some onward infection dates are missing in the param")
+    }
+    sigma <- matrix(unlist(param$sigma), ncol = data$N, byrow = TRUE)
+    sigma[sigma == -1] <- NA
+    colnames(sigma) <- paste("sigma", seq_len(data$N), sep=".")
+    
+    pi2 <- param$pi2
+
   }
 
-  if(data$move_t_onw) {
-    pi2 <- param$pi2
-  }
   
   ## unfold number of generations ##
   if (!all(vapply(param$kappa, length, integer(1))==data$N)) {
@@ -52,8 +59,11 @@ outbreaker_mcmc_shape <- function(param, data) {
                       mu = param$mu, pi = param$pi, eps = param$eps,
                       lambda = param$lambda, param$alpha, param$t_inf,
                       param$kappa)
-  if(data$move_t_onw) param$pi2 <- pi2
-  if(data$move_t_onw) param <- cbind(param, t_onw)
+  if(data$move_t_onw) {
+    param$pi2 <- pi2
+    param <- cbind(param, t_onw)
+    param <- cbind(param, sigma)
+  }
   names(param) <- gsub("[.]", "_", names(param))
 
   ## output is a data.frame containing all parameters and augmented data, with a dedicated
