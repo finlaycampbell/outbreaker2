@@ -209,8 +209,6 @@ Rcpp::List cpp_move_pi2(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
   p_accept = exp(new_logpost - old_logpost);
 
-  std::cout << p_accept << std::endl;
-  
   // acceptance: the new value is already in pi2, so we only act if the move is
   // rejected, in which case we restore the previous ('old') value
 
@@ -516,6 +514,114 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
 // is on the scale 1:N.
 
 // [[Rcpp::export(rng = true)]]
+Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
+			  Rcpp::RObject list_custom_ll = R_NilValue) {
+  Rcpp::List new_param = clone(param);
+
+  // Only propose a model swap prop_model_move % of the time
+  double prop_model_move = config["prop_model_move"];
+  if(prop_model_move < unif_rand()) {
+    return(new_param);
+  }
+  
+  Rcpp::IntegerVector alpha = param["alpha"]; // pointer to param$alpha
+  Rcpp::IntegerVector t_inf = param["t_inf"]; // pointer to param$t_inf
+  Rcpp::IntegerVector t_onw = param["t_onw"]; // pointer to param$t_onw
+  Rcpp::IntegerVector kappa = param["kappa"]; // pointer to param$kappa
+
+  size_t N = static_cast<size_t>(data["N"]);
+  size_t K = static_cast<size_t>(config["max_kappa"]);
+  
+  Rcpp::IntegerVector new_t_onw = new_param["t_onw"];
+  Rcpp::IntegerVector new_kappa = new_param["kappa"];
+  Rcpp::IntegerVector new_alpha = new_param["alpha"];
+
+  double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
+    
+  for (size_t i = 0; i < N; i++) {
+
+    // only non-NA ancestries are moved, if there is at least 1 choice
+    if (alpha[i] != NA_INTEGER && sum(t_inf < t_inf[i]) > 0) {
+
+      // loglike with current value
+      // old_loglike = cpp_ll_all(data, param, R_NilValue);
+      old_loglike = cpp_ll_all(data, param, i+1, list_custom_ll); // offset
+
+      // Pick a new sampled ancestor
+      new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1); // new proposed value (on scale 1 ... N)
+
+      // jump from Model1 to Model2
+      if(kappa[i] == 1) {
+
+	// In Model2 (kappa > 1), infection times must be at least two days apart
+	if(t_inf[i] - t_inf[alpha[i] - 1] < 2) {
+	  p_accept = R_NegInf;
+	} else {
+
+	  // Propose t_onw between the infection times of the two sampled cases
+	  Rcpp::IntegerVector t_seq = Rcpp::seq(t_inf[alpha[i] - 1] + 1, t_inf[i] - 1);
+	  new_t_onw[i] = Rcpp::as<int>(Rcpp::sample(t_seq, 1, true));
+
+	  // Propose kappa between the 2 and max_kappa
+	  Rcpp::IntegerVector kappa_seq = Rcpp::seq(2, K);
+	  new_kappa[i] = Rcpp::as<int>(Rcpp::sample(kappa_seq, 1, true));
+	  
+	  // loglike with current value
+	  new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
+
+	  // The ratio of proposal distributions is length((t_inf_i + 1):(t_inf(alpha_i)-1))
+	  p_accept = exp(new_loglike - old_loglike)*t_seq.size()*kappa_seq.size();
+	}
+	// Jump from Model2 to Model1
+      } else if(kappa[i] > 1) {
+
+	// No longer inferring t_onw - set to -1000 (for some reason NA_INTEGER causes segfault)
+	new_t_onw[i] = -1000;
+	new_kappa[i] = 1;
+
+	// loglike with current value
+	new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
+
+	// The proposal probability of going from state M2 -> M1 is 1 (there is
+	// only possible Model 1, in that we remove t_onw and kappa_beta_i); the
+	// proposal probability of going from M1 -> M2 is 1/(range of possible
+	// t_onw * range of possible kappa_beta_i) - we therefore need adjust for this
+	p_accept = exp(new_loglike - old_loglike)/((K - 1)*(t_inf[i] - t_inf[alpha[i] - 1] - 1));
+
+      }
+      // which case we restore the previous ('old') value
+      if (p_accept < unif_rand()) { // reject new values
+	new_alpha[i] = alpha[i];
+	new_t_onw[i] = t_onw[i];
+	new_kappa[i] = kappa[i];
+      } else {
+	//std::cout << "success" << std::endl;
+      }
+    }
+  }
+
+  return new_param;
+
+}
+
+
+
+
+
+
+
+// ---------------------------
+
+// Movement of ancestries ('alpha') is not vectorised, movements are made one
+// case at a time. This procedure is simply about picking an infector at random
+// amongst cases preceeding the case considered. The original version in
+// 'outbreaker' used to move simultaneously 'alpha', 'kappa' and 't_inf', but
+// current implementation is simpler and seems to mix at least as well. Proper
+// movement of 'alpha' needs this procedure as well as a swapping procedure
+// (swaps are not possible through move.alpha only); in all instances, 'alpha'
+// is on the scale 1:N.
+
+// [[Rcpp::export(rng = true)]]
 Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 			  Rcpp::RObject list_custom_ll = R_NilValue) {
   Rcpp::List new_param = clone(param);
@@ -530,10 +636,7 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   
   int jump;
 
-  bool move_t_onw = config["move_t_onw"];
-
   double sd_t_onw = static_cast<double>(config["sd_t_onw"]);
-  double prop_kappa_move = config["prop_kappa_move"];
 
   Rcpp::IntegerVector new_t_onw = new_param["t_onw"];
   Rcpp::IntegerVector new_kappa = new_param["kappa"];
@@ -553,75 +656,35 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
       // proposal (+/- 1)
       new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1); // new proposed value (on scale 1 ... N)
 
-      // propose new kappa
-      if(prop_kappa_move > unif_rand()) {
+      // Within Model 1 move; just an alpha move (t_onw and kappa are not inferred)
+      if(kappa[i] == 1) {
+
+	// loglike with current value
+	new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
+
+	// acceptance term
+	p_accept = exp(new_loglike - old_loglike);
+
+	// Within Model 2 move; move alpha, kappa and t_onw
+      } else if(kappa[i] > 1) {
+
 	jump = (unif_rand() > 0.5) ? 1 : -1;
-      } else {
-	jump = 0;
-      }
+	new_kappa[i] = kappa[i] + jump;
 
-      new_kappa[i] = kappa[i] + jump;
-
-      if (new_kappa[i] < 1 || new_kappa[i] > K) {
-	p_accept = R_NegInf;
-      } else {
-      
-	// jump from Model1 to Model2
-	if(kappa[i] == 1 && new_kappa[i] == 2) {
-
-	  // If kappa > 1, infection times must be at least two days apart
-	  if(t_inf[i] - t_inf[alpha[i] - 1] < 2) {
-	    p_accept = R_NegInf;
-	  } else {
-
-	    Rcpp::IntegerVector t_seq = Rcpp::seq(t_inf[alpha[i] - 1] + 1, t_inf[i] - 1);
-	    new_t_onw[i] = Rcpp::as<int>(Rcpp::sample(t_seq, 1, true));
-	  
-	    // loglike with current value
-	    new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
-
-	    // The ratio of proposal distributions is length((t_inf_i + 1):(t_inf(alpha_i)-1))
-	    p_accept = exp(new_loglike - old_loglike)*t_seq.size();
-	  }
-	  // Move from Model2 to Model1
-	} else if(kappa[i] == 2 && new_kappa[i] == 1) {
-
-	  // If kappa > 1, infection times must be at least two days apart
-	  if(t_inf[i] - t_inf[alpha[i] - 1] < 2) {
-	    p_accept = R_NegInf;
-	  } else {
-
-	    new_t_onw[i] = -1000;
-
-	    // loglike with current value
-	    new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
-
-	    // The ratio of proposal distributions is (t_inf_i + 1):(t_inf(alpha_i)-1)
-	    p_accept = exp(new_loglike - old_loglike)/(t_inf[i] - t_inf[alpha[i] - 1] - 1);
-
-	    //std::cout << new_loglike << " | " << old_loglike << " | " << p_accept << std::endl;
-	    
-	  }
-	  // Move within Model1 or Model2; if within Model2, don't move t_onw (stays NA)
+	// A move back to kappa = 1 is impossible; that would represent a move to Model 1
+	if (new_kappa[i] < 2 || new_kappa[i] > K) {
+	  p_accept = R_NegInf;
 	} else {
-      
-	  // proposal rnorm(0, sd_t_onw) We only move t_onw if we are inferring an
-	  // unobserved case - otherwise we will move t_onw when kappa == 1 and the
-	  // effect of moving t_onw on the likelihood will not be considered
-	  if(new_kappa[i] > 1) {
-	    new_t_onw[i] += std::round(R::rnorm(0.0, sd_t_onw));
-	  }
-      
+	  new_t_onw[i] += std::round(R::rnorm(0.0, sd_t_onw));
 	  // loglike with current value
 	  new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
 
 	  // acceptance term
 	  p_accept = exp(new_loglike - old_loglike);
-	
 	}
-	//std::cout << old_loglike << " | " << new_loglike << std::endl;
-      }	
-      // which case we restore the previous ('old') value
+      }
+
+      // Reject new values if not accepted
       if (p_accept < unif_rand()) { // reject new values
 	new_alpha[i] = alpha[i];
 	new_t_onw[i] = t_onw[i];

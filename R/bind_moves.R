@@ -105,6 +105,19 @@ bind_moves <- function(moves = custom_moves(), config, data,
 
 
 
+  ## remove move$model if no ancestry can be moved
+  if (!any(config$move_model)) {
+    out$model <- NULL
+  } else {
+    out$model <- bind_to_function(out$model,
+                                  data = data,
+                                  config = config,
+                                  list_custom_ll = likelihoods
+                                  )
+  }
+
+
+
   ## remove move$t_inf if disabled
   if (!any(config$move_t_inf)) {
     out$t_inf <- NULL

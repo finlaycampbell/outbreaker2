@@ -88,6 +88,7 @@ custom_moves <- function(...) {
                      lambda = cpp_move_lambda,
                      alpha = cpp_move_alpha,
                      joint = cpp_move_joint,
+                     model = cpp_move_model,
                      swap_cases = cpp_move_swap_cases,
                      t_inf = cpp_move_t_inf,
                      kappa = cpp_move_kappa

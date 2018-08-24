@@ -174,6 +174,7 @@ create_config <- function(..., data = NULL) {
                    move_t_onw = FALSE,
                    between_wards = FALSE,
                    move_joint = FALSE,
+                   move_model = FALSE,
                    move_mu = TRUE, move_kappa = TRUE,
                    move_pi = TRUE, move_pi2 = FALSE,
                    move_eps = TRUE, move_lambda = TRUE,
@@ -183,7 +184,7 @@ create_config <- function(..., data = NULL) {
                    sd_t_onw = 5.0,
                    prop_alpha_move = 1/4,
                    prop_t_inf_move = 0.2,
-                   prop_kappa_move = 0.1,
+                   prop_model_move = 0.1,
                    paranoid = FALSE,
                    min_date = -10,
                    max_kappa = 5,
@@ -329,6 +330,14 @@ create_config <- function(..., data = NULL) {
   }
   if (any(is.na(config$move_joint))) {
     stop("move_joint is NA")
+  }
+
+  ## check move_model
+  if (!all(is.logical(config$move_model))) {
+    stop("move_model is not a logical")
+  }
+  if (any(is.na(config$move_model))) {
+    stop("move_model is NA")
   }
 
   ## check move_swap_cases
@@ -520,18 +529,18 @@ create_config <- function(..., data = NULL) {
     stop("prop_t_inf_move is infinite or NA")
   }
 
-  ## check prop_kappa_move
-  if (!is.numeric(config$prop_kappa_move)) {
-    stop("prop_kappa_move is not a numeric value")
+  ## check prop_model_move
+  if (!is.numeric(config$prop_model_move)) {
+    stop("prop_model_move is not a numeric value")
   }
-  if (config$prop_kappa_move < 0 ) {
-    stop("prop_kappa_move is negative")
+  if (config$prop_model_move < 0 ) {
+    stop("prop_model_move is negative")
   }
-  if (config$prop_kappa_move > 1 ) {
-    stop("prop_kappa_move is greater than one")
+  if (config$prop_model_move > 1 ) {
+    stop("prop_model_move is greater than one")
   }
-  if (!is.finite(config$prop_kappa_move)) {
-    stop("prop_kappa_move is infinite or NA")
+  if (!is.finite(config$prop_model_move)) {
+    stop("prop_model_move is infinite or NA")
   }
 
 

@@ -20,8 +20,6 @@ outbreaker_find_imports <- function(moves, data, param_current,
                 param_store = param_store))
   }
 
-  cat("Identifying imports...")
-
   ## store initial param values ##
   ini_param <- list(current = param_current, store = param_store)
 

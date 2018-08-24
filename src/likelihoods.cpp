@@ -492,6 +492,11 @@ double cpp_ll_reporting(Rcpp::List data, Rcpp::List param, SEXP i,
       int C_ind;
       C_ind = static_cast<int>(data["C_ind"]);
 
+      // If a transmission pair is found on different wards, this suggests that
+      // at least one unobserved case has moved between wards; i.e. 1 - the
+      // probability of all unobserved cases remaining on the same ward (1 -
+      // pi2)^(kappa - 1)
+      
       if (i == R_NilValue) {
 	for (size_t j = 0; j < N; j++) {
 	  if (kappa[j] != NA_INTEGER) {
@@ -502,10 +507,10 @@ double cpp_ll_reporting(Rcpp::List data, Rcpp::List param, SEXP i,
 	      if(pi2 == 1.0) {
 		return  R_NegInf;
 	      } else {
-		out += R::dgeom(kappa[j] - 1.0, pi*(1.0 - pi2), 1); // first arg must be cast to double
+		out += R::dgeom(kappa[j] - 1.0, pi, 1) + log(1 - std::pow(pi2, kappa[j] - 1));
 	      }
 	    } else {
-	      out += R::dgeom(kappa[j] - 1.0, pi*pi2, 1); // first arg must be cast to double
+	      out += R::dgeom(kappa[j] - 1.0, pi, 1); // first arg must be cast to double
 	    }
 	  }
 	}
@@ -523,10 +528,10 @@ double cpp_ll_reporting(Rcpp::List data, Rcpp::List param, SEXP i,
 	      if(pi2 == 1.0) {
 		return  R_NegInf;
 	      } else {
-		out += R::dgeom(kappa[j] - 1.0, pi*(1.0 - pi2), 1); // first arg must be cast to double
+		out += R::dgeom(kappa[j] - 1.0, pi, 1) + log(1 - std::pow(pi2, kappa[j] - 1));
 	      }
 	    } else {
-	      out += R::dgeom(kappa[j] - 1.0, pi*pi2, 1); // first arg must be cast to double
+	      out += R::dgeom(kappa[j] - 1.0, pi, 1); // first arg must be cast to double
 	    }
 	  }
 	}

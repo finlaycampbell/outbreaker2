@@ -93,6 +93,10 @@ cpp_move_alpha <- function(param, data, list_custom_ll = NULL) {
     .Call(`_outbreaker2_cpp_move_alpha`, param, data, list_custom_ll)
 }
 
+cpp_move_model <- function(param, data, config, list_custom_ll = NULL) {
+    .Call(`_outbreaker2_cpp_move_model`, param, data, config, list_custom_ll)
+}
+
 cpp_move_joint <- function(param, data, config, list_custom_ll = NULL) {
     .Call(`_outbreaker2_cpp_move_joint`, param, data, config, list_custom_ll)
 }
