@@ -13,7 +13,7 @@ Rcpp::IntegerVector cpp_find_descendents(Rcpp::IntegerVector alpha, size_t i);
 
 Rcpp::IntegerVector cpp_find_local_cases(Rcpp::IntegerVector alpha, size_t i);
 
-Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i);
+Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_ward);
 
 size_t cpp_get_n_mutations(Rcpp::List data, size_t i, size_t j);
 
@@ -32,5 +32,10 @@ bool is_between_ward(Rcpp::NumericMatrix ward_matrix,
 		     Rcpp::IntegerVector alpha,
 		     int C_ind,
 		     size_t j);
+
+Rcpp::NumericVector get_ward_p(Rcpp::NumericVector p_ward,
+			       double eps,
+			       double tau,
+			       int max_gamma);
 
 #endif

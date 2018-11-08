@@ -65,14 +65,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_swap_cases
-Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i);
-RcppExport SEXP _outbreaker2_cpp_swap_cases(SEXP paramSEXP, SEXP iSEXP) {
+Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_ward);
+RcppExport SEXP _outbreaker2_cpp_swap_cases(SEXP paramSEXP, SEXP iSEXP, SEXP swap_wardSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::List >::type param(paramSEXP);
     Rcpp::traits::input_parameter< size_t >::type i(iSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_swap_cases(param, i));
+    Rcpp::traits::input_parameter< bool >::type swap_ward(swap_wardSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_swap_cases(param, i, swap_ward));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -115,6 +116,20 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type C_ind(C_indSEXP);
     Rcpp::traits::input_parameter< size_t >::type j(jSEXP);
     rcpp_result_gen = Rcpp::wrap(is_between_ward(ward_matrix, t_inf, t_onw, alpha, C_ind, j));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_ward_p
+Rcpp::NumericVector get_ward_p(Rcpp::NumericVector p_ward, double eps, double tau, int max_gamma);
+RcppExport SEXP _outbreaker2_get_ward_p(SEXP p_wardSEXP, SEXP epsSEXP, SEXP tauSEXP, SEXP max_gammaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type p_ward(p_wardSEXP);
+    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< double >::type tau(tauSEXP);
+    Rcpp::traits::input_parameter< int >::type max_gamma(max_gammaSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_ward_p(p_ward, eps, tau, max_gamma));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -239,9 +254,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// cpp_move_pi2
-Rcpp::List cpp_move_pi2(Rcpp::List param, Rcpp::List data, Rcpp::List config, Rcpp::RObject custom_ll, Rcpp::RObject custom_prior);
-RcppExport SEXP _outbreaker2_cpp_move_pi2(SEXP paramSEXP, SEXP dataSEXP, SEXP configSEXP, SEXP custom_llSEXP, SEXP custom_priorSEXP) {
+// cpp_move_tau
+Rcpp::List cpp_move_tau(Rcpp::List param, Rcpp::List data, Rcpp::List config, Rcpp::RObject custom_ll, Rcpp::RObject custom_prior);
+RcppExport SEXP _outbreaker2_cpp_move_tau(SEXP paramSEXP, SEXP dataSEXP, SEXP configSEXP, SEXP custom_llSEXP, SEXP custom_priorSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -250,7 +265,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Rcpp::List >::type config(configSEXP);
     Rcpp::traits::input_parameter< Rcpp::RObject >::type custom_ll(custom_llSEXP);
     Rcpp::traits::input_parameter< Rcpp::RObject >::type custom_prior(custom_priorSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_move_pi2(param, data, config, custom_ll, custom_prior));
+    rcpp_result_gen = Rcpp::wrap(cpp_move_tau(param, data, config, custom_ll, custom_prior));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -389,15 +404,15 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// cpp_prior_pi2
-double cpp_prior_pi2(Rcpp::List param, Rcpp::List config, Rcpp::RObject custom_function);
-RcppExport SEXP _outbreaker2_cpp_prior_pi2(SEXP paramSEXP, SEXP configSEXP, SEXP custom_functionSEXP) {
+// cpp_prior_tau
+double cpp_prior_tau(Rcpp::List param, Rcpp::List config, Rcpp::RObject custom_function);
+RcppExport SEXP _outbreaker2_cpp_prior_tau(SEXP paramSEXP, SEXP configSEXP, SEXP custom_functionSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< Rcpp::List >::type param(paramSEXP);
     Rcpp::traits::input_parameter< Rcpp::List >::type config(configSEXP);
     Rcpp::traits::input_parameter< Rcpp::RObject >::type custom_function(custom_functionSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_prior_pi2(param, config, custom_function));
+    rcpp_result_gen = Rcpp::wrap(cpp_prior_tau(param, config, custom_function));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -444,10 +459,11 @@ static const R_CallMethodDef CallEntries[] = {
     {"_outbreaker2_cpp_pick_possible_ancestor", (DL_FUNC) &_outbreaker2_cpp_pick_possible_ancestor, 2},
     {"_outbreaker2_cpp_find_descendents", (DL_FUNC) &_outbreaker2_cpp_find_descendents, 2},
     {"_outbreaker2_cpp_find_local_cases", (DL_FUNC) &_outbreaker2_cpp_find_local_cases, 2},
-    {"_outbreaker2_cpp_swap_cases", (DL_FUNC) &_outbreaker2_cpp_swap_cases, 2},
+    {"_outbreaker2_cpp_swap_cases", (DL_FUNC) &_outbreaker2_cpp_swap_cases, 3},
     {"_outbreaker2_cpp_get_n_mutations", (DL_FUNC) &_outbreaker2_cpp_get_n_mutations, 3},
     {"_outbreaker2_cpp_lookup_sequenced_ancestor", (DL_FUNC) &_outbreaker2_cpp_lookup_sequenced_ancestor, 3},
     {"_outbreaker2_is_between_ward", (DL_FUNC) &_outbreaker2_is_between_ward, 6},
+    {"_outbreaker2_get_ward_p", (DL_FUNC) &_outbreaker2_get_ward_p, 4},
     {"_outbreaker2_cpp_ll_genetic", (DL_FUNC) &_outbreaker2_cpp_ll_genetic, 4},
     {"_outbreaker2_cpp_ll_timing_infections", (DL_FUNC) &_outbreaker2_cpp_ll_timing_infections, 4},
     {"_outbreaker2_cpp_ll_timing_sampling", (DL_FUNC) &_outbreaker2_cpp_ll_timing_sampling, 4},
@@ -457,7 +473,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_outbreaker2_cpp_ll_all", (DL_FUNC) &_outbreaker2_cpp_ll_all, 4},
     {"_outbreaker2_cpp_move_mu", (DL_FUNC) &_outbreaker2_cpp_move_mu, 5},
     {"_outbreaker2_cpp_move_pi", (DL_FUNC) &_outbreaker2_cpp_move_pi, 5},
-    {"_outbreaker2_cpp_move_pi2", (DL_FUNC) &_outbreaker2_cpp_move_pi2, 5},
+    {"_outbreaker2_cpp_move_tau", (DL_FUNC) &_outbreaker2_cpp_move_tau, 5},
     {"_outbreaker2_cpp_move_eps", (DL_FUNC) &_outbreaker2_cpp_move_eps, 5},
     {"_outbreaker2_cpp_move_lambda", (DL_FUNC) &_outbreaker2_cpp_move_lambda, 5},
     {"_outbreaker2_cpp_move_t_inf", (DL_FUNC) &_outbreaker2_cpp_move_t_inf, 3},
@@ -468,7 +484,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_outbreaker2_cpp_move_kappa", (DL_FUNC) &_outbreaker2_cpp_move_kappa, 4},
     {"_outbreaker2_cpp_prior_mu", (DL_FUNC) &_outbreaker2_cpp_prior_mu, 3},
     {"_outbreaker2_cpp_prior_pi", (DL_FUNC) &_outbreaker2_cpp_prior_pi, 3},
-    {"_outbreaker2_cpp_prior_pi2", (DL_FUNC) &_outbreaker2_cpp_prior_pi2, 3},
+    {"_outbreaker2_cpp_prior_tau", (DL_FUNC) &_outbreaker2_cpp_prior_tau, 3},
     {"_outbreaker2_cpp_prior_eps", (DL_FUNC) &_outbreaker2_cpp_prior_eps, 3},
     {"_outbreaker2_cpp_prior_lambda", (DL_FUNC) &_outbreaker2_cpp_prior_lambda, 3},
     {"_outbreaker2_cpp_prior_all", (DL_FUNC) &_outbreaker2_cpp_prior_all, 3},

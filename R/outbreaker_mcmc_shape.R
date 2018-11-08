@@ -34,14 +34,14 @@ outbreaker_mcmc_shape <- function(param, data) {
     t_onw[t_onw == -1000] <- NA
     colnames(t_onw) <- paste("t_onw", seq_len(data$N), sep=".")
 
-    if (!all(vapply(param$sigma, length, integer(1))==data$N)) {
+    if (!all(vapply(param$ward, length, integer(1))==data$N)) {
       stop("some onward infection dates are missing in the param")
     }
-    sigma <- matrix(unlist(param$sigma), ncol = data$N, byrow = TRUE)
-    sigma[sigma == -1] <- NA
-    colnames(sigma) <- paste("sigma", seq_len(data$N), sep=".")
+    ward <- matrix(unlist(param$ward), ncol = data$N, byrow = TRUE)
+    ward[ward == 0] <- NA
+    colnames(ward) <- paste("ward", seq_len(data$N), sep=".")
     
-    pi2 <- param$pi2
+    tau <- param$tau
 
   }
 
@@ -60,9 +60,9 @@ outbreaker_mcmc_shape <- function(param, data) {
                       lambda = param$lambda, param$alpha, param$t_inf,
                       param$kappa)
   if(data$move_t_onw) {
-    param$pi2 <- pi2
+    param$tau <- tau
     param <- cbind(param, t_onw)
-    param <- cbind(param, sigma)
+    param <- cbind(param, ward)
   }
   names(param) <- gsub("[.]", "_", names(param))
 

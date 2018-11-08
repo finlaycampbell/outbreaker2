@@ -43,15 +43,15 @@ bind_moves <- function(moves = custom_moves(), config, data,
   }
 
 
-  ## remove move$pi2 if disabled
-  if (!any(config$move_pi2)) {
-    out$pi2 <- NULL
+  ## remove move$tau if disabled
+  if (!any(config$move_tau)) {
+    out$tau <- NULL
   } else {
-    out$pi2 <- bind_to_function(out$pi2,
+    out$tau <- bind_to_function(out$tau,
                                 data = data,
                                 config = config,
                                 custom_ll = likelihoods$reporting,
-                                custom_prior = priors$pi2
+                                custom_prior = priors$tau
                                 )
   }
 

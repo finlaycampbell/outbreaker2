@@ -83,7 +83,7 @@ custom_moves <- function(...) {
 
     defaults <- list(mu = cpp_move_mu,
                      pi = cpp_move_pi,
-                     pi2 = cpp_move_pi2,
+                     tau = cpp_move_tau,
                      eps = cpp_move_eps,
                      lambda = cpp_move_lambda,
                      alpha = cpp_move_alpha,

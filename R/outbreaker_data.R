@@ -56,7 +56,8 @@ outbreaker_data <- function(..., data = list(...)) {
                    log_w_dens = NULL, log_w_unobs = NULL, log_f_dens = NULL,
                    contacts = NULL, C_combn = NULL, C_nrow = NULL,
                    contacts_timed = NULL, C_ind = NULL, has_dna = logical(0),
-                   move_t_onw = NULL, between_wards = NULL, id_in_dna = integer(0))
+                   move_t_onw = NULL, between_wards = NULL, N_ward = NULL,
+                   p_ward = NULL, id_in_dna = integer(0))
 
   ## MODIFY DATA WITH ARGUMENTS ##
   data <- modify_defaults(defaults, data, FALSE)
@@ -221,7 +222,7 @@ outbreaker_data <- function(..., data = list(...)) {
       rownames(data$dna) <- rownames(data$D) <- colnames(data$D) <- seq_len(data$N)
     }
 
-    data$id_in_dna <- match(as.character(seq_len(data$N)), rownames(data$dna))
+    data$id_in_dna <- match(as.character(data$ids), rownames(data$dna))
     if(all(is.na(data$id_in_dna))) {
       stop("DNA sequence labels don't match case ids")
     }
@@ -322,7 +323,16 @@ outbreaker_data <- function(..., data = list(...)) {
     if(any(!data$wards[,1] %in% data$ids)) {
       stop("IDs in ward data not found in case IDs.")
     }
+    if(!is.null(data$p_ward) && sum(data$p_ward) != 1) {
+      stop("p_ward must sum to 1")
+    }
 
+    data$N_ward <- length(unique(data$wards$ward))
+
+    if(is.null(data$p_ward)) {
+      data$p_ward <- rep(1/data$N_ward, data$N_ward)
+    }
+    
     ## Replace IDs with their numeric indices
     data$wards[,1] <- as.character(data$wards[,1])
 
@@ -361,12 +371,13 @@ outbreaker_data <- function(..., data = list(...)) {
       lapply(function(i) i*(i - 1)/2) %>%
       lapply(sum) %>%
       unlist
-
+    
     ## Define the time of contacts as occuring between the first admission date
     ## and last discharge date
     data$C_nrow <- sum(n_contacts)
     data$C_combn <- (data$N*(data$N - 1)/2)*ncol(ward_matrix)
     data$ward_matrix <- ward_matrix
+    data$ward_ncol <- ncol(ward_matrix)
     
   } else {
     data$ward_matrix <- matrix(0, nrow = 0, ncol = 0)

@@ -83,16 +83,16 @@ double cpp_prior_pi(Rcpp::List param, Rcpp::List config,
 
 
 
-// The prior for the reporting probability 'pi2' is a beta distribution
+// The prior for the reporting probability 'tau' is a beta distribution
 
 // [[Rcpp::export(rng = false)]]
-double cpp_prior_pi2(Rcpp::List param, Rcpp::List config,
+double cpp_prior_tau(Rcpp::List param, Rcpp::List config,
 		    Rcpp::RObject custom_function = R_NilValue) {
 
   if (custom_function == R_NilValue) {
-    Rcpp::NumericVector shape = config["prior_pi2"];
+    Rcpp::NumericVector shape = config["prior_tau"];
 
-    return R::dbeta(Rcpp::as<double>(param["pi2"]),
+    return R::dbeta(Rcpp::as<double>(param["tau"]),
 			  (double) shape[0],
 			  (double) shape[1],
 			  true);
@@ -169,7 +169,7 @@ double cpp_prior_all(Rcpp::List param, Rcpp::List config,
 
     return cpp_prior_mu(param, config) +
       cpp_prior_pi(param, config) +
-      cpp_prior_pi2(param, config) +
+      cpp_prior_tau(param, config) +
       cpp_prior_eps(param, config) +
       cpp_prior_lambda(param, config);
 
@@ -179,7 +179,7 @@ double cpp_prior_all(Rcpp::List param, Rcpp::List config,
 
     return cpp_prior_mu(param, config, list_functions["mu"]) +
       cpp_prior_pi(param, config, list_functions["pi"]) +
-      cpp_prior_pi2(param, config, list_functions["pi2"]) +
+      cpp_prior_tau(param, config, list_functions["tau"]) +
       cpp_prior_eps(param, config, list_functions["eps"]) +
       cpp_prior_lambda(param, config, list_functions["lambda"]);
   }

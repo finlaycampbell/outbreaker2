@@ -131,7 +131,7 @@ custom_priors <- function(...) {
 
     defaults <- list(mu = NULL, # mutation rate
                      pi = NULL, # reporting probability
-                     pi2 = NULL,
+                     tau = NULL,
                      eps = NULL, # contact reporting coverage
                      lambda = NULL # non-infectious contact rate
                      )

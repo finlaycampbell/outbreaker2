@@ -28,7 +28,7 @@ outbreaker_move <- function(moves, data, param_current,
 
   ## Set up progress bar
   pb <- txtProgressBar(min = 1, max = config$n_iter, style = 3)
-  
+
   ## RUN MCMC ##
   for (i in seq.int(2, config$n_iter, 1)) {
     ## move parameters / augmented data

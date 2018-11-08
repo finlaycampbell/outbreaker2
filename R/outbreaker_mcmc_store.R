@@ -33,8 +33,8 @@ outbreaker_mcmc_store <- function(param_current, param_store, data, config,
   param_store$alpha[[counter]] <- param_current$alpha
   param_store$t_inf[[counter]] <- param_current$t_inf
   if(config$move_t_onw) param_store$t_onw[[counter]] <- param_current$t_onw
-  if(config$move_t_onw) param_store$pi2[[counter]] <- param_current$pi2
-  if(config$move_t_onw) param_store$sigma[[counter]] <- param_current$sigma
+  if(config$move_t_onw) param_store$tau[[counter]] <- param_current$tau
+  if(config$move_t_onw) param_store$ward[[counter]] <- param_current$ward
   param_store$kappa[[counter]] <- param_current$kappa
 
   return(param_store)

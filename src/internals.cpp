@@ -214,21 +214,27 @@ Rcpp::IntegerVector cpp_find_local_cases(Rcpp::IntegerVector alpha, size_t i) {
 // - 'x' is imported, so that 'alpha[x-1]' is NA_INTEGER
 
 // [[Rcpp::export()]]
-Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i) {
+Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_ward) {
+  
   Rcpp::IntegerVector alpha_in = param["alpha"];
   Rcpp::IntegerVector t_inf_in = param["t_inf"];
   Rcpp::IntegerVector t_onw_in = param["t_onw"];
   Rcpp::IntegerVector kappa_in = param["kappa"];
+  Rcpp::IntegerVector ward_in = param["ward"];
+  
   Rcpp::IntegerVector alpha_out = clone(alpha_in);
   Rcpp::IntegerVector t_inf_out = clone(t_inf_in);
   Rcpp::IntegerVector t_onw_out = clone(t_onw_in);
   Rcpp::IntegerVector kappa_out = clone(kappa_in);
+  Rcpp::IntegerVector ward_out = clone(ward_in);
+  
   Rcpp::List out;
   out["alpha"] = alpha_out;
   out["t_inf"] = t_inf_out;
   out["t_onw"] = t_onw_out;
   out["kappa"] = kappa_out;
-      
+  out["ward"] = ward_out;
+
   size_t N = alpha_in.size();
   
   // escape if the case is imported, i.e. alpha[i-1] is NA
@@ -241,29 +247,30 @@ Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i) {
   // escape if ancestor of the case is imported, i.e. alpha[x-1] is NA
   
   size_t x = (size_t) alpha_in[i-1];
-  //if (alpha_in[x-1] == NA_INTEGER) {
-  // return out;
-  //}
+  if (alpha_in[x-1] == NA_INTEGER && !swap_ward) {
+   return out;
+  }
   
  
   // replace ancestries:
   // - descendents of 'i' become descendents of 'x'
   // - descendents of 'x' become descendents of 'i'
 
-  for (size_t j = 0; j < N; j++) {
-    if (alpha_in[j] == i) {
-      alpha_out[j] = x;
-    } else if (alpha_in[j] == x) {
-      alpha_out[j] = i;
+  // do this 3/4 of the time; the other 1/4  keep downstream ancestries the same
+  if(unif_rand() > 0.25) {
+    for (size_t j = 0; j < N; j++) {
+      if (alpha_in[j] == i) {
+	alpha_out[j] = x;
+      } else if (alpha_in[j] == x) {
+	alpha_out[j] = i;
+      }
     }
   }
-
 
   // the ancestor of 'i' becomes an ancestor of 'x'
 
   alpha_out[i-1] = alpha_in[x-1];
 
-  
   // 'i' is now the ancestor of 'x'
   alpha_out[x-1] = i;
   
@@ -272,13 +279,18 @@ Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i) {
   t_inf_out[i-1] =   t_inf_in[x-1];
   t_inf_out[x-1] =   t_inf_in[i-1];
 
-  t_onw_out[i-1] =   t_onw_in[x-1];
-  t_onw_out[x-1] =   t_onw_in[i-1];
+  if(swap_ward) {
+
+    t_onw_out[i-1] =   t_onw_in[x-1];
+    t_onw_out[x-1] =   t_onw_in[i-1];
   
-  kappa_out[i-1] =   kappa_in[x-1];
-  kappa_out[x-1] =   kappa_in[i-1];
+    kappa_out[i-1] =   kappa_in[x-1];
+    kappa_out[x-1] =   kappa_in[i-1];
 
-
+    ward_out[i-1] =   ward_in[x-1];
+    ward_out[x-1] =   ward_in[i-1];
+  }
+  
   return out;
 }
 
@@ -470,3 +482,58 @@ bool is_between_ward(Rcpp::NumericMatrix ward_matrix, Rcpp::IntegerVector t_inf,
 
   return out;
 }
+
+
+
+
+
+
+// ---------------------------
+
+// This function returns a matrix of ward transition probabilities
+// - 'i'
+// - the descendents of 'i'
+// - 'alpha[i-1]'
+// - the descendents of 'alpha[i]' (excluding 'i')
+
+// where 'alpha' is a IntegerVector storing ancestries. Note that 'i' and
+// 'alpha' are on the scale 1:N. 
+
+// [[Rcpp::export()]]
+Rcpp::NumericVector get_ward_p(Rcpp::NumericVector p_ward, double eps, double tau,
+		 int max_gamma) {
+
+  int N = p_ward.size();
+  Rcpp::NumericVector out(N*N*(max_gamma+1));
+  Rcpp::NumericVector pp(N);
+
+  for (size_t j = 0; j < N; j++){
+    pp(j) = p_ward(j)/(1-p_ward(j));
+  }
+
+  double sum_pp = Rcpp::sum(pp);
+
+  for (size_t k = 0; k < N; k++){
+    Rcpp::NumericVector x(N);
+    out(0 + N*k + k) = 1.0;
+    x(k) = 1.0;
+    for (size_t depth = 1; depth <= max_gamma; depth++){
+      for (size_t l = 0; l < N; l++){
+	double x_move = 0.0;
+	for (size_t w = 0; w < N; w++){
+	  if(w != l) {
+	    x_move += out(N*N*(depth-1) + N*w + k)*(p_ward(l)/(1-p_ward(w)))*((1-tau)*eps +
+						      tau*(1-eps) +
+						      (1-tau)*(1-eps)*(sum_pp - pp(l) - pp(w)));
+	  }
+	}
+	x_move += out(N*N*(depth-1) + N*l + k)*(tau*eps + (1-tau)*(1-eps)*pp(l)*(sum_pp - pp(l)));
+	out(N*N*depth + N*l + k) = x_move;
+      }
+    }
+  }
+
+  return out;
+}
+
+

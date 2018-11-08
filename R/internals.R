@@ -1,4 +1,3 @@
-
 ## This function was contributed by Rich Fitzjohn. It modifies default arguments
 ## using user-provided values. The argument 'strict' triggers and error
 ## behaviour: if strict==TRUE: all new values need to be part of the defaults.
@@ -291,7 +290,9 @@ add_convolutions <- function(data, config) {
   ## use this function to pass information from config to data
   data$move_t_onw <- config$move_t_onw
   data$between_wards <- config$between_wards
-  data$move_pi2 <- config$move_pi2
+  data$move_tau <- config$move_tau
+  data$swap_ward <- config$swap_ward
+  data$p_wrong <- config$p_wrong
   
   ## name rows/columns (useful if internal debugging needed)
   rownames(data$log_w_dens) <- paste("kappa", seq_len(nrow(data$log_w_dens)), sep="=")

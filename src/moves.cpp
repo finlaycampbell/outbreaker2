@@ -167,16 +167,20 @@ Rcpp::List cpp_move_pi(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 // auto-tuning here.
 
 // [[Rcpp::export(rng = true)]]
-Rcpp::List cpp_move_pi2(Rcpp::List param, Rcpp::List data, Rcpp::List config,
+Rcpp::List cpp_move_tau(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 			Rcpp::RObject custom_ll = R_NilValue,
 			Rcpp::RObject custom_prior = R_NilValue) {
 
   // deep copy here for now, ultimately should be an arg.
 
   Rcpp::List new_param = clone(param);
-  Rcpp::NumericVector pi2 = param["pi2"]; // these are just pointers
-  Rcpp::NumericVector new_pi2 = new_param["pi2"]; // these are just pointers
+  Rcpp::NumericVector tau = param["tau"]; // these are just pointers
+  Rcpp::NumericVector new_tau = new_param["tau"]; // these are just pointers
 
+  int max_gamma = static_cast<int>(config["max_kappa"]);
+  double eps = param["eps"];
+  Rcpp::NumericVector p_ward = data["p_ward"];
+  
   double sd_pi = static_cast<double>(config["sd_pi"]);
 
   double old_logpost = 0.0, new_logpost = 0.0, p_accept = 0.0;
@@ -184,37 +188,39 @@ Rcpp::List cpp_move_pi2(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
   // proposal (normal distribution with SD: config$sd_pi)
 
-  new_pi2[0] += R::rnorm(0.0, sd_pi); // new proposed value
+  new_tau[0] += R::rnorm(0.0, sd_pi); // new proposed value
 
 
-  // automatic rejection of pi2 outside [0;1]
+  // automatic rejection of tau outside [0;1]
 
-  if (new_pi2[0] < 0.0 || new_pi2[0] > 1.0) {
+  if (new_tau[0] < 0.0 || new_tau[0] > 1.0) {
     return param;
   }
 
-
+  // update the transition probabilities between wards
+  new_param["ward_mat"] = get_ward_p(p_ward, eps, new_tau[0], max_gamma);
+  
   // compute likelihoods
-  old_logpost = cpp_ll_reporting(data, param, R_NilValue, custom_ll);
-  new_logpost = cpp_ll_reporting(data, new_param, R_NilValue, custom_ll);
+  old_logpost = cpp_ll_contact(data, param, R_NilValue, custom_ll);
+  new_logpost = cpp_ll_contact(data, new_param, R_NilValue, custom_ll);
 
 
   // compute priors
 
-  old_logpost += cpp_prior_pi2(param, config, custom_prior);
-  new_logpost += cpp_prior_pi2(new_param, config, custom_prior);
+  old_logpost += cpp_prior_tau(param, config, custom_prior);
+  new_logpost += cpp_prior_tau(new_param, config, custom_prior);
 
 
   // acceptance term
 
   p_accept = exp(new_logpost - old_logpost);
 
-  // acceptance: the new value is already in pi2, so we only act if the move is
+  // acceptance: the new value is already in tau, so we only act if the move is
   // rejected, in which case we restore the previous ('old') value
 
   if (p_accept < unif_rand()) { // reject new values
     return param;
-  }
+  } 
 
   return new_param;
 }
@@ -242,7 +248,11 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::List new_param = clone(param);
   Rcpp::NumericVector eps = param["eps"]; // these are just pointers
   Rcpp::NumericVector new_eps = new_param["eps"]; // these are just pointers
-
+  
+  int max_gamma = static_cast<int>(config["max_kappa"]);
+  double tau = param["tau"];
+  Rcpp::NumericVector p_ward = data["p_ward"];
+  
   double sd_eps = static_cast<double>(config["sd_eps"]);
 
   double old_logpost = 0.0, new_logpost = 0.0, p_accept = 0.0;
@@ -259,11 +269,12 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
     return param;
   }
 
+  new_param["ward_mat"] = get_ward_p(p_ward, new_eps[0], tau, max_gamma);
+  new_param["ward_mat_1"] = get_ward_p(p_ward, new_eps[0], tau, 1);
 
   // compute likelihoods
   old_logpost = cpp_ll_contact(data, param, R_NilValue, custom_ll);
   new_logpost = cpp_ll_contact(data, new_param, R_NilValue, custom_ll);
-
 
   // compute priors
 
@@ -282,7 +293,7 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   if (p_accept < unif_rand()) { // reject new values
     return param;
   }
-
+  
   return new_param;
 }
 
@@ -528,7 +539,7 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector t_inf = param["t_inf"]; // pointer to param$t_inf
   Rcpp::IntegerVector t_onw = param["t_onw"]; // pointer to param$t_onw
   Rcpp::IntegerVector kappa = param["kappa"]; // pointer to param$kappa
-  Rcpp::IntegerVector sigma = param["sigma"]; // pointer to param$kappa
+  Rcpp::IntegerVector ward = param["ward"]; // pointer to param$kappa
 
   size_t N = static_cast<size_t>(data["N"]);
   size_t K = static_cast<size_t>(config["max_kappa"]);
@@ -536,8 +547,11 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector new_t_onw = new_param["t_onw"];
   Rcpp::IntegerVector new_kappa = new_param["kappa"];
   Rcpp::IntegerVector new_alpha = new_param["alpha"];
-  Rcpp::IntegerVector new_sigma = new_param["sigma"];
+  Rcpp::IntegerVector new_ward = new_param["ward"];
 
+  double ncol = data["ward_ncol"];
+  int N_ward = data["N_ward"];
+  
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
     
   for (size_t i = 0; i < N; i++) {
@@ -552,55 +566,80 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
       // Pick a new sampled ancestor
       new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1); // new proposed value (on scale 1 ... N)
 
+      // Make sure m1 <-> m2 are proposed 50% of the time
+      bool m1_to_m2 = (unif_rand() > 0.5) ? true : false;
+      
       // jump from Model1 to Model2
-      if(kappa[i] == 1) {
+      if(kappa[i] == 1 && m1_to_m2) {
 
 	// In Model2 (kappa > 1), infection times must be at least two days apart
-	if(t_inf[i] - t_inf[alpha[i] - 1] < 2) {
-	  p_accept = R_NegInf;
+	if(t_inf[i] - t_inf[new_alpha[i] - 1] < 2) {
+	  p_accept = 0.0;
 	} else {
 
 	  // Propose t_onw between the infection times of the two sampled cases
-	  Rcpp::IntegerVector t_seq = Rcpp::seq(t_inf[alpha[i] - 1] + 1, t_inf[i] - 1);
+	  Rcpp::IntegerVector t_seq = Rcpp::seq(t_inf[new_alpha[i] - 1] + 1, t_inf[i] - 1);
 	  new_t_onw[i] = Rcpp::as<int>(Rcpp::sample(t_seq, 1, true));
 
 	  // Propose kappa between the 2 and max_kappa
 	  Rcpp::IntegerVector kappa_seq = Rcpp::seq(2, K);
 	  new_kappa[i] = Rcpp::as<int>(Rcpp::sample(kappa_seq, 1, true));
 
-	  new_sigma[i] = (unif_rand() > 0.5) ? 0 : 1;
+	  // Propose a new ward
+	  Rcpp::IntegerVector ward_seq = Rcpp::seq(1, N_ward);
+	  new_ward[i] = Rcpp::as<int>(Rcpp::sample(ward_seq, 1, true));
 	  
 	  // loglike with current value
 	  new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
 
 	  // The ratio of proposal distributions is length((t_inf_i + 1):(t_inf(alpha_i)-1))
-	  p_accept = exp(new_loglike - old_loglike)*t_seq.size()*kappa_seq.size()*2;
+	  if(new_loglike == R_NegInf) {
+	    p_accept = 0.0;
+	  } else {
+	    p_accept = exp(new_loglike - old_loglike)*t_seq.size()/ncol;
+	  }
 	}
 	// Jump from Model2 to Model1
-      } else if(kappa[i] > 1) {
+      } else if(kappa[i] > 1 && !m1_to_m2) {
 
 	// No longer inferring t_onw - set to -1000 (for some reason NA_INTEGER causes segfault)
 	new_t_onw[i] = -1000;
 	new_kappa[i] = 1;
-	new_sigma[i] = -1;
+	new_ward[i] = 0;
 
 	// loglike with current value
 	new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
-
+	
+	// if the new likelihood state is impossible, reject it - otherwise it
+	// might get accepted because the ratio of proposal distribution says so 
+	if(new_loglike == R_NegInf) {
+	  p_accept = 0.0;
+	} else {
 	// The proposal probability of going from state M2 -> M1 is 1 (there is
 	// only possible Model 1, in that we remove t_onw and kappa_beta_i); the
 	// proposal probability of going from M1 -> M2 is 1/(range of possible
-	// t_onw * range of possible kappa_beta_i) - we therefore need adjust for this
-	p_accept = exp(new_loglike - old_loglike)/((K - 1)*(t_inf[i] - t_inf[alpha[i] - 1] - 1)*2);
-
+	// t_onw * range of possible kappa_beta_i) - we therefore need adjust
+	// for this - however the prior on these infection times is 1/(Tend -
+	// T0), which goes on the numerator
+	  double tdiff = t_inf[i] - t_inf[new_alpha[i] - 1] - 1;
+	  if(tdiff == 0.0) {
+	    p_accept = 0;
+	  } else {
+	    p_accept = exp(new_loglike - old_loglike)*ncol/tdiff;
+	  }
+	}
+      } else {
+	p_accept = 0.0;
       }
+
       // which case we restore the previous ('old') value
       if (p_accept < unif_rand()) { // reject new values
 	new_alpha[i] = alpha[i];
 	new_t_onw[i] = t_onw[i];
 	new_kappa[i] = kappa[i];
+	new_ward[i] = ward[i];
       } else {
-	//std::cout << "success" << std::endl;
+	//	std::cout << "accept" << std::endl;
       }
     }
   }
@@ -630,14 +669,17 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 			  Rcpp::RObject list_custom_ll = R_NilValue) {
   Rcpp::List new_param = clone(param);
-  
+
   Rcpp::IntegerVector alpha = param["alpha"]; // pointer to param$alpha
   Rcpp::IntegerVector t_inf = param["t_inf"]; // pointer to param$t_inf
   Rcpp::IntegerVector t_onw = param["t_onw"];
   Rcpp::IntegerVector kappa = param["kappa"];
+  Rcpp::IntegerVector ward = param["ward"];
 
   size_t N = static_cast<size_t>(data["N"]);
   size_t K = static_cast<size_t>(config["max_kappa"]);
+
+  int N_ward = data["N_ward"];
   
   int jump;
 
@@ -646,7 +688,7 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector new_t_onw = new_param["t_onw"];
   Rcpp::IntegerVector new_kappa = new_param["kappa"];
   Rcpp::IntegerVector new_alpha = new_param["alpha"];
-  Rcpp::IntegerVector new_sigma = new_param["sigma"];
+  Rcpp::IntegerVector new_ward = new_param["ward"];
   
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
     
@@ -659,12 +701,12 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
       // old_loglike = cpp_ll_all(data, param, R_NilValue);
       old_loglike = cpp_ll_all(data, param, i+1, list_custom_ll); // offset
 
-      // proposal (+/- 1)
-      new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1); // new proposed value (on scale 1 ... N)
-
       // Within Model 1 move; just an alpha move (t_onw and kappa are not inferred)
       if(kappa[i] == 1) {
 
+	// proposal (+/- 1)
+	new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1); // new proposed value (on scale 1 ... N)
+	
 	// loglike with current value
 	new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
 
@@ -675,19 +717,25 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
       } else if(kappa[i] > 1) {
 
 	jump = (unif_rand() > 0.5) ? 1 : -1;
-	new_kappa[i] = kappa[i] + jump;
-
+	new_kappa[i] = new_kappa[i] + jump;
+	
 	// A move back to kappa = 1 is impossible; that would represent a move to Model 1
 	if (new_kappa[i] < 2 || new_kappa[i] > K) {
-	  p_accept = R_NegInf;
+	  p_accept = 0.0;
 	} else {
+	  // Only propose a new ancestry prop_alpha_move % of the time - this
+	  // allows t_onw to mix independently of alpha at times
+	  double prop_alpha_move = config["prop_alpha_move"];
+	  if(prop_alpha_move < unif_rand()) {
+	    // proposal (+/- 1)
+	    new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1); // new proposed value (on scale 1 ... N)
+	  }
 	  // Normal MH move from previous state
 	  new_t_onw[i] += std::round(R::rnorm(0.0, sd_t_onw));
-	  // Swap 0 and 1
-	  if(new_sigma[i] == 1) {
-	    new_sigma = 0;
-	  } else if(new_sigma[i] == 0) {
-	    new_sigma = 1;
+	  // Swap ward half the time
+	  if(unif_rand() > 0.5) {
+	    Rcpp::IntegerVector ward_seq = Rcpp::seq(1, N_ward);
+	    new_ward[i] = Rcpp::as<int>(Rcpp::sample(ward_seq, 1, true));
 	  }
 	  // loglike with current value
 	  new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
@@ -702,8 +750,7 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	new_alpha[i] = alpha[i];
 	new_t_onw[i] = t_onw[i];
 	new_kappa[i] = kappa[i];
-      } else {
-	//std::cout << "success" << std::endl;
+	new_ward[i] = ward[i];
       }
     }
   }
@@ -742,9 +789,11 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
   Rcpp::IntegerVector t_inf = param["t_inf"]; // pointer to param$t_inf
   Rcpp::IntegerVector kappa = param["kappa"]; // pointer to param$kappa
   Rcpp::IntegerVector t_onw = param["t_onw"]; // pointer to param$t_inf
+  Rcpp::IntegerVector ward = param["ward"]; // pointer to param$ward
   Rcpp::List swapinfo; // contains alpha and t_inf
   Rcpp::IntegerVector local_cases;
 
+  bool swap_ward = Rcpp::as<bool>(data["swap_ward"]);
   size_t N = static_cast<size_t>(data["N"]);
 
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
@@ -773,12 +822,12 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
 
       // proposal: swap case 'i' and its ancestor
 
-      swapinfo = cpp_swap_cases(param, i+1);
+      swapinfo = cpp_swap_cases(param, i+1, swap_ward);
       new_param["alpha"] = swapinfo["alpha"];
       new_param["t_inf"] = swapinfo["t_inf"];
-      new_param["kappa"] = swapinfo["kappa"];
       new_param["t_onw"] = swapinfo["t_onw"];
-
+      new_param["kappa"] = swapinfo["kappa"];
+      new_param["ward"] = swapinfo["ward"];
 
       // loglike with new parameters
 
@@ -788,15 +837,15 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
       // acceptance term
 
       p_accept = exp(new_loglike - old_loglike);
-
-
+	          
       // acceptance: change param only if new values is accepted
 
       if (p_accept >= unif_rand()) { // accept new parameters
 	param["alpha"] = new_param["alpha"];
 	param["t_inf"] = new_param["t_inf"];
-	param["kappa"] = new_param["kappa"];
 	param["t_onw"] = new_param["t_onw"];
+	param["kappa"] = new_param["kappa"];
+	param["ward"] = new_param["ward"];
       }
     }
   }

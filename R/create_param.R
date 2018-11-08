@@ -111,11 +111,11 @@ create_param <- function(data = outbreaker_data(),
   ## CREATE EMPTY OUTPUT VECTORS ##
   size <- round(config$n_iter/config$sample_every)
   step <- integer(size)
-  post <- prior <- like <- mu <- pi <- pi2 <- eps <- lambda <- double(size)
+  post <- prior <- like <- mu <- pi <- tau <- eps <- lambda <- double(size)
   alpha <- as.list(integer(size))
   t_inf <- as.list(integer(size))
   t_onw <- as.list(integer(size))
-  sigma <- as.list(integer(size))
+  ward <- as.list(integer(size))
   kappa <- as.list(integer(size))
 
   ## SET CURRENT VALUES AND COUNTER ##
@@ -124,7 +124,7 @@ create_param <- function(data = outbreaker_data(),
   current_alpha <- alpha[[1]] <- config$init_alpha
   current_kappa <- kappa[[1]] <- config$init_kappa
   current_pi <- pi[1] <- config$init_pi
-  current_pi2 <- pi2[1] <- config$init_pi2
+  current_tau <- tau[1] <- config$init_tau
   current_eps <- eps[1] <- config$init_eps
   current_lambda <- lambda[1] <- config$init_lambda
   if (is.null(config$init_t_inf)) {
@@ -133,12 +133,30 @@ create_param <- function(data = outbreaker_data(),
     current_t_inf <- t_inf[[1]] <- config$init_t_inf
   }
   if (is.null(config$init_t_onw)) {
-    current_t_onw <- t_onw[[1]] <- round(config$init_t_inf -
-                                         sum(data$w_dens*seq_along(data$w_dens))/2)
+    tmp_t_onw <- round(config$init_t_inf - sum(data$w_dens*seq_along(data$w_dens))/2)
+    tmp_t_onw[config$init_kappa == 1] <- -1000
+    current_t_onw <- t_onw[[1]] <- as.integer(tmp_t_onw)
   } else {
-    current_t_onw <- t_onw[[1]] <- config$init_t_onw
+    tmp_t_onw <- config$init_t_onw
+    tmp_t_onw[config$init_kappa == 1] <- -1000
+    current_t_onw <- t_onw[[1]] <- as.integer(tmp_t_onw)
   }
-  current_sigma <- sigma[[1]] <- rep(1, data$N)
+
+  ## Make sure kappa = 1 matches with ward = 0
+  if (is.null(config$init_ward)) {
+    tmp_ward <- ifelse(config$init_kappa > 1, 1, 0)
+    tmp_ward[is.na(config$init_alpha)] <- 0
+    current_ward <- ward[[1]] <- as.integer(tmp_ward)
+  } else {
+    tmp_ward <- config$init_ward
+    tmp_ward[tmp_ward == 0 & config$init_kappa > 1] <- 1
+    tmp_ward[tmp_ward != 0 & config$init_kappa == 1] <- 0
+    current_ward <- ward[[1]] <- as.integer(tmp_ward)
+  }
+
+  ward_mat <- get_ward_p(data$p_ward, config$init_eps, config$init_tau, config$max_kappa)
+  ward_mat_1 <- get_ward_p(data$p_ward, config$init_eps, 1, 1)
+  
   counter <- 1L
 
 
@@ -146,8 +164,8 @@ create_param <- function(data = outbreaker_data(),
     size = size, step = step,
     post = post, like = like, prior = prior,
     alpha = alpha, t_inf = t_inf, t_onw = t_onw,
-    mu = mu, kappa = kappa, pi = pi, pi2 = pi2,
-    eps = eps, lambda = lambda, sigma = sigma,
+    mu = mu, kappa = kappa, pi = pi, tau = tau,
+    eps = eps, lambda = lambda, ward = ward,
     counter = counter
   )
   class(store) <- c("outbreaker_store", "list")
@@ -155,8 +173,9 @@ create_param <- function(data = outbreaker_data(),
 
   current  <- list(
     alpha = current_alpha, t_inf = current_t_inf, t_onw = current_t_onw,
-    mu = current_mu, kappa = current_kappa, pi = current_pi, pi2 = current_pi2,
-    eps = current_eps, lambda = current_lambda, sigma = current_sigma
+    mu = current_mu, kappa = current_kappa, pi = current_pi, tau = current_tau,
+    eps = current_eps, lambda = current_lambda, ward = current_ward, ward_mat = ward_mat,
+    ward_mat_1 = ward_mat_1
   )
   class(current) <- c("outbreaker_param", "list")
 

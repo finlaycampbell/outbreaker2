@@ -165,20 +165,21 @@ create_config <- function(..., data = NULL) {
                    init_kappa = 1,
                    init_t_inf = NULL,
                    init_t_onw = NULL,
-                   init_sigma = NULL,
+                   init_ward = NULL,
                    init_pi = 0.9,
-                   init_pi2 = 0.5,
+                   init_tau = 0.5,
                    init_eps = 0.5,
                    init_lambda = 0.05,
                    move_alpha = TRUE, move_swap_cases = TRUE,
                    move_t_inf = TRUE,
                    move_t_onw = FALSE,
-                   between_wards = FALSE,
                    move_joint = FALSE,
                    move_model = FALSE,
                    move_mu = TRUE, move_kappa = TRUE,
-                   move_pi = TRUE, move_pi2 = FALSE,
+                   move_pi = TRUE, move_tau = FALSE,
                    move_eps = TRUE, move_lambda = TRUE,
+                   swap_ward = TRUE,
+                   between_wards = FALSE,
                    n_iter = 1e4, sample_every = 50,
                    sd_mu = 0.0001, sd_pi = 0.1,
                    sd_eps = 0.1, sd_lambda = 0.05,
@@ -193,9 +194,10 @@ create_config <- function(..., data = NULL) {
                    outlier_threshold = 5,
                    n_iter_import = 5000,
                    sample_every_import = 50,
+                   p_wrong = 0,
                    prior_mu = 1,
                    prior_pi = c(10,1),
-                   prior_pi2 = c(2,2),
+                   prior_tau = c(2,2),
                    prior_eps = c(1,1),
                    prior_lambda = c(1,1))
 
@@ -257,6 +259,11 @@ create_config <- function(..., data = NULL) {
   }
 
 
+  ## check / process init_ward
+  if (!is.null(config$init_ward)) {
+    config$init_ward <- as.integer(config$init_ward)
+  }
+
   ## check init_pi
   if (!is.numeric(config$init_pi)) {
     stop("init_pi is not a numeric value")
@@ -272,18 +279,18 @@ create_config <- function(..., data = NULL) {
   }
 
 
-  ## check init_pi2
-  if (!is.numeric(config$init_pi2)) {
-    stop("init_pi2 is not a numeric value")
+  ## check init_tau
+  if (!is.numeric(config$init_tau)) {
+    stop("init_tau is not a numeric value")
   }
-  if (config$init_pi2 < 0) {
-    stop("init_pi2 is negative")
+  if (config$init_tau < 0) {
+    stop("init_tau is negative")
   }
-  if (config$init_pi2 > 1) {
-    stop("init_pi2 is greater than 1")
+  if (config$init_tau > 1) {
+    stop("init_tau is greater than 1")
   }
-  if (!is.finite(config$init_pi2)) {
-    stop("init_pi2 is infinite or NA")
+  if (!is.finite(config$init_tau)) {
+    stop("init_tau is infinite or NA")
   }
 
 
@@ -374,7 +381,6 @@ create_config <- function(..., data = NULL) {
   }
 
   
-  
   ## check move_mu
   if (!is.logical(config$move_mu)) {
     stop("move_mu is not a logical")
@@ -399,12 +405,12 @@ create_config <- function(..., data = NULL) {
     stop("move_pi is NA")
   }
 
-  ## check move_pi2
-  if (!is.logical(config$move_pi2)) {
-    stop("move_pi2 is not a logical")
+  ## check move_tau
+  if (!is.logical(config$move_tau)) {
+    stop("move_tau is not a logical")
   }
-  if (is.na(config$move_pi2)) {
-    stop("move_pi2 is NA")
+  if (is.na(config$move_tau)) {
+    stop("move_tau is NA")
   }
 
   ## check move_eps
@@ -638,18 +644,18 @@ create_config <- function(..., data = NULL) {
     stop("prior_pi is has values which are infinite or NA")
   }
 
-  ## check prior value for pi2
-  if (!all(is.numeric(config$prior_pi2))) {
-    stop("prior_pi2 has non-numeric values")
+  ## check prior value for tau
+  if (!all(is.numeric(config$prior_tau))) {
+    stop("prior_tau has non-numeric values")
   }
-  if (any(config$prior_pi2 < 0)) {
-    stop("prior_pi2 has negative values")
+  if (any(config$prior_tau < 0)) {
+    stop("prior_tau has negative values")
   }
-  if (length(config$prior_pi2)!=2L) {
-    stop("prior_pi2 should be a vector of length 2")
+  if (length(config$prior_tau)!=2L) {
+    stop("prior_tau should be a vector of length 2")
   }
-  if (!all(is.finite(config$prior_pi2))) {
-    stop("prior_pi2 is has values which are infinite or NA")
+  if (!all(is.finite(config$prior_tau))) {
+    stop("prior_tau is has values which are infinite or NA")
   }
 
   ## check prior value for eps

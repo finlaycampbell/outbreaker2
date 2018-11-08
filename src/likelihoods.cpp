@@ -447,8 +447,6 @@ double cpp_ll_reporting(Rcpp::List data, Rcpp::List param, SEXP i,
   double pi = static_cast<double>(param["pi"]);
   Rcpp::IntegerVector kappa = param["kappa"];
 
-  bool between_wards = data["between_wards"];
-  
   // p(pi < 0) = p(pi > 1) = 0
   if (pi < 0.0 || pi > 1.0) {
     return R_NegInf;
@@ -459,118 +457,30 @@ double cpp_ll_reporting(Rcpp::List data, Rcpp::List param, SEXP i,
     double out = 0.0;
 
     // all cases are retained
-    if(!between_wards) {
-      if (i == R_NilValue) {
-	for (size_t j = 0; j < N; j++) {
-	  if (kappa[j] != NA_INTEGER) {
-	    if (kappa[j] < 1 || kappa[j] > K) {
-	      return  R_NegInf;
-	    }
-	    out += R::dgeom(kappa[j] - 1.0, pi, 1); // first arg must be cast to double
+    if (i == R_NilValue) {
+      for (size_t j = 0; j < N; j++) {
+	if (kappa[j] != NA_INTEGER) {
+	  if (kappa[j] < 1 || kappa[j] > K) {
+	    return  R_NegInf;
 	  }
-	}
-      } else {
-	// only the cases listed in 'i' are retained
-	size_t length_i = static_cast<size_t>(LENGTH(i));
-	Rcpp::IntegerVector vec_i(i);
-	for (size_t k = 0; k < length_i; k++) {
-	  size_t j = vec_i[k] - 1; // offset
-	  if (kappa[j] != NA_INTEGER) {
-	    if (kappa[j] < 1 || kappa[j] > K) {
-	      return  R_NegInf;
-	    }
-	    out += R::dgeom(kappa[j] - 1.0, pi, 1); // first arg must be cast to double
-	  }
+	  out += R::dgeom(kappa[j] - 1.0, pi, 1); // first arg must be cast to double
 	}
       }
     } else {
-      double pi2 = static_cast<double>(param["pi2"]);
-      Rcpp::IntegerVector alpha = param["alpha"];
-      Rcpp::IntegerVector t_inf = param["t_inf"];
-      Rcpp::IntegerVector t_onw = param["t_onw"];
-      Rcpp::IntegerVector sigma = param["sigma"];
-      Rcpp::NumericMatrix ward_matrix = Rcpp::as<Rcpp::NumericMatrix>(data["ward_matrix"]);
-      int C_ind;
-      C_ind = static_cast<int>(data["C_ind"]);
-
-      // If a transmission pair is found on different wards, this suggests that
-      // at least one unobserved case has moved between wards; i.e. 1 - the
-      // probability of all unobserved cases remaining on the same ward (1 -
-      // pi2)^(kappa - 1)
-      
-      if (i == R_NilValue) {
-	for (size_t j = 0; j < N; j++) {
-	  if (kappa[j] != NA_INTEGER) {
-	    if (kappa[j] < 1 || kappa[j] > K) {
-	      return  R_NegInf;
-	    }
-	    if (kappa[j] > 1 && is_between_ward(ward_matrix, t_inf, t_onw, alpha, C_ind, j)) {
-	      // pi2 = 0 says that between ward moves are impossible; therefore
-	      // sigma = 0 is impossible
-	      if(pi2 == 1.0 && sigma[j] == 0) {
-		return  R_NegInf;
-	      } else {
-		// If j already moves between wards (sigma = 1) we don't need to
-		// calculate the additional probability of other the further
-		// unobserved cases moving between wards
-		if(sigma[j] == 0) {
-		  out += R::dgeom(kappa[j] - 1.0, pi, 1) +
-		    log(1 - pi2);
-		  // If j doesn't move between wards (sigma = 0) we need to
-		  // calculate the probability of any of the remaining
-		  // generations moving between wads, i.e. 1 - probability of
-		  // all staying on the same ward (pi)
-		} else if(sigma[j] == 1) {
-		  out += R::dgeom(kappa[j] - 1.0, pi, 1) +
-		    log(pi2) + 
-		    log(1 - std::pow(pi2, kappa[j] - 2));
-		}
-	      }
-	    } else {
-	      out += R::dgeom(kappa[j] - 1.0, pi, 1); // first arg must be cast to double
-	    }
+      // only the cases listed in 'i' are retained
+      size_t length_i = static_cast<size_t>(LENGTH(i));
+      Rcpp::IntegerVector vec_i(i);
+      for (size_t k = 0; k < length_i; k++) {
+	size_t j = vec_i[k] - 1; // offset
+	if (kappa[j] != NA_INTEGER) {
+	  if (kappa[j] < 1 || kappa[j] > K) {
+	    return  R_NegInf;
 	  }
-	}
-      } else {
-	// only the cases listed in 'i' are retained
-	size_t length_i = static_cast<size_t>(LENGTH(i));
-	Rcpp::IntegerVector vec_i(i);
-	for (size_t k = 0; k < length_i; k++) {
-	  size_t j = vec_i[k] - 1; // offset
-	  if (kappa[j] != NA_INTEGER) {
-	    if (kappa[j] < 1 || kappa[j] > K) {
-	      return  R_NegInf;
-	    }
-	    if (kappa[j] > 1 && is_between_ward(ward_matrix, t_inf, t_onw, alpha, C_ind, j)) {
-	      // pi2 = 0 says that between ward moves are impossible; therefore
-	      // sigma = 0 is impossible
-	      if(pi2 == 1.0 && sigma[j] == 0) {
-		return  R_NegInf;
-	      } else {
-		// If j already moves between wards (sigma = 1) we don't need to
-		// calculate the additional probability of other the further
-		// unobserved cases moving between wards
-		if(sigma[j] == 0) {
-		  out += R::dgeom(kappa[j] - 1.0, pi, 1) +
-		    log(1 - pi2);
-		  // If j doesn't move between wards (sigma = 0) we need to
-		  // calculate the probability of any of the remaining
-		  // generations moving between wads, i.e. 1 - probability of
-		  // all staying on the same ward (pi)
-		} else if(sigma[j] == 1) {
-		  out += R::dgeom(kappa[j] - 1.0, pi, 1) +
-		    log(pi2) + 
-		    log(1 - std::pow(pi2, kappa[j] - 2));
-		}
-	      }
-	    } else {
-	      out += R::dgeom(kappa[j] - 1.0, pi, 1); // first arg must be cast to double
-	    }
-	  }
+	  out += R::dgeom(kappa[j] - 1.0, pi, 1); // first arg must be cast to double
 	}
       }
     }
-
+    
     return out;
   } else { // use of a customized likelihood function
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
@@ -627,12 +537,12 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
     if(contacts.nrow() < 1 && contacts_timed.size() < 1 && ward_matrix.nrow() < 1) return 0.0;
     
     int C_ind;
+    double out = 0;
 
     size_t C_combn = static_cast<size_t>(data["C_combn"]);
     size_t C_nrow = static_cast<size_t>(data["C_nrow"]);
     bool move_t_onw = data["move_t_onw"];
     bool between_wards = data["between_wards"];
-
 
     double eps = Rcpp::as<double>(param["eps"]);
     double lambda = Rcpp::as<double>(param["lambda"]);
@@ -694,202 +604,97 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
       false_neg = N - imports - unobsv_case - true_pos;
       true_neg = C_combn - true_pos - false_pos - false_neg;
 
-      // Ward contacts; movement between wards is not allowed
-    } else if(ward_matrix.ncol() > 0 && move_t_onw && !between_wards) {
+    } else if(ward_matrix.ncol() > 0) {
+
+      double tau = param["tau"];
+      double p_wrong = data["p_wrong"];
+      //      int max_gamma = max(na_omit(kappa));
+      Rcpp::NumericVector p_ward = data["p_ward"];
+      Rcpp::NumericVector ward_mat = param["ward_mat"];
+      Rcpp::NumericVector ward_mat_1 = param["ward_mat_1"];
+
+      //      Rcpp::NumericVector ward_mat = get_ward_p(p_ward, eps, tau, max_gamma);
+      //      Rcpp::NumericVector ward_mat_1 = get_ward_p(p_ward, eps, tau, 1);
+      Rcpp::IntegerVector ward = param["ward"];
       C_ind = static_cast<int>(data["C_ind"]);
+
+      int N_ward = p_ward.size();
+      
       for (size_t j = 0; j < N; j++) {
+	// Imports are not considered in the ward likelihood
 	if (alpha[j] == NA_INTEGER) {
 	  imports += 1;
 	} else if (kappa[j] == 1) {
 	  int ind1 = t_inf[j] + C_ind;
-	  if(ward_matrix(j, ind1) == ward_matrix(alpha[j] - 1, ind1) &&
-	     ward_matrix(j, ind1) != 0 &&
+
+	  int w1 = static_cast<int>(ward_matrix(j, ind1));
+	  int w2 = static_cast<int>(ward_matrix(alpha[j] - 1, ind1));
+
+	  //	  std::cout << w1 << " | " << w2 << " | "  << kappa[j] << std::endl;
+	  
+	  if(w1 != 0 &&
+	     w2 != 0 &&
 	     ind1 >= 0 &&
 	     ind1 < ward_matrix.ncol()) {
-	    true_pos += 1;
+	    out += log(ward_mat_1(N_ward*N_ward*1 + N_ward*(w1-1) + w2 - 1));
 	  } else {
-	    false_neg += 1;
-	  }
-	} else if (kappa[j] > 1) {
-	  int ind1 = t_inf[j] + C_ind;
-	  int ind2 = t_onw[j] + C_ind;
-	  if(ward_matrix(alpha[j] - 1, ind2) != 0 &&
-	     ind2 >= 0 &&
-	     ind2 < ward_matrix.ncol()) {
-	    true_pos += 1;
-	      } else {
-	    false_neg += 1;
+	    out += log(p_wrong);
 	  }
 	  
-	  if(ward_matrix(j, ind1) == ward_matrix(alpha[j] - 1, ind2) &&
-	     ward_matrix(j, ind1) != 0 &&
+	} else if (kappa[j] > 1) {
+
+	  int ind1 = t_inf[j] + C_ind;
+	  int ind2 = t_onw[j] + C_ind;
+
+	  int w1 = static_cast<int>(ward_matrix(j, ind1));
+	  int w2 = static_cast<int>(ward_matrix(alpha[j] - 1, ind2));
+	  int w3 = ward[j];
+
+	  if(w1 != 0 &&
+	     w2 != 0 &&
+	     w3 != 0 &&
 	     ind1 >= 0 &&
-	     ind2 >= 0 &&
 	     ind1 < ward_matrix.ncol() &&
-	     ind2 < ward_matrix.ncol()) {
-	    // This is two contacts - alpha_i to beta_i, and beta_i to i
-	    true_pos += 1;
-	  } else {
-	    false_neg += 1;
-	  }
-	}
-      }
-
-      // The rjMCMC doesn't consider lambda moves
-      false_pos = 0;   
-      true_neg = 0;
-      
-      // If we allow between ward movement of unobserved cases, the time of
-      // onward infection and infection must be correct, but the wards don't
-      // have to match - ie they just need to be on a ward (ward != 0)
-    } else if(ward_matrix.ncol() > 0 && move_t_onw && between_wards) {
-      C_ind = static_cast<int>(data["C_ind"]);
-      for (size_t j = 0; j < N; j++) {
-	if (alpha[j] == NA_INTEGER) {
-	  imports += 1;
-	} else if (kappa[j] == 1) {
-	  int ind1 = t_inf[j] + C_ind;
-	  if(ward_matrix(j, ind1) == ward_matrix(alpha[j] - 1, ind1) &&
-	     ward_matrix(j, ind1) != 0 &&
-	     ind1 >= 0 &&
-	     ind1 < ward_matrix.ncol()) {
-	    true_pos += 1;
-	  } else {
-	    false_neg += 1;
-	  }
-	} else if (kappa[j] > 1) {
-	  int ind1 = t_onw[j] + C_ind;
-	  int ind2 = t_inf[j] + C_ind;
-	  //	  std::cout << j << " | " << ind2 << " | " << ward_matrix(j, ind2) << " | " << ind1
-	  //	    << " | " << ward_matrix(alpha[j] - 1, ind1) << std::endl;
-	  // This is alpha_i contacting beta_i
-	  if(ward_matrix(alpha[j] - 1, ind1) != 0 &&
-	     ind1 >= 0 &&
-	     ind1 < ward_matrix.ncol()) {
-	    true_pos += 1;
-	  } else {
-	    false_neg += 1;
-	  }
-
-	  // This is beta_i contacting i
-	  if(ward_matrix(j, ind2) != 0 &&
 	     ind2 >= 0 &&
 	     ind2 < ward_matrix.ncol()) {
-	    true_pos += 1;
+// std::cout << j+1 << " |" << alpha[j] << " | " << w1 << " | " << w2 << " | " << w3 << " | " << kappa[j] << std::endl;
+	    out += log(ward_mat_1(N_ward*N_ward*1 + N_ward*(w3-1) + w2 - 1));
+	    out += log(ward_mat(N_ward*N_ward*(kappa[j]-1) + N_ward*(w1-1) + w3 - 1));
 	  } else {
-	    false_neg += 1;
+	    out +=  log(p_wrong);
 	  }
 	}
       }
-
-      // The rjMCMC doesn't consider lambda moves
-      false_pos = 0;   
-      true_neg = 0;
-      
-    } else if(ward_matrix.ncol() > 0 && !move_t_onw) {
-      C_ind = static_cast<int>(data["C_ind"]);
-      for (size_t j = 0; j < N; j++) {
-	if (alpha[j] == NA_INTEGER) {
-	  imports += 1;
-	} else if (kappa[j] == 1) {
-	  int ind1 = t_inf[j] + C_ind;
-	  if(ward_matrix(j, ind1) == ward_matrix(alpha[j] - 1, ind1) &&
-	     ward_matrix(j, ind1) != 0 &&
-	     ind1 >= 0 &&
-	     ind1 < ward_matrix.ncol()) {
-	    true_pos += 1;
-	  } else {
-	    false_neg += 1;
-	  }
-	} else if (kappa[j] > 1) {
-	  // If we allow between ward movement and are not respecting ward
-	  // times, then an unobserved case can go between wards at all times
-	  if(between_wards) {
-	    true_pos += 2;
-	  } else {
-	    // If we only allow movement within wards, and we are not inferring
-	    // onward infection times, then we have to consider which ward A
-	    // infected the unobserved case in - we need to see if A (after
-	    // getting infected) was in the ward that B got infected in, before
-	    // A got infected
-	    int min_date = t_inf[alpha[j] - 1] + C_ind;
-	    int max_date = t_inf[j] + C_ind - 1;
-	    Rcpp::NumericVector infector_ward = ward_matrix(alpha[j] - 1, Rcpp::_);
-	    infector_ward = infector_ward[Rcpp::Range(min_date, max_date)];
-	    int ind1 = t_inf[j] + C_ind;
-	    // Make sure this doesn't match zeroes - they need to have shared a ward
-	    if((std::find(infector_ward.begin(),
-			 infector_ward.end(),
-			 ward_matrix(j, ind1)) != infector_ward.end()) &&
-	       ward_matrix(j, ind1) != 0 &&
-	       ind1 >= 0 &&
-	       ind1 < ward_matrix.ncol()) {
-	      true_pos += 2;
-	    } else {
-	      false_neg += 2;
-	    }		    
-	  }
-	}
-      }
-      
-      // The rjMCMC doesn't consider lambda moves
-      false_pos = 0;   
-      true_neg = 0;
-      
     }
 
-    // If we count A-U-B as a single contact for now which REPLACES A-B (so as
-    // to keep fixed number of parameters and avoid rjMCMC), A-U-B counts as a
-    // true positive contact between transmission pairs (which then means we
-    // reduce the number of false positives by one - even though not sure this
-    // is correct)
-
-    // The question is, when we have A-U-B, does this reduce the number of false
-    // positives (I'm not sure it does - because we don't even have a contact
-    // between A and B) - A-B WOULD go into false_negative, which we definitely
-    // need to remove - however, should we reduce the number of false_positives
-    // (A-U-B = true_pos) or reduce the number of true_negatives (A-U-B =
-    // unobsv_case) - is A-U-B a true_pos or true_neg? I think a true_neg -
-    // because we don't actually HAVE a contact between A and B
-
-    // In the end we'll have to do this properly by accounting for all contacts
-    // - in that case A-B and A-U-B will both be accounted for - I think we
-    // should actually be looking at the state of A-B when determining what
-    // A-U-B is - if A-B are in contact, A-U-B should be a true_pos, if not, a
-    // true_neg - but as we will never be proposing A-U-B when and A-B is true,
-    // it should be fine to assign it as true_neg for now (ie A-U-B =
-    // unobsv_case)
-
-    // This is a bit hacky atm - this will be done properly with rjMCMC
-
-    //    bool to_print = param["to_print"];
-    //if(to_print) {
-    //        std::cout << "unobsv_case = " << unobsv_case << " | false_neg = " << false_neg << std::endl;
-      //}
-
-    // deal with special case when lambda == 0 and eps == 1, to avoid log(0)
-    if(lambda == 0.0) {
-      if(false_pos > 0) {
-	return R_NegInf;
-      } else {
-	log(eps) * (double) true_pos +
-	  log(1 - eps) * (double) false_neg +
-	  log(1 - eps*lambda) * (double) true_neg;
-      }
-    } else if(eps == 1.0) {
-      if(false_neg > 0) {
-	return R_NegInf;
+    if(contacts.ncol() > 0 || contacts_timed.size() > 0) {
+      
+      if(lambda == 0.0) {
+	if(false_pos > 0) {
+	  return R_NegInf;
+	} else {
+	  log(eps) * (double) true_pos +
+	    log(1 - eps) * (double) false_neg +
+	    log(1 - eps*lambda) * (double) true_neg;
+	}
+      } else if(eps == 1.0) {
+	if(false_neg > 0) {
+	  return R_NegInf;
+	} else {
+	  return log(eps) * (double) true_pos +
+	    log(eps*lambda) * (double) false_pos +
+	    log(1 - eps*lambda) * (double) true_neg;
+	}
       } else {
 	return log(eps) * (double) true_pos +
 	  log(eps*lambda) * (double) false_pos +
+	  log(1 - eps) * (double) false_neg +
 	  log(1 - eps*lambda) * (double) true_neg;
       }
-    } else {
-      return log(eps) * (double) true_pos +
-	log(eps*lambda) * (double) false_pos +
-	log(1 - eps) * (double) false_neg +
-	log(1 - eps*lambda) * (double) true_neg;
+    } else if(ward_matrix.ncol() > 0) {
+      return(out);
     }
+    
   } else { //use of a customized likelihood function
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
 
@@ -924,11 +729,13 @@ double cpp_ll_timing(Rcpp::List data, Rcpp::List param, SEXP i,
   if (custom_functions == R_NilValue) {
     return cpp_ll_timing_infections(data, param, i) +
       cpp_ll_timing_sampling(data, param, i) +
+      cpp_ll_reporting(data, param, i) +
       cpp_ll_contact(data, param, i);
   } else { // use of a customized likelihood functions
     Rcpp::List list_functions = Rcpp::as<Rcpp::List>(custom_functions);
     return cpp_ll_timing_infections(data, param, i, list_functions["timing_infections"]) +
       cpp_ll_timing_sampling(data, param, i, list_functions["timing_sampling"]) +
+      cpp_ll_reporting(data, param, i, list_functions["reporting"]) +
       cpp_ll_contact(data, param, i, list_functions["contact"]);
   }
 }
