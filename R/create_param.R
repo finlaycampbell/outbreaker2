@@ -154,8 +154,14 @@ create_param <- function(data = outbreaker_data(),
     current_ward <- ward[[1]] <- as.integer(tmp_ward)
   }
 
-  ward_mat <- get_ward_p(data$p_ward, config$init_eps, config$init_tau, config$max_kappa)
-  ward_mat_1 <- get_ward_p(data$p_ward, config$init_eps, 1, 1)
+  ## Calculate initial ward transition probabilities
+  if (!is.null(data$wards)) {
+    ward_mat <- get_ward_p(data$p_ward, config$init_eps, config$init_tau, config$max_kappa)
+    ward_mat_1 <- get_ward_p(data$p_ward, config$init_eps, 1, 1)
+  } else {
+    ward_mat <- NULL
+    ward_mat_1 <- NULL
+  }
   
   counter <- 1L
 
