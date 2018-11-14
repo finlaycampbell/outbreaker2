@@ -712,8 +712,15 @@ create_config <- function(..., data = NULL) {
       
       ## seqTrack init
       if (config$init_tree=="seqTrack") {
+
+        ## Enforce t_inf[alpha_i] < t_inf[i] for seqTrack init
+        potent_ances <- outer(data$dates,
+                              data$dates,
+                              FUN="<")
+        diag(potent_ances) <- FALSE
+        
         D_temp <- data$D
-        D_temp[!data$can_be_ances] <- 1e30
+        D_temp[!potent_ances] <- 1e30
         config$init_alpha <- apply(D_temp,2,which.min)
         config$init_alpha[data$dates==min(data$dates)] <- NA
         config$init_alpha <- as.integer(config$init_alpha)
