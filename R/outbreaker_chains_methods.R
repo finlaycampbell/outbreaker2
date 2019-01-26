@@ -145,6 +145,7 @@ plot.outbreaker_chains <- function(x, y = "post",
 
   if (type=="alpha") {
     alpha <- as.matrix(x[,grep("alpha", names(x))])
+    N <- ncol(alpha)
     colnames(alpha) <- seq_len(ncol(alpha))
     from <- as.vector(alpha)
     to <- as.vector(col(alpha))
@@ -158,7 +159,7 @@ plot.outbreaker_chains <- function(x, y = "post",
     }
     ## Return labels, if provided
     get_alpha_lab <- function(axis, labels = NULL) {
-      if(is.null(labels)) labels <- levels(out_dat$to)
+      if(is.null(labels)) labels <- 1:N
       if(axis == 'x') return(labels) else
       if(axis == 'y') return(c("Import", labels))
     }
@@ -207,10 +208,9 @@ plot.outbreaker_chains <- function(x, y = "post",
            t_inf_color = get_t_inf_color(color))
     }
 
-    tmp <- get_lab_color(...)
-    
     t_inf <- as.matrix(x[,grep("t_inf", names(x))])
     N <- ncol(t_inf)
+    tmp <- get_lab_color(...)
     dates <- as.vector(t_inf)
     cases <- as.vector(col(t_inf))
     out_dat <- data.frame(cases = factor(cases), dates = dates)
@@ -383,12 +383,27 @@ summary.outbreaker_chains <- function(object, burnin = 0, ...) {
   }
   out$tree$support <- apply(alpha, 2, f2)
 
+  ## Returns NA if %NA > 50%, otherwise returns median
+  f3 <- function(x) {
+    if(any(is.na(x))) {
+      tab <- sort(table(x, exclude = NULL), decreasing = TRUE)
+      nam <- as.integer(names(tab))
+      if(tab[is.na(nam)] > sum(tab[!is.na(nam)])) {
+        out <- NA
+      } else {
+        out <- median(x, na.rm = TRUE)
+      }
+    } else {
+        out <- median(x, na.rm = TRUE)
+    }
+    return(out)
+  }
+
   ## summary of kappa ##
   kappa <- as.matrix(x[,grep("kappa", names(x))])
-  ## Use the modal value instead of median (median doesn't make sense if you
-  ## have NA i.e. imports)
-  out$tree$generations <- apply(kappa, 2, f1)
-  ##out$tree$generations <- apply(kappa, 2, median)
+
+  ## use NA if > 50%, otherwise use median
+  out$tree$generations <- apply(kappa, 2, f3)
 
   ## shape tree as a data.frame
   out$tree <- as.data.frame(out$tree)

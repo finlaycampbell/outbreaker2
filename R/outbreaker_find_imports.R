@@ -27,14 +27,14 @@ outbreaker_find_imports <- function(moves, data, param_current,
   J <- length(moves)
 
   ## create matrix of individual influences ##
-  n_measures <- floor(config$n_iter_import - (1000 / config$sample_every_import))
+  n_measures <- floor((config$n_iter_import - 1000) / config$sample_every_import)
   influences <- matrix(0, ncol = data$N, nrow = n_measures)
   counter <- 1L
 
   ## remove the contact likelihood from outlier detection
   tmp_likelihoods <- likelihoods
   tmp_likelihoods$contact <- function(data, param) return(0)
-  
+
   ## RUN MCMC ##
   for (i in seq.int(2, config$n_iter_import, 1)) {
     ## move parameters / augmented data
@@ -61,9 +61,7 @@ outbreaker_find_imports <- function(moves, data, param_current,
                                        numeric(1))
       counter <- counter + 1L
     }
-
   } # end of the chain
-
 
   ## FIND OUTLIERS BASED ON INFLUENCE ##
   mean_influences <- colMeans(influences)

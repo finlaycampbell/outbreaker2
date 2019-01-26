@@ -814,9 +814,14 @@ create_config <- function(..., data = NULL) {
     }
 
     ## disable moves for eps and lambda if no CTD is provided
-    if((is.null(data$contacts) || nrow(data$contacts) < 1) &
-       (is.null(data$ward_matrix) || nrow(data$ward_matrix) < 1)) {
-      config$move_eps <- config$move_lambda <- FALSE
+    have_ctd <- !(is.null(data$contacts) || nrow(data$contacts) < 1)
+    have_ward <- !(is.null(data$ward_matrix) || nrow(data$ward_matrix) < 1)
+    if(!have_ctd & !have_ward) {
+      config$move_eps <- config$move_lambda <- config$move_tau <- FALSE
+    } else if(!have_ctd & have_ward) {
+      config$move_lambda <- FALSE
+    } else if(have_ctd & !have_ward) {
+      config$move_tau <- FALSE
     }
   }
 
