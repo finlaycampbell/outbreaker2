@@ -537,3 +537,418 @@ Rcpp::NumericVector get_ward_p(Rcpp::NumericVector p_ward, double eps, double ta
 }
 
 
+
+
+
+
+
+
+
+
+// ---------------------------
+// Find the number of contacts between cases on their day of infection
+
+// [[Rcpp::export()]]
+Rcpp::NumericMatrix t_inf_change(Rcpp::List data,
+				 Rcpp::IntegerVector alpha,
+				 Rcpp::IntegerVector kappa,
+				 size_t p,
+				 size_t t_inf_1,
+				 size_t t_inf_2) {
+
+  Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
+  Rcpp::NumericMatrix n_contacts(ctd_timed_matrix_list.size(), 6);
+
+  // column to access in contact data
+  int ind1;
+  int ind2;
+  int place1;
+  int place2;
+  int place3;
+  int place4;
+  bool place_changed;
+  bool match2;
+  bool match3;
+  int t_inf;
+  
+  int C_ind = static_cast<int>(data["C_ind"]);
+  size_t N = static_cast<size_t>(data["N"]);
+    
+  for (size_t i = 0; i < ctd_timed_matrix_list.size(); i++) {
+    
+    Rcpp::NumericMatrix contacts_timed = Rcpp::as<Rcpp::NumericMatrix>(ctd_timed_matrix_list[i]);
+
+    ind1 = t_inf_1 + C_ind;
+    ind2 = t_inf_2 + C_ind;
+
+    // avoid negative indexing
+    if(ind1 < 0 || ind1 > contacts_timed.ncol()) {
+      place1 = 0;
+    } else {
+      place1 = static_cast<int>(contacts_timed(p - 1, ind1));
+    }
+    
+    // avoid negative indexing
+    if(ind2 < 0 || ind2 > contacts_timed.ncol()) {
+      place2 = 0;
+    } else {
+      place2 = static_cast<int>(contacts_timed(p - 1, ind2));
+    }
+
+    // First check if the place has even changed
+    place_changed = place1 != 0 &&
+      place2 != 0 &&
+      place1 != place2;
+
+    for(size_t k = 0; k < N; k++) {
+      // skip comparison with self
+      if(p - 1 != k) {
+
+	// avoid negative indexing
+	if(ind1 < 0 || ind1 > contacts_timed.ncol()) {
+	  place3 = 0;
+	} else {
+	  place3 = static_cast<int>(contacts_timed(k, ind1));
+	}
+
+	// avoid negative indexing
+	if(ind2 < 0 || ind2 > contacts_timed.ncol()) {
+	  place4 = 0;
+	} else {
+	  place4 = static_cast<int>(contacts_timed(k, ind2));
+	}
+
+	// Are they in the same place on the day of infection?
+	match2 = place1 != 0 &&
+	  place1 == place3;
+
+	match3 = place2 != 0 &&
+	  place2 == place4;
+
+	// If there is a contact in the old proposal and not the new proposal
+	if(match2 && !match3) {
+	  // when considering the infector - only if kappa = 1
+	  if(alpha(p - 1) - 1 == k && kappa(p - 1) == 1) {
+	    // we have lost a true pos
+	    n_contacts(i, 0) += -1;
+	    // we have gained a false neg
+	    n_contacts(i, 3) += 1;
+	    // when considering a non-infector
+	  } else if(alpha(p - 1) != NA_INTEGER) {
+	    // we have lost a false pos
+	    n_contacts(i, 1) += -1;
+	    // we have gained a true neg
+	    n_contacts(i, 2) += 1;
+	  }
+	  // If there is a contact in the new proposal and not the old proposal
+	} else if(!match2 && match3) {
+	  // when considering the infector - only if kappa = 1
+	  if(alpha(p - 1) - 1 == k && kappa(p - 1) == 1) {
+	    // we have gained a true pos
+	    n_contacts(i, 0) += 1;
+	    // we have lost a false neg
+	    n_contacts(i, 3) += -1;
+	    // when considering a non-infector
+	  } else if(alpha(p - 1) != NA_INTEGER) {
+	    // we have gained a false pos
+	    n_contacts(i, 1) += 1;
+	    // we have lost a true neg
+	    n_contacts(i, 2) += -1;
+	  }
+	}
+      }
+    }
+    
+  }
+
+  return(n_contacts);
+  
+}
+
+
+
+
+
+
+// ---------------------------
+// Find how the types of contacts change with an alpha change
+
+// [[Rcpp::export()]]
+Rcpp::NumericMatrix alpha_change(Rcpp::List data,
+				 size_t p,
+				 size_t kappa,
+				 size_t t_inf,
+				 size_t alpha_1,
+				 size_t alpha_2) {
+
+  Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
+  Rcpp::NumericMatrix n_contacts(ctd_timed_matrix_list.size(), 6);
+
+  //  size_t true_pos = 0;
+  //  size_t false_pos = 0;
+  //  size_t true_neg = 0;
+  //  size_t false_neg = 0;
+  //  size_t imports = 0;
+  //  size_t unobsv_case = 0;
+
+  int ind;
+  int place1;
+  int place2;
+  int place3;
+  bool match1;
+  bool match2;
+  
+  int C_ind = static_cast<int>(data["C_ind"]);
+  size_t N = static_cast<size_t>(data["N"]);
+    
+  for (size_t i = 0; i < ctd_timed_matrix_list.size(); i++) {
+    
+    Rcpp::NumericMatrix contacts_timed = Rcpp::as<Rcpp::NumericMatrix>(ctd_timed_matrix_list[i]);
+
+    ind = t_inf + C_ind;
+
+    // avoid negative indexing
+    if(ind < 0 || ind > contacts_timed.ncol()) {
+      place1 = 0;
+      place2 = 0;
+      place3 = 0;
+    } else {
+      place1 = static_cast<int>(contacts_timed(p - 1, ind));
+      place2 = static_cast<int>(contacts_timed(alpha_1 - 1, ind));
+      place3 = static_cast<int>(contacts_timed(alpha_2 - 1, ind));
+    }
+
+    // First check if the place has even changed
+    // Does the tpair have a contact in the old parameter state
+    match1 = place1 != 0 &&
+      place1 == place2;
+
+    // Does the tpair have a contact in the new parameter state
+    match2 = place1 != 0 &&
+      place1 == place3; 
+
+    // This currently does not deal with NAs, but imports are skipped in move_alpha anyways
+    // in this manner so it doesn't matter
+
+    // If kappa > 1, it basically means all cases are non-transmission pairs so moving alpha
+    // doesn't change anything
+    if(kappa == 1) {
+      if(match1 && !match2) {
+	// lost a true pos
+	n_contacts(i, 0) += -1;
+	// lost a true neg
+	n_contacts(i, 2) += -1;
+	// gained a false pos
+	n_contacts(i, 1) += 1;
+	// gained a false neg
+	n_contacts(i, 3) += 1;
+      } else if(!match1 && match2) {
+	// gained a true pos
+	n_contacts(i, 0) += 1;
+	// lost a palse pos
+	n_contacts(i, 1) += -1;
+	// gained a true neg
+	n_contacts(i, 2) += 1;
+	// lost a false neg
+	n_contacts(i, 3) += -1;
+      }
+    }
+  }
+
+  return(n_contacts);
+  
+}
+
+
+
+
+
+
+
+
+
+// ---------------------------
+// Find the number of contacts between cases on their day of infection
+
+// [[Rcpp::export()]]
+Rcpp::NumericMatrix local_n_contacts(Rcpp::List data,
+				     Rcpp::List param,
+				     Rcpp::IntegerVector p) {
+
+  Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
+  Rcpp::NumericMatrix n_contacts(ctd_timed_matrix_list.size(), 6);
+
+  Rcpp::IntegerVector alpha = param["alpha"];
+  Rcpp::IntegerVector t_inf = param["t_inf"];
+  Rcpp::IntegerVector kappa = param["kappa"];
+
+  // column to access in contact data
+  int ind;
+  int j;
+  int place1;
+  int place2;
+  bool match;
+
+  int C_ind = static_cast<int>(data["C_ind"]);
+  size_t N = static_cast<size_t>(data["N"]);
+
+  for (size_t i = 0; i < ctd_timed_matrix_list.size(); i++) {
+
+    Rcpp::NumericMatrix contacts_timed = Rcpp::as<Rcpp::NumericMatrix>(ctd_timed_matrix_list[i]);
+    
+    for (size_t l = 0; l < p.size(); l++) {
+
+      // Count only for IDs in p
+      j = p[l] - 1;
+      
+      ind = t_inf[j] + C_ind;
+      for(size_t k = 0; k < N; k++) {
+	// skip comparison with self
+	if(j != k) {
+
+	  if(ind < 0 || ind > contacts_timed.ncol()) {
+	    match = false;
+	  } else {
+	    place1 = static_cast<int>(contacts_timed(j, ind));
+	    place2 = static_cast<int>(contacts_timed(k, ind));
+	    match = place1 != 0 && place1 == place2;
+	  }
+
+	  // if there is a contact
+	  if(match) {
+	    // when considering the infector
+	    if(alpha[j] - 1 == k) {
+	      // we have an unobserved case - like an unconnected case
+	      // therefore this is a false positive
+	      if(kappa[j] > 1) {
+		n_contacts(i, 1) += 1;
+	      } else {
+		// we have gained a true pos
+		n_contacts(i, 0) += 1;
+	      }
+	    } else {
+	      // we have gained a false pos
+	      n_contacts(i, 1) += 1;
+	    }
+	    // if there is no contact
+	  } else {
+	    // when considering the infector
+	    if(alpha[j] - 1 == k) {
+	      // we have an unobserved case - like an unconnected case
+	      // therefore this is a true negative
+	      if(kappa[j] > 1) {
+		n_contacts(i, 2) += 1;
+	      } else {
+		// we have gained a false negative
+		n_contacts(i, 3) += 1;
+	      }
+	    } else {
+	      // we have gained a true negative
+	      n_contacts(i, 2) += 1;
+	    }
+	  }
+	}
+      }
+    }
+  }
+
+  return(n_contacts);
+  
+}
+
+
+
+
+
+
+
+
+// ---------------------------
+// Find the change in number of contacts upon moving kappa
+
+// [[Rcpp::export()]]
+Rcpp::NumericMatrix kappa_change(Rcpp::List data,
+				 Rcpp::List param,
+				 size_t p,
+				 size_t t_inf,
+				 size_t alpha,
+				 size_t kappa1,
+				 size_t kappa2) {
+
+  Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
+  Rcpp::NumericMatrix n_contacts(ctd_timed_matrix_list.size(), 6);
+
+  //  size_t true_pos = 0;
+  //  size_t false_pos = 0;
+  //  size_t true_neg = 0;
+  //  size_t false_neg = 0;
+  //  size_t imports = 0;
+  //  size_t unobsv_case = 0;
+
+  int ind;
+  int place1;
+  int place2;
+  bool match;
+  
+  int C_ind = static_cast<int>(data["C_ind"]);
+  size_t N = static_cast<size_t>(data["N"]);
+    
+  for (size_t i = 0; i < ctd_timed_matrix_list.size(); i++) {
+    
+    Rcpp::NumericMatrix contacts_timed = Rcpp::as<Rcpp::NumericMatrix>(ctd_timed_matrix_list[i]);
+
+    ind = t_inf + C_ind;
+
+    // Avoid indexing by negative
+    // Does the tpair have a contact in the old parameter state
+    if(ind < 0 || ind > contacts_timed.ncol()) {
+      match = false;
+    } else {
+      place1 = static_cast<int>(contacts_timed(p - 1, ind));
+      place2 = static_cast<int>(contacts_timed(alpha, ind));
+      match = place1 != 0 && place1 == place2;
+    }
+    
+    // // First check if they are in the same place
+
+
+    // match = place1 != 0 &&
+    //   place1 == place2 &&
+    //   ind >= 0 &&
+    //   ind < contacts_timed.ncol();
+
+    // a contact with kappa > 1 converts a true positive to a false positive
+    if(kappa1 == 1 && kappa2 > 1) {
+      // if they previously matched
+      if(match) {
+	// gained a false positive
+	n_contacts(i, 1) += 1;
+	// lost a true pos
+	n_contacts(i, 0) += -1;
+      } else {
+	// gained a true negative
+	n_contacts(i, 2) += 1;
+	// lost a false negative
+	n_contacts(i, 3) += -1;
+      }
+      // Removing an unobserved case
+    } else if(kappa1 > 1 && kappa2 == 1) {
+      // if they match
+      if(match) {
+	// gained a true positive
+	n_contacts(i, 0) += 1;
+	// lost a false pos
+	n_contacts(i, 1) += -1;
+      } else {
+	// lost a true negative
+	n_contacts(i, 2) += -1;
+	// gained a false negative
+	n_contacts(i, 3) += 1;
+      }
+    }
+  }
+
+  return(n_contacts);
+  
+}
+

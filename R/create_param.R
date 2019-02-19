@@ -111,13 +111,15 @@ create_param <- function(data = outbreaker_data(),
   ## CREATE EMPTY OUTPUT VECTORS ##
   size <- round(config$n_iter/config$sample_every)
   step <- integer(size)
-  post <- prior <- like <- mu <- pi <- tau <- eps <- lambda <- double(size)
+  post <- prior <- like <- mu <- pi <- tau <- double(size)
+  eps <- as.list(integer(size))
+  lambda <- as.list(integer(size))
   alpha <- as.list(integer(size))
   t_inf <- as.list(integer(size))
   t_onw <- as.list(integer(size))
   ward <- as.list(integer(size))
   kappa <- as.list(integer(size))
-
+  
   ## SET CURRENT VALUES AND COUNTER ##
   step[1] <- 1L
   current_mu <- mu[1] <- config$init_mu
@@ -125,8 +127,8 @@ create_param <- function(data = outbreaker_data(),
   current_kappa <- kappa[[1]] <- config$init_kappa
   current_pi <- pi[1] <- config$init_pi
   current_tau <- tau[1] <- config$init_tau
-  current_eps <- eps[1] <- config$init_eps
-  current_lambda <- lambda[1] <- config$init_lambda
+  current_eps <- eps[[1]] <- config$init_eps
+  current_lambda <- lambda[[1]] <- config$init_lambda
   if (is.null(config$init_t_inf)) {
     current_t_inf <- t_inf[[1]] <- data$dates - which.max(data$f_dens) + 1L
   } else {
@@ -165,7 +167,6 @@ create_param <- function(data = outbreaker_data(),
   
   counter <- 1L
 
-
   store <- list(
     size = size, step = step,
     post = post, like = like, prior = prior,
@@ -176,7 +177,6 @@ create_param <- function(data = outbreaker_data(),
   )
   class(store) <- c("outbreaker_store", "list")
 
-
   current  <- list(
     alpha = current_alpha, t_inf = current_t_inf, t_onw = current_t_onw,
     mu = current_mu, kappa = current_kappa, pi = current_pi, tau = current_tau,
@@ -185,8 +185,14 @@ create_param <- function(data = outbreaker_data(),
   )
   class(current) <- c("outbreaker_param", "list")
 
-
-
+  tmp <- cpp_swap_cases(current, 1, FALSE)
+  
+  ## Count the number of contacts
+  if(!is.null(data$ctd_timed)) {
+    current$n_contacts <- local_n_contacts(data, current, seq.int(1, data$N))
+  } else {
+    current$n_contacts <- matrix(, ncol = 0, nrow = 0)
+  }
   ## SHAPE CHAIN ##
   out <- list(store = store,
               current = current)

@@ -133,6 +133,68 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// t_inf_change
+Rcpp::NumericMatrix t_inf_change(Rcpp::List data, Rcpp::IntegerVector alpha, Rcpp::IntegerVector kappa, size_t p, size_t t_inf_1, size_t t_inf_2);
+RcppExport SEXP _outbreaker2_t_inf_change(SEXP dataSEXP, SEXP alphaSEXP, SEXP kappaSEXP, SEXP pSEXP, SEXP t_inf_1SEXP, SEXP t_inf_2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type kappa(kappaSEXP);
+    Rcpp::traits::input_parameter< size_t >::type p(pSEXP);
+    Rcpp::traits::input_parameter< size_t >::type t_inf_1(t_inf_1SEXP);
+    Rcpp::traits::input_parameter< size_t >::type t_inf_2(t_inf_2SEXP);
+    rcpp_result_gen = Rcpp::wrap(t_inf_change(data, alpha, kappa, p, t_inf_1, t_inf_2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// alpha_change
+Rcpp::NumericMatrix alpha_change(Rcpp::List data, size_t p, size_t kappa, size_t t_inf, size_t alpha_1, size_t alpha_2);
+RcppExport SEXP _outbreaker2_alpha_change(SEXP dataSEXP, SEXP pSEXP, SEXP kappaSEXP, SEXP t_infSEXP, SEXP alpha_1SEXP, SEXP alpha_2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< size_t >::type p(pSEXP);
+    Rcpp::traits::input_parameter< size_t >::type kappa(kappaSEXP);
+    Rcpp::traits::input_parameter< size_t >::type t_inf(t_infSEXP);
+    Rcpp::traits::input_parameter< size_t >::type alpha_1(alpha_1SEXP);
+    Rcpp::traits::input_parameter< size_t >::type alpha_2(alpha_2SEXP);
+    rcpp_result_gen = Rcpp::wrap(alpha_change(data, p, kappa, t_inf, alpha_1, alpha_2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// local_n_contacts
+Rcpp::NumericMatrix local_n_contacts(Rcpp::List data, Rcpp::List param, Rcpp::IntegerVector p);
+RcppExport SEXP _outbreaker2_local_n_contacts(SEXP dataSEXP, SEXP paramSEXP, SEXP pSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type param(paramSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type p(pSEXP);
+    rcpp_result_gen = Rcpp::wrap(local_n_contacts(data, param, p));
+    return rcpp_result_gen;
+END_RCPP
+}
+// kappa_change
+Rcpp::NumericMatrix kappa_change(Rcpp::List data, Rcpp::List param, size_t p, size_t t_inf, size_t alpha, size_t kappa1, size_t kappa2);
+RcppExport SEXP _outbreaker2_kappa_change(SEXP dataSEXP, SEXP paramSEXP, SEXP pSEXP, SEXP t_infSEXP, SEXP alphaSEXP, SEXP kappa1SEXP, SEXP kappa2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type param(paramSEXP);
+    Rcpp::traits::input_parameter< size_t >::type p(pSEXP);
+    Rcpp::traits::input_parameter< size_t >::type t_inf(t_infSEXP);
+    Rcpp::traits::input_parameter< size_t >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< size_t >::type kappa1(kappa1SEXP);
+    Rcpp::traits::input_parameter< size_t >::type kappa2(kappa2SEXP);
+    rcpp_result_gen = Rcpp::wrap(kappa_change(data, param, p, t_inf, alpha, kappa1, kappa2));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_ll_genetic
 double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i, Rcpp::RObject custom_function);
 RcppExport SEXP _outbreaker2_cpp_ll_genetic(SEXP dataSEXP, SEXP paramSEXP, SEXP iSEXP, SEXP custom_functionSEXP) {
@@ -464,6 +526,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_outbreaker2_cpp_lookup_sequenced_ancestor", (DL_FUNC) &_outbreaker2_cpp_lookup_sequenced_ancestor, 3},
     {"_outbreaker2_is_between_ward", (DL_FUNC) &_outbreaker2_is_between_ward, 6},
     {"_outbreaker2_get_ward_p", (DL_FUNC) &_outbreaker2_get_ward_p, 4},
+    {"_outbreaker2_t_inf_change", (DL_FUNC) &_outbreaker2_t_inf_change, 6},
+    {"_outbreaker2_alpha_change", (DL_FUNC) &_outbreaker2_alpha_change, 6},
+    {"_outbreaker2_local_n_contacts", (DL_FUNC) &_outbreaker2_local_n_contacts, 3},
+    {"_outbreaker2_kappa_change", (DL_FUNC) &_outbreaker2_kappa_change, 7},
     {"_outbreaker2_cpp_ll_genetic", (DL_FUNC) &_outbreaker2_cpp_ll_genetic, 4},
     {"_outbreaker2_cpp_ll_timing_infections", (DL_FUNC) &_outbreaker2_cpp_ll_timing_infections, 4},
     {"_outbreaker2_cpp_ll_timing_sampling", (DL_FUNC) &_outbreaker2_cpp_ll_timing_sampling, 4},

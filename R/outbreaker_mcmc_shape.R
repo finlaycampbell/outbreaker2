@@ -25,6 +25,19 @@ outbreaker_mcmc_shape <- function(param, data) {
   param$t_inf <- matrix(unlist(param$t_inf), ncol = data$N, byrow = TRUE)
   colnames(param$t_inf) <- paste("t_inf", seq_len(data$N), sep=".")
 
+  ## unfold epsilon estimates ##
+  param$eps <- matrix(unlist(param$eps),
+                        ncol = length(data$ctd_matrix) + length(data$ctd_timed_matrix),
+                      byrow = TRUE)
+
+  colnames(param$eps) <- seq_len(ncol(param$eps))
+
+  ## unfold lambdailon estimates ##
+  param$lambda <- matrix(unlist(param$lambda),
+                        ncol = length(data$ctd_matrix) + length(data$ctd_timed_matrix),
+                        byrow = TRUE)
+  colnames(param$lambda) <- seq_len(ncol(param$lambda))
+
   ## unfold t_onw dates ##
   if(data$move_t_onw) {
     if (!all(vapply(param$t_onw, length, integer(1))==data$N)) {

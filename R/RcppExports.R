@@ -41,6 +41,22 @@ get_ward_p <- function(p_ward, eps, tau, max_gamma) {
     .Call(`_outbreaker2_get_ward_p`, p_ward, eps, tau, max_gamma)
 }
 
+t_inf_change <- function(data, alpha, kappa, p, t_inf_1, t_inf_2) {
+    .Call(`_outbreaker2_t_inf_change`, data, alpha, kappa, p, t_inf_1, t_inf_2)
+}
+
+alpha_change <- function(data, p, kappa, t_inf, alpha_1, alpha_2) {
+    .Call(`_outbreaker2_alpha_change`, data, p, kappa, t_inf, alpha_1, alpha_2)
+}
+
+local_n_contacts <- function(data, param, p) {
+    .Call(`_outbreaker2_local_n_contacts`, data, param, p)
+}
+
+kappa_change <- function(data, param, p, t_inf, alpha, kappa1, kappa2) {
+    .Call(`_outbreaker2_kappa_change`, data, param, p, t_inf, alpha, kappa1, kappa2)
+}
+
 cpp_ll_genetic <- function(data, param, i = NULL, custom_function = NULL) {
     .Call(`_outbreaker2_cpp_ll_genetic`, data, param, i, custom_function)
 }

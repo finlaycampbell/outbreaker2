@@ -198,8 +198,8 @@ create_config <- function(..., data = NULL) {
                    prior_mu = 1,
                    prior_pi = c(10,1),
                    prior_tau = c(2,2),
-                   prior_eps = c(1,1),
-                   prior_lambda = c(1,1))
+                   prior_eps = matrix(c(1,1), ncol = 2),
+                   prior_lambda = matrix(c(1,1), ncol = 2))
 
   ## MODIFY CONFIG WITH ARGUMENTS ##
   config <- modify_defaults(defaults, config)
@@ -293,34 +293,47 @@ create_config <- function(..., data = NULL) {
     stop("init_tau is infinite or NA")
   }
 
+  ## define the total number of contact types
+  n_contacts <- length(data$ctd_matrix) + length(data$ctd_timed_matrix)
 
   ## check init_eps
-  if (!is.numeric(config$init_eps)) {
+  if (any(!is.numeric(config$init_eps))) {
     stop("init_eps is not a numeric value")
   }
-  if (config$init_eps < 0) {
+  if (any(config$init_eps < 0)) {
     stop("init_eps is negative")
   }
-  if (config$init_eps > 1) {
+  if (any(config$init_eps > 1)) {
     stop("init_eps is greater than 1")
   }
-  if (!is.finite(config$init_eps)) {
+  if (any(!is.finite(config$init_eps))) {
     stop("init_eps is infinite or NA")
   }
-
+  if(n_contacts != 0 && !length(config$init_eps) %in% c(1, n_contacts)) {
+    stop(sprintf("init_eps must be of length 1 or %d", n_contacts))
+  }
+  if(n_contacts != 0 && length(config$init_eps) == 1 & n_contacts > 1) {
+    config$init_eps <- rep(config$init_eps[1], n_contacts)
+  }
 
   ## check init_lambda
   if (!is.numeric(config$init_lambda)) {
     stop("init_lambda is not a numeric value")
   }
-  if (config$init_lambda < 0) {
+  if (any(config$init_lambda < 0)) {
     stop("init_lambda is negative")
   }
-  if (config$init_lambda > 1) {
+  if (any(config$init_lambda > 1)) {
     stop("init_lambda is greater than 1")
   }
-  if (!is.finite(config$init_lambda)) {
+  if (any(!is.finite(config$init_lambda))) {
     stop("init_lambda is infinite or NA")
+  }
+  if(n_contacts != 0 && !length(config$init_lambda) %in% c(1, n_contacts)) {
+    stop(sprintf("init_lambda must be of length 1 or %d", n_contacts))
+  }
+  if(n_contacts != 0 && length(config$init_lambda) == 1 & n_contacts > 1) {
+    config$init_lambda <- rep(config$init_lambda[1], n_contacts)
   }
 
 
@@ -417,17 +430,31 @@ create_config <- function(..., data = NULL) {
   if (!is.logical(config$move_eps)) {
     stop("move_eps is not a logical")
   }
-  if (is.na(config$move_eps)) {
+  if (any(is.na(config$move_eps))) {
     stop("move_eps is NA")
   }
+  if(n_contacts != 0 && !length(config$move_eps) %in% c(1, n_contacts)) {
+    stop(sprintf("move_eps must be of length 1 or %d", n_contacts))
+  }
+  if(n_contacts != 0 && length(config$move_eps) == 1 & n_contacts > 1) {
+    config$move_eps <- rep(config$move_eps[1], n_contacts)
+  }
+  
 
   ## check move_lambda
   if (!is.logical(config$move_lambda)) {
     stop("move_lambda is not a logical")
   }
-  if (is.na(config$move_lambda)) {
+  if (any(is.na(config$move_lambda))) {
     stop("move_lambda is NA")
   }
+  if(n_contacts != 0 && !length(config$move_lambda) %in% c(1, n_contacts)) {
+    stop(sprintf("move_lambda must be of length 1 or %d", n_contacts))
+  }
+  if(n_contacts != 0 && length(config$move_lambda) == 1 & n_contacts > 1) {
+    config$move_lambda <- rep(config$move_lambda[1], n_contacts)
+  }
+
 
   ## check n_iter
   if (!is.numeric(config$n_iter)) {
@@ -659,34 +686,53 @@ create_config <- function(..., data = NULL) {
   }
 
   ## check prior value for eps
-  if (!all(is.numeric(config$prior_eps))) {
+  if (is.numeric(config$prior_eps) | is.data.frame(config$prior_eps)) {
+    config$prior_eps <- as.matrix(config$prior_eps, ncol = 2)
+  }
+  if (any(!apply(config$prior_eps, 2, is.numeric))) {
     stop("prior_eps has non-numeric values")
   }
   if (any(config$prior_eps < 0)) {
     stop("prior_eps has negative values")
   }
-  if (length(config$prior_eps)!=2L) {
-    stop("prior_eps should be a vector of length 2")
+  if (ncol(config$prior_eps)!=2L) {
+    stop("prior_eps should be a matrix with two columns")
   }
   if (!all(is.finite(config$prior_eps))) {
     stop("prior_eps is has values which are infinite or NA")
   }
+  if(n_contacts != 0 && !nrow(config$prior_eps) %in% c(1, n_contacts)) {
+    stop(sprintf("prior_eps must be of 1 or %d rows", n_contacts))
+  }
+  if(n_contacts != 0 && nrow(config$prior_eps) == 1 && n_contacts > 1) {
+    config$prior_eps <- rep(config$prior_eps, n_contacts)
+    config$prior_eps <- matrix(config$prior_eps, ncol = 2, byrow = TRUE)
+  }
 
 
   ## check prior value for lambda
-  if (!all(is.numeric(config$prior_lambda))) {
+  if (is.numeric(config$prior_lambda) | is.data.frame(config$prior_lambda)) {
+    config$prior_lambda <- as.matrix(config$prior_lambda, ncol = 2)
+  }
+  if (any(!apply(config$prior_lambda, 2, is.numeric))) {
     stop("prior_lambda has non-numeric values")
   }
   if (any(config$prior_lambda < 0)) {
     stop("prior_lambda has negative values")
   }
-  if (length(config$prior_lambda)!=2L) {
-    stop("prior_lambda should be a vector of length 2")
+  if (ncol(config$prior_lambda)!=2L) {
+    stop("prior_lambda should be a matrix with two columns")
   }
   if (!all(is.finite(config$prior_lambda))) {
     stop("prior_lambda is has values which are infinite or NA")
   }
-
+  if(n_contacts != 0 && !nrow(config$prior_lambda) %in% c(1, n_contacts)) {
+    stop(sprintf("prior_lambda must be of 1 or %d rows", n_contacts))
+  }
+  if(n_contacts != 0 && nrow(config$prior_lambda) == 1 && n_contacts > 1) {
+    config$prior_lambda <- rep(config$prior_lambda, n_contacts)
+    config$prior_lambda <- matrix(config$prior_lambda, ncol = 2, byrow = TRUE)
+  }
 
   ## CHECKS POSSIBLE IF DATA IS PROVIDED ##
   if (!is.null(data)) {
@@ -814,7 +860,7 @@ create_config <- function(..., data = NULL) {
     }
 
     ## disable moves for eps and lambda if no CTD is provided
-    have_ctd <- !(is.null(data$contacts) || nrow(data$contacts) < 1)
+    have_ctd <- !(is.null(data$ctd)) || !(is.null(data$ctd_timed))
     have_ward <- !(is.null(data$ward_matrix) || nrow(data$ward_matrix) < 1)
     if(!have_ctd & !have_ward) {
       config$move_eps <- config$move_lambda <- config$move_tau <- FALSE

@@ -31,8 +31,10 @@ outbreaker_move <- function(moves, data, param_current,
 
   ## RUN MCMC ##
   for (i in seq.int(2, config$n_iter, 1)) {
+
     ## move parameters / augmented data
     for (j in seq_len(J)) {
+
       ## move parameters
       param_current <- moves[[j]](param_current)
 

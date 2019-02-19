@@ -48,16 +48,36 @@
 #' outbreaker_data(dates = x$sample, dna = x$dna, w_dens = x$w)
 #'
 outbreaker_data <- function(..., data = list(...)) {
-
+  
   ## SET DEFAULTS ##
-  defaults <- list(dates = NULL, w_dens = NULL, f_dens = NULL, dna = NULL,
-                   ctd = NULL, wards = NULL, ids = NULL, w_unobs = NULL, N = 0L,
-                   L = 0L, D = NULL, max_range = NA, can_be_ances = NULL,
-                   log_w_dens = NULL, log_w_unobs = NULL, log_f_dens = NULL,
-                   contacts = NULL, C_combn = NULL, C_nrow = NULL,
-                   contacts_timed = NULL, C_ind = NULL, has_dna = logical(0),
-                   move_t_onw = NULL, between_wards = NULL, N_ward = NULL,
-                   p_ward = NULL, id_in_dna = integer(0))
+  defaults <- list(dates = NULL,
+                   w_dens = NULL,
+                   f_dens = NULL,
+                   dna = NULL,
+                   ctd = NULL,
+                   ctd_timed = NULL,
+                   wards = NULL,
+                   ids = NULL,
+                   ctd_directed = FALSE,
+                   w_unobs = NULL,
+                   N = 0L,
+                   L = 0L,
+                   D = NULL,
+                   max_range = NA,
+                   can_be_ances = NULL,
+                   log_w_dens = NULL,
+                   log_w_unobs = NULL,
+                   log_f_dens = NULL,
+                   contacts = NULL,
+                   C_combn = NULL,
+                   C_nrow = NULL,
+                   C_ind = NULL,
+                   has_dna = logical(0),
+                   move_t_onw = FALSE,
+                   between_wards = FALSE,
+                   N_ward = NULL,
+                   p_ward = 1,
+                   id_in_dna = integer(0))
 
   ## MODIFY DATA WITH ARGUMENTS ##
   data <- modify_defaults(defaults, data, FALSE)
@@ -242,68 +262,150 @@ outbreaker_data <- function(..., data = list(...)) {
       stop("ctd is not a matrix or data.frame")
     }
     
-    if(ncol(data$ctd) == 2) {
-      if (!is.matrix(data$ctd)) data$ctd <- as.matrix(data$ctd)
-      not.found <- data$ctd[any(!data$ctd %in% 1:data$N)]
-      if (length(not.found) != 0) {
-        not.found <- sort(unique(not.found))
-        stop(paste("Individual(s)", paste(not.found, collapse = ", "),
-                   "are unknown cases (idx < 1 or > N")
-             )
-      }
-      data$contacts <- data$contacts_timed <- matrix(0, data$N, data$N)
-      data$contacts[data$ctd] <- data$contacts[data$ctd[,c(2, 1)]] <- 1
-      data$C_combn <- data$N*(data$N - 1)/2
-      data$C_nrow <- nrow(data$ctd)
-    } else if(ncol(data$ctd) == 3) {
-      
-      if(class(min_date) != class(data$ctd[,3])) {
-        stop("Sampling dates and contacts dates are not in the same format")
-      }
-      
-      ## Set min(data$date) as day = 1 and adjust contact dates accordingly
-      if (inherits(data$ctd[,3], "Date")) {
-        data$ctd[,3] <- data$ctd[,3] - min_date
-      }
-      if (inherits(data$ctd[,3], "POSIXct")) {
-        data$ctd[,3] <- difftime(data$ctd[,3], min_date, units="days")
-      }
-      data$ctd[,3] <- as.integer(round(data$ctd[,3]))
-
-      ## Set up an array to cover all transmission pairs and times
-      data$contacts_timed <- array(0, c(data$N, data$N, diff(range(data$ctd[,3])) + 1))
-      data$contacts <- matrix(0, nrow = 0, ncol = 0)
-      data$C_ind <- -min(data$ctd$date)
-
-      ## Assign a unique identifier to each combination of ID | ID | Date,
-      ## defined as the coordinate of that point in a 3D matrix
-      get.coor <- function(x) data$N*data$N*(x[3] + data$C_ind) + data$N*(x[1] - 1) + x[2] - 1
-      
-      ## Fill in reported contacts as 1 in the contact array
-      ##tmp <- as.matrix(cbind(data$ctd[, 1:2], data$ctd[,3] + data$C_ind + 1))
-      ##data$contacts_timed[tmp] <- data$contacts_timed[tmp[,c(2, 1, 3)]] <- 1
-
-      data$contacts_timed <- c(apply(data$ctd, 1, get.coor),
-                               apply(data$ctd[,c(2, 1, 3)], 1, get.coor))
-      
-      
-      ## The total number of contacts is N*(N - 1)/2 (ie pairwise contacts)
-      ## times the total number of timesteps in our analysis
-      data$C_combn <- (data$N*(data$N - 1)/2)*(diff(range(data$ctd$date)) + 1)
-      data$C_nrow <- nrow(data$ctd)
-
-      ## UPDATE CAN_BE_ANCES
-      
-    } else {
-      stop("ctd must have two or three columns")
+    if(! ncol(data$ctd) %in% c(2, 3)) {
+      stop("ctd must have two columns")
     }
+
+    ## Convert to character to prevent factors from interfering
+    data$ctd[,1] <- as.character(data$ctd[,1])
+    data$ctd[,2] <- as.character(data$ctd[,2])
+
+    ## Ensure all cases found in linelist
+    unq <- unique(unlist(data$ctd[,1:2]))
+    not_found <- unq[!unq %in% data$ids]
+    if (length(not_found) != 0) {
+      stop(paste("Individual(s)", paste(not_found, collapse = ", "),
+                 "are unknown cases (idx < 1 or > N")
+           )
+    }
+
+    ## Determine the number of contact types
+    if(ncol(data$ctd) == 3) {
+      if(!inherits(data$ctd[,3], "factor")) {
+      data$ctd[,3] <- factor(data$ctd[,3],
+                             levels = unique(data$ctd[,3]))
+      }
+    } else {
+      data$ctd$type <- factor('foo')
+    }
+
+    data$ctd_matrix <- list()
+
+    ## Create a contact matrix for each contact type
+    ## If contact data is not directed, fill the matrix in both directions
+    for(i in seq_along(levels(data$ctd[,3]))) {
+      to_keep <- data$ctd[,3] == levels(data$ctd[,3])[i]
+      tmp <- subset(data$ctd, to_keep)
+      mat <- matrix(0, nrow = data$N, ncol = data$N)
+      for(j in 1:nrow(tmp)) {
+        mtch_1 <- match(tmp[,1], data$ids)
+        mtch_2 <- match(tmp[,2], data$ids)
+        mat[cbind(mtch_2, mtch_1)] <- 1
+        if(!data$ctd_directed) mat[cbind(mtch_1, mtch_2)] <- 1
+      }
+      data$ctd_matrix[[i]] <- mat
+    }
+    
+    if(data$ctd_directed) {
+      data$C_combn <- data$N*(data$N - 1)
+    } else {
+      data$C_combn <- data$N*(data$N - 1)/2
+    }
+    ## Count the number of each type of contact - these are ordered by their
+    ## factor order, which we will use throughout the analysis
+    data$C_nrow <- as.vector(table(data$ctd[,3]))
+
   } else {
-    data$contacts <- data$contacts_timed <- matrix(0, nrow = 0, ncol = 0)
+    data$ctd_matrix <- list()
+  }
+
+  if (!is.null(data$ctd_timed)) {
+
+    if (!inherits(data$ctd_timed, c("matrix", "data.frame"))) {
+      stop("ctd_timed is not a matrix or data.frame")
+    }
+    if(!ncol(data$ctd_timed) %in% c(4, 5)) {
+      stop(paste0("Timed contact data must have four columns (ID | Place",
+                  " | Start date | End date), with an optional fifth column",
+                  " specifying the type of contact"))
+    }
+    if(class(min_date) != class(data$ctd_timed[,3]) |
+       class(min_date) != class(data$ctd_timed[,4])) {
+      stop("Sampling dates and contact dates are not in the same format.")
+    }
+    if(inherits(data$ctd_timed[,1], "factor")) {
+      data$ctd_timed[,1] <- as.character(data$ctd_timed[,1])
+    }
+    if(!inherits(data$ctd_timed[,1], c("numeric", "character", "integer"))) {
+      stop("IDs in contact data must be numbers or characters")
+    }
+
+    if(any(!data$ctd_timed[,1] %in% data$ids)) {
+      stop("IDs in contact data not found in case IDs.")
+    }
+
+    data$N_place <- length(unique(data$ctd_timed[,2]))
+
+    ## Replace IDs with their numeric indices
+    data$ctd_timed[,1] <- as.character(data$ctd_timed[,1])
+
+    ## Set place names as characters to prevent accidental indicing with numbers
+    data$ctd_timed[,2] <- as.character(data$ctd_timed[,2])
+    
+    ## Set min(data$date) as day = 0 and adjust contact dates accordingly
+    if (inherits(data$ctd_timed[,3], "Date")) {
+      data$ctd_timed[,3] <- data$ctd_timed[,3] - min_date
+      data$ctd_timed[,4] <- data$ctd_timed[,4] - min_date
+    }
+    if (inherits(data$ctd_timed, "POSIXct")) {
+      data$ctd_timed[,3] <- difftime(data$ctd_timed[,3], min_date, units="days")
+      data$ctd_timed[,4] <- difftime(data$ctd_timed[,4], min_date, units="days")
+    }
+    data$ctd_timed[,3] <- as.integer(round(data$ctd_timed[,3]))
+    data$ctd_timed[,4] <- as.integer(round(data$ctd_timed[,4]))
+
+    if(any(data$ctd_timed[,4] - data$ctd_timed[,3] < 0)) {
+      stop("End dates must be after start dates.")
+    }
+    if(ncol(data$ctd_timed) == 5) {
+      data$ctd_timed[,5] <- factor(data$ctd_timed[,5],
+                                   levels = unique(data$ctd_timed[,5]))
+    } else {
+      data$ctd_timed$type <- factor('foo')
+    }
+
+    data$ctd_timed_matrix <- list()
+    data$C_ind <- -min(data$ctd_timed[,3])
+    
+    ## Pass places as numbers rather than strings to speed up comparison
+    place_order <- unique(data$ctd_timed[,2])
+
+    for(i in seq_along(levels(data$ctd_timed[,5]))) {
+      tmp <- subset(data$ctd_timed,
+                    data$ctd_timed[,5] == levels(data$ctd_timed[,5])[i])
+      mat <- matrix(0, nrow = data$N,
+                    ncol = max(data$ctd_timed[,4]) - min(data$ctd_timed[,3]) + 1)
+      for(j in 1:nrow(tmp)) {
+        ind <- (tmp[j,3] + data$C_ind + 1):(data$ctd_timed[j,4] + data$C_ind + 1)
+        mat[match(tmp[j, 1], data$ids), ind] <- match(tmp[j, 2], place_order)
+      }
+      data$ctd_timed_matrix[[i]] <- mat
+    }
+    
+    ## Define the time of contacts as occuring between the first admission date
+    ## and last discharge date
+    data$C_combn <- data$N*(data$N - 1)/2
+    data$C_nrow <- c(data$C_nrow, rep(NA, length(data$ctd_timed_matrix)))
+    
+    ## UPDATE CAN_BE_ANCES
+    
+  } else {
+    data$ctd_timed_matrix <- list()
   }
 
   if(!is.null(data$wards)) {
 
-    if(ncol(wards) != 4) {
+    if(ncol(data$wards) != 4) {
       stop(paste0("Ward data must have four columns (ID | Ward",
                   " | Admission date | Discharge date)"))
     }
@@ -323,7 +425,7 @@ outbreaker_data <- function(..., data = list(...)) {
     if(any(!data$wards[,1] %in% data$ids)) {
       stop("IDs in ward data not found in case IDs.")
     }
-    if(!is.null(data$p_ward) && sum(data$p_ward) != 1) {
+    if(data$p_ward != 1 && sum(data$p_ward) != 1) {
       stop("p_ward must sum to 1")
     }
 
@@ -356,7 +458,7 @@ outbreaker_data <- function(..., data = list(...)) {
     }
 
     ward_matrix <- matrix(0, nrow = data$N,
-                       ncol = max(data$wards[,4]) - min(data$wards[,3]) + 1)
+                          ncol = max(data$wards[,4]) - min(data$wards[,3]) + 1)
     data$C_ind <- -min(data$wards$adm)
     ward_order <- unique(data$wards[,2])
 

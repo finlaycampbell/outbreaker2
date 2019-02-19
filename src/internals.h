@@ -38,4 +38,30 @@ Rcpp::NumericVector get_ward_p(Rcpp::NumericVector p_ward,
 			       double tau,
 			       int max_gamma);
 
+Rcpp::NumericMatrix t_inf_change(Rcpp::List data,
+				 Rcpp::IntegerVector alpha,
+				 Rcpp::IntegerVector kappa,
+				 size_t p,
+				 size_t t_inf_1,
+				 size_t t_inf_2);
+
+Rcpp::NumericMatrix alpha_change(Rcpp::List data,
+				 size_t p,
+				 size_t kappa,
+				 size_t t_inf,
+				 size_t alpha_1,
+				 size_t alpha_2);
+
+Rcpp::NumericMatrix local_n_contacts(Rcpp::List data,
+				     Rcpp::List param,
+				     Rcpp::IntegerVector p);
+
+Rcpp::NumericMatrix kappa_change(Rcpp::List data,
+				 Rcpp::List param,
+				 size_t p,
+				 size_t t_inf,
+				 size_t alpha,
+				 size_t kappa1,
+				 size_t kappa2);
+
 #endif

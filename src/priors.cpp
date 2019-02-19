@@ -116,12 +116,16 @@ double cpp_prior_eps(Rcpp::List param, Rcpp::List config,
 		    Rcpp::RObject custom_function = R_NilValue) {
 
   if (custom_function == R_NilValue) {
-    Rcpp::NumericVector shape = config["prior_eps"];
-
-    return R::dbeta(Rcpp::as<double>(param["eps"]),
-			  (double) shape[0],
-			  (double) shape[1],
-			  true);
+    Rcpp::NumericMatrix shape = config["prior_eps"];
+    Rcpp::NumericVector eps = param["eps"];
+    double out = 0;
+    for(size_t i = 0; i < eps.size(); i++) {
+      out += R::dbeta(eps[i],
+		      (double) shape(i, 0),
+		      (double) shape(i, 1),
+		      true);
+    }
+    return(out);
   } else {
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
 
@@ -142,12 +146,15 @@ double cpp_prior_lambda(Rcpp::List param, Rcpp::List config,
 		    Rcpp::RObject custom_function = R_NilValue) {
 
   if (custom_function == R_NilValue) {
-    Rcpp::NumericVector shape = config["prior_lambda"];
-
-    return R::dbeta(Rcpp::as<double>(param["lambda"]),
-			  (double) shape[0],
-			  (double) shape[1],
-			  true);
+    Rcpp::NumericMatrix shape = config["prior_lambda"];
+    Rcpp::NumericVector lambda = param["lambda"];
+    double out = 0;
+    for(size_t i = 0; i < lambda.size(); i++) {
+      out += R::dbeta(lambda[i],
+		      (double) shape(i, 0),
+		      (double) shape(i, 1),
+		      true);
+    }
   } else {
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
 

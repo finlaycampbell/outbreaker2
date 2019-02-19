@@ -248,53 +248,64 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::List new_param = clone(param);
   Rcpp::NumericVector eps = param["eps"]; // these are just pointers
   Rcpp::NumericVector new_eps = new_param["eps"]; // these are just pointers
+  Rcpp::LogicalVector move_eps = config["move_eps"]; // these are just pointers
   
   int max_gamma = static_cast<int>(config["max_kappa"]);
   double tau = param["tau"];
   Rcpp::NumericVector p_ward = data["p_ward"];
-  
+  Rcpp::NumericMatrix ward_matrix = Rcpp::as<Rcpp::NumericMatrix>(data["ward_matrix"]);
+
   double sd_eps = static_cast<double>(config["sd_eps"]);
 
   double old_logpost = 0.0, new_logpost = 0.0, p_accept = 0.0;
 
+  for (size_t i = 0; i < eps.size(); i++) {
 
-  // proposal (normal distribution with SD: config$sd_eps)
+    if(move_eps[i]) {
+      
+      // proposal (normal distribution with SD: config$sd_eps)
 
-  new_eps[0] += R::rnorm(0.0, sd_eps); // new proposed value
+      new_eps[i] += R::rnorm(0.0, sd_eps); // new proposed value
 
+      // automatic rejection of eps outside [0;1]
 
-  // automatic rejection of eps outside [0;1]
+      if (new_eps[i] < 0.0 || new_eps[i] > 1.0) {
+	return param;
+      }
 
-  if (new_eps[0] < 0.0 || new_eps[0] > 1.0) {
-    return param;
-  }
+      if(ward_matrix.nrow() > 0) {
+	new_param["ward_mat"] = get_ward_p(p_ward, new_eps[i], tau, max_gamma);
+	new_param["ward_mat_1"] = get_ward_p(p_ward, new_eps[i], tau, 1);
+      }
 
-  new_param["ward_mat"] = get_ward_p(p_ward, new_eps[0], tau, max_gamma);
-  new_param["ward_mat_1"] = get_ward_p(p_ward, new_eps[0], tau, 1);
+      // compute likelihoods
+      old_logpost = cpp_ll_contact(data, param, R_NilValue, custom_ll);
+      new_logpost = cpp_ll_contact(data, new_param, R_NilValue, custom_ll);
 
-  // compute likelihoods
-  old_logpost = cpp_ll_contact(data, param, R_NilValue, custom_ll);
-  new_logpost = cpp_ll_contact(data, new_param, R_NilValue, custom_ll);
+      // compute priors
+      old_logpost += cpp_prior_eps(param, config, custom_prior);
+      new_logpost += cpp_prior_eps(new_param, config, custom_prior);
 
-  // compute priors
+      // acceptance term
+      p_accept = exp(new_logpost - old_logpost);
 
-  old_logpost += cpp_prior_eps(param, config, custom_prior);
-  new_logpost += cpp_prior_eps(new_param, config, custom_prior);
+      // acceptance: the new value is already in eps, so we only act if the move is
+      // rejected, in which case we restore the previous ('old') value
 
+      if (p_accept < unif_rand()) { // reject new values
+	new_eps[i] = eps[i];
+      }
 
-  // acceptance term
+    } else {
 
-  p_accept = exp(new_logpost - old_logpost);
+      new_eps[i] = eps[i];
+	
+    }
 
-
-  // acceptance: the new value is already in eps, so we only act if the move is
-  // rejected, in which case we restore the previous ('old') value
-
-  if (p_accept < unif_rand()) { // reject new values
-    return param;
   }
   
   return new_param;
+  
 }
 
 
@@ -320,45 +331,58 @@ Rcpp::List cpp_move_lambda(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::List new_param = clone(param);
   Rcpp::NumericVector lambda = param["lambda"]; // these are just pointers
   Rcpp::NumericVector new_lambda = new_param["lambda"]; // these are just pointers
+  Rcpp::LogicalVector move_lambda = config["move_lambda"]; // these are just pointers
 
   double sd_lambda = static_cast<double>(config["sd_lambda"]);
 
   double old_logpost = 0.0, new_logpost = 0.0, p_accept = 0.0;
 
 
-  // proposal (normal distribution with SD: config$sd_lambda)
+  for (size_t i = 0; i < lambda.size(); i++) {
 
-  new_lambda[0] += R::rnorm(0.0, sd_lambda); // new proposed value
+    if(move_lambda[i]) {
+      
+      // proposal (normal distribution with SD: config$sd_lambda)
 
-
-  // automatic rejection of lambda outside [0;1]
-
-  if (new_lambda[0] < 0.0 || new_lambda[0] > 1.0) {
-    return param;
-  }
+      new_lambda[i] += R::rnorm(0.0, sd_lambda); // new proposed value
 
 
-  // compute likelihoods
-  old_logpost = cpp_ll_contact(data, param, R_NilValue, custom_ll);
-  new_logpost = cpp_ll_contact(data, new_param, R_NilValue, custom_ll);
+      // automatic rejection of lambda outside [0;1]
+
+      if (new_lambda[i] < 0.0 || new_lambda[i] > 1.0) {
+	return param;
+      }
 
 
-  // compute priors
-
-  old_logpost += cpp_prior_lambda(param, config, custom_prior);
-  new_logpost += cpp_prior_lambda(new_param, config, custom_prior);
-
-
-  // acceptance term
-
-  p_accept = exp(new_logpost - old_logpost);
+      // compute likelihoods
+      old_logpost = cpp_ll_contact(data, param, R_NilValue, custom_ll);
+      new_logpost = cpp_ll_contact(data, new_param, R_NilValue, custom_ll);
 
 
-  // acceptance: the new value is already in lambda, so we only act if the move is
-  // rejected, in which case we restore the previous ('old') value
+      // compute priors
 
-  if (p_accept < unif_rand()) { // reject new values
-    return param;
+      old_logpost += cpp_prior_lambda(param, config, custom_prior);
+      new_logpost += cpp_prior_lambda(new_param, config, custom_prior);
+
+
+      // acceptance term
+
+      p_accept = exp(new_logpost - old_logpost);
+
+
+      // acceptance: the new value is already in lambda, so we only act if the move is
+      // rejected, in which case we restore the previous ('old') value
+
+      if (p_accept < unif_rand()) { // reject new values
+	new_lambda[i] = lambda[i];
+      }
+
+    } else {
+
+      new_lambda[i] = lambda[i];
+      
+    }
+  
   }
 
   return new_param;
@@ -395,18 +419,21 @@ Rcpp::List cpp_move_t_inf(Rcpp::List param, Rcpp::List data,
 			  Rcpp::RObject list_custom_ll = R_NilValue) {
 
   // deep copy here for now, ultimately should be an arg.
-
   Rcpp::List new_param = clone(param);
   Rcpp::IntegerVector t_inf = param["t_inf"];
+  Rcpp::IntegerVector kappa = param["kappa"];
   Rcpp::IntegerVector new_t_inf = new_param["t_inf"];
+  Rcpp::NumericMatrix n_contacts = param["n_contacts"];
+  Rcpp::NumericMatrix old_n_contacts = clone(n_contacts);
+  Rcpp::NumericMatrix new_n_contacts = clone(n_contacts);
   Rcpp::IntegerVector alpha = param["alpha"];
   Rcpp::IntegerVector local_cases;
-
+  Rcpp::NumericMatrix diff_n_contacts;
+  Rcpp::List list_functions;
   size_t N = static_cast<size_t>(data["N"]);
 
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
   double old_loc_loglike = 0.0, new_loc_loglike = 0.0, p_loc_accept = 0.0;
-
 
   for (size_t i = 0; i < N; i++) {
 
@@ -421,9 +448,30 @@ Rcpp::List cpp_move_t_inf(Rcpp::List param, Rcpp::List data,
       old_loc_loglike += cpp_ll_timing(data, param, local_cases, list_custom_ll);
     }
 
+    // the contact likelihood isn't subsetted by i, so only add once
+    // we have to pass a single function, not list of functions, to ll_contact
+    if(list_custom_ll != R_NilValue) {
+      Rcpp::List list_functions = Rcpp::as<Rcpp::List>(list_custom_ll);
+      old_loc_loglike += cpp_ll_contact(data, param, i, list_functions["contact"]);
+    } else {
+      old_loc_loglike += cpp_ll_contact(data, param, i);
+    }
+    
     // proposal (+/- 1)
     new_t_inf[i] += unif_rand() > 0.5 ? 1 : -1; // new proposed value
 
+    // calculate changes in contact types upon changing infection time
+    if(n_contacts.nrow() > 0) {
+      diff_n_contacts = t_inf_change(data, alpha, kappa, i+1, t_inf[i], new_t_inf[i]);
+      for(size_t j = 0; j < n_contacts.nrow(); j++) {
+	for(size_t k = 0; k < 6; k++) {
+	  new_n_contacts(j, k) = old_n_contacts(j, k) + diff_n_contacts(j, k);
+	}
+      }
+    }
+
+    new_param["n_contacts"] = clone(new_n_contacts);
+    
     // loglike with new value
     // new_loglike = cpp_ll_timing(data, new_param, R_NilValue);
     new_loc_loglike = cpp_ll_timing(data, new_param, i+1, list_custom_ll); // term for case 'i' with offset
@@ -433,20 +481,38 @@ Rcpp::List cpp_move_t_inf(Rcpp::List param, Rcpp::List data,
       new_loc_loglike += cpp_ll_timing(data, new_param, local_cases, list_custom_ll);
     }
 
+    // the contact likelihood isn't subsetted by i, so only add once
+    // we have to pass a single function, not list of functions, to ll_contact
+    if(list_custom_ll != R_NilValue) {
+      list_functions = Rcpp::as<Rcpp::List>(list_custom_ll);
+      new_loc_loglike += cpp_ll_contact(data, new_param, i, list_functions["contact"]);
+    } else {
+      new_loc_loglike += cpp_ll_contact(data, new_param, i);
+    }
 
     // acceptance term
     // p_accept = exp(new_loglike - old_loglike);
     p_loc_accept = exp(new_loc_loglike - old_loc_loglike);
 
-
+    //    std::cout << old_loc_loglike << " | " << new_loc_loglike << std::endl;
+    
     // acceptance: the new value is already in t_inf, so we only act if the move
     // is rejected, in which case we restore the previous ('old') value
 
     if (p_loc_accept < unif_rand()) { // reject new values
       new_t_inf[i] = t_inf[i];
+      new_n_contacts = clone(old_n_contacts);
+      new_param["n_contacts"] = clone(old_n_contacts);
+      //      std::cout << "reject" << std::endl;
+    } else {
+      t_inf[i] = new_t_inf[i];
+      old_n_contacts = clone(new_n_contacts);
+      param["n_contacts"] = clone(new_n_contacts);
+      //      std::cout << "accept" << std::endl;
     }
   }
 
+  new_param["n_contacts"] = clone(new_n_contacts);
   return new_param;
 
 }
@@ -473,11 +539,20 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
   Rcpp::List new_param = clone(param);
   Rcpp::IntegerVector alpha = param["alpha"]; // pointer to param$alpha
   Rcpp::IntegerVector t_inf = param["t_inf"]; // pointer to param$t_inf
+  Rcpp::IntegerVector kappa = param["kappa"]; // pointer to param$kappa
   Rcpp::IntegerVector new_alpha = new_param["alpha"];
-
+  Rcpp::NumericMatrix n_contacts = param["n_contacts"];
+  Rcpp::NumericMatrix new_n_contacts = new_param["n_contacts"];
+  
+  // Deep copy to prevent pointer exchange
+  // Maybe would be quicker to apply alpha_change instead of constant cloning
+  Rcpp::NumericMatrix diff_n_contacts;
+  
   size_t N = static_cast<size_t>(data["N"]);
 
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
+
+  //  std::cout << cpp_ll_all(data, new_param, R_NilValue, list_custom_ll)  << std::endl;
   
   for (size_t i = 0; i < N; i++) {
 
@@ -491,6 +566,18 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
       // proposal (+/- 1)
       new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1); // new proposed value (on scale 1 ... N)
 
+      // calculate changes in contact types upon changing infector
+      if(n_contacts.nrow() > 0) {
+	diff_n_contacts = alpha_change(data, i + 1, kappa[i], t_inf[i], alpha[i], new_alpha[i]);
+	for(size_t j = 0; j < n_contacts.nrow(); j++) {
+	  for(size_t k = 0; k < 6; k++) {
+	    new_n_contacts(j, k) = n_contacts(j, k) + diff_n_contacts(j, k);
+	  }
+	}
+      }
+
+      new_param["n_contacts"] = clone(new_n_contacts);
+      
       // loglike with current value
       new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
 
@@ -500,13 +587,18 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
       // which case we restore the previous ('old') value
       if (p_accept < unif_rand()) { // reject new values
 	new_alpha[i] = alpha[i];
-	//	} else {
-	//alpha[i] = new_alpha[i];
+	new_param["n_contacts"] = clone(n_contacts);
+	new_n_contacts = clone(n_contacts);
+      } else {
+	param["n_contacts"] = clone(new_n_contacts);
+	alpha[i] = new_alpha[i];
+	n_contacts = clone(new_n_contacts);
       }
     }
   }
-
+  
   return new_param;
+  
 }
 
 
@@ -790,6 +882,12 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
   Rcpp::IntegerVector kappa = param["kappa"]; // pointer to param$kappa
   Rcpp::IntegerVector t_onw = param["t_onw"]; // pointer to param$t_inf
   Rcpp::IntegerVector ward = param["ward"]; // pointer to param$ward
+  Rcpp::NumericMatrix n_contacts = param["n_contacts"];
+  Rcpp::NumericMatrix new_n_contacts = clone(n_contacts);
+  Rcpp::NumericMatrix old_n_contacts = clone(n_contacts);
+  Rcpp::NumericMatrix old_local_n_contacts;
+  Rcpp::NumericMatrix new_local_n_contacts;
+
   Rcpp::List swapinfo; // contains alpha and t_inf
   Rcpp::IntegerVector local_cases;
 
@@ -829,6 +927,21 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
       new_param["kappa"] = swapinfo["kappa"];
       new_param["ward"] = swapinfo["ward"];
 
+      // calculate changes in contact types upon swapping cases
+      if(n_contacts.nrow() > 0) {
+	old_local_n_contacts = local_n_contacts(data, param, local_cases);
+	new_local_n_contacts = local_n_contacts(data, new_param, local_cases);
+	for(size_t j = 0; j < n_contacts.nrow(); j++) {
+	  for(size_t k = 0; k < 6; k++) {
+	    new_n_contacts(j, k) = old_n_contacts(j, k) +
+	      new_local_n_contacts(j, k) -
+	      old_local_n_contacts(j, k);
+	  }
+	}
+      }
+
+      new_param["n_contacts"] = clone(new_n_contacts);
+      
       // loglike with new parameters
 
       new_loglike = cpp_ll_all(data, new_param, local_cases, list_custom_ll);
@@ -846,10 +959,14 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
 	param["t_onw"] = new_param["t_onw"];
 	param["kappa"] = new_param["kappa"];
 	param["ward"] = new_param["ward"];
+	old_n_contacts = clone(new_n_contacts);
+	param["n_contacts"] = clone(new_n_contacts);
       }
     }
   }
 
+  param["n_contacts"] = clone(old_n_contacts);
+  
   return param;
 }
 
@@ -875,7 +992,12 @@ Rcpp::List cpp_move_kappa(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector kappa = param["kappa"]; // pointer to param$kappa
   Rcpp::IntegerVector t_inf = param["t_inf"]; // pointer to param$t_inf
   Rcpp::IntegerVector new_kappa = new_param["kappa"];
+  Rcpp::NumericMatrix n_contacts = param["n_contacts"];
+  Rcpp::NumericMatrix new_n_contacts = new_param["n_contacts"];
+  //  Rcpp::NumericMatrix new_n_contacts = clone(n_contacts);
+  Rcpp::NumericMatrix diff_n_contacts;
 
+  
   size_t N = static_cast<size_t>(data["N"]);
   size_t K = static_cast<size_t>(config["max_kappa"]);
   size_t jump;
@@ -901,6 +1023,16 @@ Rcpp::List cpp_move_kappa(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
 	// loglike with current parameters
 	old_loglike = cpp_ll_all(data, param, i+1, list_custom_ll);
+
+	// calculate changes in contact types upon changing infection time
+	if(n_contacts.nrow() > 0) {
+	  diff_n_contacts = kappa_change(data, param, i+1, t_inf[i], alpha[i], kappa[i], new_kappa[i]);
+	  for(size_t j = 0; j < n_contacts.nrow(); j++) {
+	    for(size_t k = 0; k < 6; k++) {
+	      new_n_contacts(j, k) = n_contacts(j, k) + diff_n_contacts(j, k);
+	    }
+	  }
+	}
 	
 	// loglike with new parameters
 	new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
@@ -913,14 +1045,18 @@ Rcpp::List cpp_move_kappa(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	  //	  	  	   Rprintf("\naccepting kappa:%d  (p: %f  old ll:  %f  new ll: %f",
 	  //	   	   new_kappa[i], p_accept, old_loglike, new_loglike);
 	  kappa[i] = new_kappa[i];
+	  n_contacts = clone(new_n_contacts);
 	  //param["kappa"] = new_kappa;
 	} else {
 	  new_kappa[i] = kappa[i];
+	  new_n_contacts = clone(n_contacts);
 	}
       }
     }
 
   }
+
+  //  param["n_contacts"] = clone(old_n_contacts);
   
   return param;
 }

@@ -28,8 +28,8 @@ outbreaker_mcmc_store <- function(param_current, param_store, data, config,
   ## PARAMETERS AND AUGMENTED DATA
   param_store$mu[counter] <- param_current$mu
   param_store$pi[counter] <- param_current$pi
-  param_store$eps[counter] <- param_current$eps
-  param_store$lambda[counter] <- param_current$lambda
+  param_store$eps[[counter]] <- param_current$eps
+  param_store$lambda[[counter]] <- param_current$lambda
   param_store$alpha[[counter]] <- param_current$alpha
   param_store$t_inf[[counter]] <- param_current$t_inf
   if(config$move_t_onw) param_store$t_onw[[counter]] <- param_current$t_onw

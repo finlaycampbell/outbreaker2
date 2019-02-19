@@ -57,7 +57,7 @@ bind_moves <- function(moves = custom_moves(), config, data,
 
 
   ## remove move$eps if disabled
-  if (!any(config$move_eps)) {
+  if (all(!config$move_eps)) {
     out$eps <- NULL
   } else {
     out$eps <- bind_to_function(out$eps,
@@ -69,7 +69,7 @@ bind_moves <- function(moves = custom_moves(), config, data,
   }
 
   ## remove move$lambda if disabled
-  if (!any(config$move_lambda)) {
+  if (all(!config$move_lambda)) {
     out$lambda <- NULL
   } else {
     out$lambda <- bind_to_function(out$lambda,
