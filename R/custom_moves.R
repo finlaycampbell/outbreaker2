@@ -18,6 +18,9 @@
 #' \item \code{eps}: movement of the contact reporting coverage; by default, the
 #' function \code{cpp_move_eps} is used.
 #'
+#' \item \code{eta}: movement of the contact sensitivity; by default, the
+#' function \code{cpp_move_eta} is used.
+#'
 #' \item \code{lambda}: the movement of the non-infectious contact rate; the
 #' function \code{cpp_move_lambda} is used.
 #'
@@ -85,6 +88,7 @@ custom_moves <- function(...) {
                      pi = cpp_move_pi,
                      tau = cpp_move_tau,
                      eps = cpp_move_eps,
+                     eta = cpp_move_eta,
                      lambda = cpp_move_lambda,
                      alpha = cpp_move_alpha,
                      joint = cpp_move_joint,

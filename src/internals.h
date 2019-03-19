@@ -33,10 +33,10 @@ bool is_between_ward(Rcpp::NumericMatrix ward_matrix,
 		     int C_ind,
 		     size_t j);
 
-Rcpp::NumericVector get_ward_p(Rcpp::NumericVector p_ward,
-			       double eps,
-			       double tau,
-			       int max_gamma);
+Rcpp::NumericVector get_transition_mat(Rcpp::NumericVector p_ward,
+				       double eps,
+				       double tau,
+				       int max_gamma);
 
 Rcpp::NumericMatrix t_inf_change(Rcpp::List data,
 				 Rcpp::IntegerVector alpha,
@@ -63,5 +63,15 @@ Rcpp::NumericMatrix kappa_change(Rcpp::List data,
 				 size_t alpha,
 				 size_t kappa1,
 				 size_t kappa2);
+
+Rcpp::NumericMatrix swap_cases_change(Rcpp::List data,
+				      Rcpp::List param,
+				      Rcpp::List new_param,
+				      size_t i,
+				      Rcpp::IntegerVector alpha,
+				      Rcpp::IntegerVector t_inf,
+				      Rcpp::IntegerVector kappa,
+				      Rcpp::IntegerVector local_cases,
+				      size_t n_mat);
 
 #endif

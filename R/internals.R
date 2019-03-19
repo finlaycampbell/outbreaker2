@@ -269,6 +269,7 @@ convolve_log <- function(x, y) {
 ## columns = time interval
 add_convolutions <- function(data, config) {
   ## COMPUTE CONVOLUTIONS IF NEEDED ##
+
   if (config$max_kappa>1) {
     
     ## first compute convolutions on natural scale
@@ -300,7 +301,7 @@ add_convolutions <- function(data, config) {
 
   rownames(data$log_w_unobs) <- paste("kappa", seq_len(nrow(data$log_w_unobs)), sep="=")
   colnames(data$log_w_unobs) <- seq_len(ncol(data$log_w_unobs))
-    
+
   return(data)
 }
 

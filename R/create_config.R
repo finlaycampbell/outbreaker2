@@ -40,9 +40,11 @@
 #'
 #' \item{init_lambda}{initial value for the non-infectious contact rate}
 #'
+#' \item{init_eta}{initial value for the contact sensitivity (e.g. the
+#' proportion of transmission that have this type of contact)}
+#' 
 #' \item{n_iter}{an integer indicating the number of iterations in the MCMC,
 #' including the burnin period}
-#'
 #'
 #' \item{move_alpha}{a vector of logicals indicating, for each case, if the
 #' ancestry should be estimated ('moved' in the MCMC), or not, defaulting to
@@ -59,6 +61,10 @@
 #' should be estimated ('moved' in the MCMC), or not, all defaulting to TRUE.}
 #'
 #' \item{move_eps}{a logical indicating whether the contact reporting coverage
+#' should be estimated ('moved' in the MCMC), or not at all, defaulting to
+#' TRUE.}
+#' 
+#'\item{move_eta}{a logical indicating whether the contact sensitivity
 #' should be estimated ('moved' in the MCMC), or not at all, defaulting to
 #' TRUE.}
 #'
@@ -86,6 +92,9 @@
 #'
 #' \item{sd_eps}{the standard deviation for the Normal proposal for the
 #' contact reporting coverage}
+#'
+#' \item{sd_eta}{the standard deviation for the Normal proposal for the
+#' contact sensitivity}
 #'
 #' \item{sd_lambda}{the standard deviation for the Normal proposal for the
 #' non-infectious contact rate}
@@ -116,6 +125,9 @@
 #'
 #' \item{prior_eps}{a numeric vector of length 2 indicating the first and second
 #' parameter of the beta prior for the contact reporting coverage 'eps'}
+#'
+#' \item{prior_eta}{a numeric vector of length 2 indicating the first and second
+#' parameter of the beta prior for the contact sensitivity 'eta'}
 #'
 #' \item{prior_lambda}{a numeric vector of length 2 indicating the first and
 #' second parameter of the beta prior for the non-infectious contact rate
@@ -169,6 +181,7 @@ create_config <- function(..., data = NULL) {
                    init_pi = 0.9,
                    init_tau = 0.5,
                    init_eps = 0.5,
+                   init_eta = 0.9,
                    init_lambda = 0.05,
                    move_alpha = TRUE, move_swap_cases = TRUE,
                    move_t_inf = TRUE,
@@ -177,12 +190,12 @@ create_config <- function(..., data = NULL) {
                    move_model = FALSE,
                    move_mu = TRUE, move_kappa = TRUE,
                    move_pi = TRUE, move_tau = FALSE,
-                   move_eps = TRUE, move_lambda = TRUE,
+                   move_eps = TRUE, move_eta = TRUE, move_lambda = TRUE,
                    swap_ward = TRUE,
                    between_wards = FALSE,
                    n_iter = 1e4, sample_every = 50,
                    sd_mu = 0.0001, sd_pi = 0.1,
-                   sd_eps = 0.1, sd_lambda = 0.05,
+                   sd_eps = 0.1, sd_eta = 0.1, sd_lambda = 0.05,
                    sd_t_onw = 5.0,
                    prop_alpha_move = 1/4,
                    prop_t_inf_move = 0.2,
@@ -198,8 +211,9 @@ create_config <- function(..., data = NULL) {
                    prior_mu = 1,
                    prior_pi = c(10,1),
                    prior_tau = c(2,2),
-                   prior_eps = matrix(c(1,1), ncol = 2),
-                   prior_lambda = matrix(c(1,1), ncol = 2))
+                   prior_eps = c(1,1),
+                   prior_eta = c(1,1),
+                   prior_lambda = c(1,1))
 
   ## MODIFY CONFIG WITH ARGUMENTS ##
   config <- modify_defaults(defaults, config)
@@ -314,6 +328,26 @@ create_config <- function(..., data = NULL) {
   }
   if(n_contacts != 0 && length(config$init_eps) == 1 & n_contacts > 1) {
     config$init_eps <- rep(config$init_eps[1], n_contacts)
+  }
+
+  ## check init_eta
+  if (any(!is.numeric(config$init_eta))) {
+    stop("init_eta is not a numeric value")
+  }
+  if (any(config$init_eta < 0)) {
+    stop("init_eta is negative")
+  }
+  if (any(config$init_eta > 1)) {
+    stop("init_eta is greater than 1")
+  }
+  if (any(!is.finite(config$init_eta))) {
+    stop("init_eta is infinite or NA")
+  }
+  if(n_contacts != 0 && !length(config$init_eta) %in% c(1, n_contacts)) {
+    stop(sprintf("init_eta must be of length 1 or %d", n_contacts))
+  }
+  if(n_contacts != 0 && length(config$init_eta) == 1 & n_contacts > 1) {
+    config$init_eta <- rep(config$init_eta[1], n_contacts)
   }
 
   ## check init_lambda
@@ -439,7 +473,20 @@ create_config <- function(..., data = NULL) {
   if(n_contacts != 0 && length(config$move_eps) == 1 & n_contacts > 1) {
     config$move_eps <- rep(config$move_eps[1], n_contacts)
   }
-  
+
+  ## check move_eta
+  if (!is.logical(config$move_eta)) {
+    stop("move_eta is not a logical")
+  }
+  if (any(is.na(config$move_eta))) {
+    stop("move_eta is NA")
+  }
+  if(n_contacts != 0 && !length(config$move_eta) %in% c(1, n_contacts)) {
+    stop(sprintf("move_eta must be of length 1 or %d", n_contacts))
+  }
+  if(n_contacts != 0 && length(config$move_eta) == 1 & n_contacts > 1) {
+    config$move_eta <- rep(config$move_eta[1], n_contacts)
+  }
 
   ## check move_lambda
   if (!is.logical(config$move_lambda)) {
@@ -517,22 +564,51 @@ create_config <- function(..., data = NULL) {
   if (!is.numeric(config$sd_eps)) {
     stop("sd_eps is not a numeric value")
   }
-  if (config$sd_eps < 1e-10) {
+  if (any(config$sd_eps < 1e-10)) {
     stop("sd_eps is close to zero or negative")
   }
-  if (!is.finite(config$sd_eps)) {
+  if (any(!is.finite(config$sd_eps))) {
     stop("sd_eps is infinite or NA")
+  }
+  if(n_contacts != 0 && !length(config$sd_eps) %in% c(1, n_contacts)) {
+    stop(sprintf("sd_eps must be of length 1 or %d", n_contacts))
+  }
+  if(n_contacts != 0 && length(config$sd_eps) == 1 & n_contacts > 1) {
+    config$sd_eps <- rep(config$sd_eps[1], n_contacts)
+  }
+
+  ## check sd_eta
+  if (!is.numeric(config$sd_eta)) {
+    stop("sd_eta is not a numeric value")
+  }
+  if (any(config$sd_eta < 1e-10)) {
+    stop("sd_eta is close to zero or negative")
+  }
+  if (any(!is.finite(config$sd_eta))) {
+    stop("sd_eta is infinite or NA")
+  }
+  if(n_contacts != 0 && !length(config$sd_eta) %in% c(1, n_contacts)) {
+    stop(sprintf("sd_eta must be of length 1 or %d", n_contacts))
+  }
+  if(n_contacts != 0 && length(config$sd_eta) == 1 & n_contacts > 1) {
+    config$sd_eta <- rep(config$sd_eta[1], n_contacts)
   }
 
   ## check sd_lambda
   if (!is.numeric(config$sd_lambda)) {
     stop("sd_lambda is not a numeric value")
   }
-  if (config$sd_lambda < 1e-10) {
+  if (any(config$sd_lambda < 1e-10)) {
     stop("sd_lambda is close to zero or negative")
   }
-  if (!is.finite(config$sd_lambda)) {
+  if (any(!is.finite(config$sd_lambda))) {
     stop("sd_lambda is infinite or NA")
+  }
+  if(n_contacts != 0 && !length(config$sd_lambda) %in% c(1, n_contacts)) {
+    stop(sprintf("sd_lambda must be of length 1 or %d", n_contacts))
+  }
+  if(n_contacts != 0 && length(config$sd_lambda) == 1 & n_contacts > 1) {
+    config$sd_lambda <- rep(config$sd_lambda[1], n_contacts)
   }
 
   ## check prop_alpha_move
@@ -687,7 +763,7 @@ create_config <- function(..., data = NULL) {
 
   ## check prior value for eps
   if (is.numeric(config$prior_eps) | is.data.frame(config$prior_eps)) {
-    config$prior_eps <- as.matrix(config$prior_eps, ncol = 2)
+    config$prior_eps <- matrix(config$prior_eps, ncol = 2)
   }
   if (any(!apply(config$prior_eps, 2, is.numeric))) {
     stop("prior_eps has non-numeric values")
@@ -705,14 +781,36 @@ create_config <- function(..., data = NULL) {
     stop(sprintf("prior_eps must be of 1 or %d rows", n_contacts))
   }
   if(n_contacts != 0 && nrow(config$prior_eps) == 1 && n_contacts > 1) {
-    config$prior_eps <- rep(config$prior_eps, n_contacts)
-    config$prior_eps <- matrix(config$prior_eps, ncol = 2, byrow = TRUE)
+    config$prior_eps <- config$prior_eps[rep(1, n_contacts),]
+  }
+
+  ## check prior value for eta
+  if (is.numeric(config$prior_eta) | is.data.frame(config$prior_eta)) {
+    config$prior_eta <- matrix(config$prior_eta, ncol = 2)
+  }
+  if (any(!apply(config$prior_eta, 2, is.numeric))) {
+    stop("prior_eta has non-numeric values")
+  }
+  if (any(config$prior_eta < 0)) {
+    stop("prior_eta has negative values")
+  }
+  if (ncol(config$prior_eta)!=2L) {
+    stop("prior_eta should be a matrix with two columns")
+  }
+  if (!all(is.finite(config$prior_eta))) {
+    stop("prior_eta is has values which are infinite or NA")
+  }
+  if(n_contacts != 0 && !nrow(config$prior_eta) %in% c(1, n_contacts)) {
+    stop(sprintf("prior_eta must be of 1 or %d rows", n_contacts))
+  }
+  if(n_contacts != 0 && nrow(config$prior_eta) == 1 && n_contacts > 1) {
+    config$prior_eta <- config$prior_eta[rep(1, n_contacts),]
   }
 
 
   ## check prior value for lambda
   if (is.numeric(config$prior_lambda) | is.data.frame(config$prior_lambda)) {
-    config$prior_lambda <- as.matrix(config$prior_lambda, ncol = 2)
+    config$prior_lambda <- matrix(config$prior_lambda, ncol = 2)
   }
   if (any(!apply(config$prior_lambda, 2, is.numeric))) {
     stop("prior_lambda has non-numeric values")
@@ -730,8 +828,7 @@ create_config <- function(..., data = NULL) {
     stop(sprintf("prior_lambda must be of 1 or %d rows", n_contacts))
   }
   if(n_contacts != 0 && nrow(config$prior_lambda) == 1 && n_contacts > 1) {
-    config$prior_lambda <- rep(config$prior_lambda, n_contacts)
-    config$prior_lambda <- matrix(config$prior_lambda, ncol = 2, byrow = TRUE)
+    config$prior_lambda <- config$prior_lambda[rep(1, n_contacts),]
   }
 
   ## CHECKS POSSIBLE IF DATA IS PROVIDED ##
@@ -863,7 +960,7 @@ create_config <- function(..., data = NULL) {
     have_ctd <- !(is.null(data$ctd)) || !(is.null(data$ctd_timed))
     have_ward <- !(is.null(data$ward_matrix) || nrow(data$ward_matrix) < 1)
     if(!have_ctd & !have_ward) {
-      config$move_eps <- config$move_lambda <- config$move_tau <- FALSE
+      config$move_eps <- config$move_eta <- config$move_lambda <- config$move_tau <- FALSE
     } else if(!have_ctd & have_ward) {
       config$move_lambda <- FALSE
     } else if(have_ctd & !have_ward) {

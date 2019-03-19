@@ -515,6 +515,7 @@ double cpp_ll_reporting(Rcpp::List data, Rcpp::List param, size_t i,
 //
 // with:
 // 'eps' is the contact reporting coverage
+// 'eta' is the contact sensitivity
 // 'lambda' is the non-infectious contact rate
 // 'true_pos' is the number of contacts between transmission pairs
 // 'false_pos' is the number of contact between non-transmission pairs
@@ -545,15 +546,13 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
     bool between_wards = data["between_wards"];
 
     Rcpp::NumericVector eps = param["eps"];
+    Rcpp::NumericVector eta = param["eta"];
     Rcpp::NumericVector lambda = param["lambda"];
     Rcpp::IntegerVector alpha = param["alpha"];
     Rcpp::IntegerVector kappa = param["kappa"];
     Rcpp::IntegerVector t_inf = param["t_inf"];
     Rcpp::IntegerVector t_onw = param["t_onw"];
     Rcpp::NumericMatrix n_contacts = param["n_contacts"];
-
-    //    Rcpp::Rcout << "inside" << std::endl;
-    //    Rcpp::Rcout << n_contacts << std::endl;
 
     size_t list_size = ctd_matrix_list.size() + ctd_timed_matrix_list.size();
     size_t true_pos = 0;
@@ -562,14 +561,14 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
     size_t true_neg = 0;
     size_t imports = 0;
     size_t unobsv_case = 0;
-    size_t coor = 0;
+    size_t size_1;
+    size_t size_2;
     
     if(list_size > 0) {
       
       for (size_t i = 0; i < list_size; i++) {
 
-	// p(eps < 0 || lambda < 0) = 0
-	if (eps[i] < 0.0 || lambda[i] < 0.0) {
+	if (eps[i] < 0.0 || eta[i] < 0.0 || lambda[i] < 0.0) {
 	  return R_NegInf;
 	}
 	
@@ -592,8 +591,49 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
 	  false_neg = N - imports - unobsv_case - true_pos;
 	  true_neg = C_combn - true_pos - false_pos - false_neg;
 
-	  //	  std::cout << true_pos << " | " << false_pos << " | " << true_neg << " | " << false_neg << std::endl;
+	  // untimed contact model
+	  if(lambda[i] == 0.0) {
+	    if(false_pos > 0) {
+	      out += R_NegInf;
+	    } else {
+	      out += log(eps[i]*eta[i]) * (double) true_pos +
+		log(1 - eps[i]*eta[i]) * (double) false_neg +
+		log(1 - eps[i]*lambda[i]) * (double) true_neg;
+	    }
+	  } else if(eta[i] == 0.0) {
+	    if(true_pos > 0) {
+	      out += R_NegInf;
+	    } else {
+	      out += log(eps[i]*lambda[i]) * false_pos +
+		log(1 - eps[i]*eta[i]) * false_neg +
+		log(1 - eps[i]*lambda[i]) * true_neg;
+	    }
+	  } else if(eta[i]*eps[i] == 1.0) {
+	    if(false_neg > 0) {
+	      out += R_NegInf;
+	    } else {
+	      out += log(eps[i]*eta[i]) * true_pos +
+		log(eps[i]*lambda[i]) * false_pos +
+		log(1 - eps[i]*lambda[i]) * true_neg;
+	    }
+	  } else if(lambda[i]*eps[i] == 1.0) {
+	    if(true_neg > 0) {
+	      out += R_NegInf;
+	    } else {
+	      out += log(eps[i]*eta[i]) * true_pos +
+		log(eps[i]*lambda[i]) * false_pos +
+		log(1 - eps[i]*eta[i]) * false_neg;
+	    }
+	  } else {
+	    out += log(eps[i]*eta[i]) * true_pos +
+	      log(eps[i]*lambda[i]) * false_pos +
+	      log(1 - eps[i]*eta[i]) * false_neg +
+	      log(1 - eps[i]*lambda[i]) * true_neg;
 	  
+	    // Rprintf("true pos %d | false pos %d | true neg %d | false neg %d\n",
+	    // 	  true_pos, false_pos, true_neg, false_neg);
+
+	  }
 	  // Dated contacts
 	} else if(i >= ctd_matrix_list.size()) {
 	  
@@ -606,32 +646,56 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
 	  false_neg = n_contacts(mat_ind, 3);
 	  imports = n_contacts(mat_ind, 4);
 	  unobsv_case = n_contacts(mat_ind, 5);
+
+	  Rcpp::IntegerVector n_unique = Rcpp::IntegerVector::create(297, 275, 22);
+	  
+	  // untimed contact model
+	  out += log(eps[i]) * true_pos +
+	    log((1 - eps[i])/(n_unique[i - ctd_matrix_list.size()] - 1)) * false_neg;
 	  
 	}
-
-	if(lambda[i] == 0.0) {
-	  if(false_pos > 0) {
-	    out += R_NegInf;
-	  } else {
-	    out += log(eps[i]) * (double) true_pos +
-	      log(1 - eps[i]) * (double) false_neg +
-	      log(1 - eps[i]*lambda[i]) * (double) true_neg;
-	  }
-	} else if(eps[i] == 1.0) {
-	  if(false_neg > 0) {
-	    out += R_NegInf;
-	  } else {
-	    out += log(eps[i]) * (double) true_pos +
-	      log(eps[i]*lambda[i]) * (double) false_pos +
-	      log(1 - eps[i]*lambda[i]) * (double) true_neg;
-	  }
-	} else {
-	  out += log(eps[i]) * true_pos +
-	    log(eps[i]*lambda[i]) * false_pos +
-	    log(1 - eps[i]) * false_neg +
-	    log(1 - eps[i]*lambda[i]) * true_neg;
-	}
 	
+	// if(lambda[i] == 0.0) {
+	//   if(false_pos > 0) {
+	//     out += R_NegInf;
+	//   } else {
+	//     out += log(eps[i]*eta[i]) * (double) true_pos +
+	//       log(1 - eps[i]*eta[i]) * (double) false_neg +
+	//       log(1 - eps[i]*lambda[i]) * (double) true_neg;
+	//   }
+	// } else if(eta[i] == 0.0) {
+	//   if(true_pos > 0) {
+	//     out += R_NegInf;
+	//   } else {
+	//     out += log(eps[i]*lambda[i]) * false_pos +
+	//       log(1 - eps[i]*eta[i]) * false_neg +
+	//       log(1 - eps[i]*lambda[i]) * true_neg;
+	//   }
+	// } else if(eta[i]*eps[i] == 1.0) {
+	//   if(false_neg > 0) {
+	//     out += R_NegInf;
+	//   } else {
+	//     out += log(eps[i]*eta[i]) * true_pos +
+	//       log(eps[i]*lambda[i]) * false_pos +
+	//       log(1 - eps[i]*lambda[i]) * true_neg;
+	//   }
+	// } else if(lambda[i]*eps[i] == 1.0) {
+	//   if(true_neg > 0) {
+	//     out += R_NegInf;
+	//   } else {
+	//     out += log(eps[i]*eta[i]) * true_pos +
+	//       log(eps[i]*lambda[i]) * false_pos +
+	//       log(1 - eps[i]*eta[i]) * false_neg;
+	//   }
+	// } else {
+
+	  // wrong timed contact model
+	  // size_1 = true_pos + false_neg;
+	  // size_2 = false_pos + true_neg;
+	  // out += R::dbinom(true_pos, size_1, eps[i]*eta[i], 1) +
+	  //   R::dbinom(false_pos, size_2, eps[i]*lambda[i], 1) +
+	  //   R::dbinom(false_neg, size_1, 1 - eps[i]*eta[i], 1) +
+	  //   R::dbinom(true_neg, size_2, 1 - eps[i]*lambda[i], 1);
       }
       
     } else if(ward_matrix.ncol() > 0) {

@@ -68,6 +68,18 @@ bind_moves <- function(moves = custom_moves(), config, data,
                                 )
   }
 
+  ## remove move$eta if disabled
+  if (all(!config$move_eta)) {
+    out$eta <- NULL
+  } else {
+    out$eta <- bind_to_function(out$eta,
+                                data = data,
+                                config = config,
+                                custom_ll = likelihoods$contact,
+                                custom_prior = priors$eta
+                                )
+  }
+
   ## remove move$lambda if disabled
   if (all(!config$move_lambda)) {
     out$lambda <- NULL

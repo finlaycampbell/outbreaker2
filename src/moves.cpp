@@ -255,7 +255,8 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::NumericVector p_ward = data["p_ward"];
   Rcpp::NumericMatrix ward_matrix = Rcpp::as<Rcpp::NumericMatrix>(data["ward_matrix"]);
 
-  double sd_eps = static_cast<double>(config["sd_eps"]);
+  //  double sd_eps = static_cast<double>(config["sd_eps"]);
+  Rcpp::NumericVector sd_eps = config["sd_eps"];
 
   double old_logpost = 0.0, new_logpost = 0.0, p_accept = 0.0;
 
@@ -265,7 +266,7 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
       
       // proposal (normal distribution with SD: config$sd_eps)
 
-      new_eps[i] += R::rnorm(0.0, sd_eps); // new proposed value
+      new_eps[i] += R::rnorm(0.0, sd_eps[i]); // new proposed value
 
       // automatic rejection of eps outside [0;1]
 
@@ -315,6 +316,80 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
 // ---------------------------
 
+// movement of the contact sensitivity 'eta' is done using a dumb normal
+// proposal. This is satisfying for now - we only reject a few non-sensical
+// values outside the range [0;1]. The SD of the proposal is provided through
+// 'config'; this seems fine as the range of real values will never change
+// much. Probably not much point in using auto-tuning here.
+
+// [[Rcpp::export(rng = true)]]
+Rcpp::List cpp_move_eta(Rcpp::List param, Rcpp::List data, Rcpp::List config,
+			Rcpp::RObject custom_ll = R_NilValue,
+			Rcpp::RObject custom_prior = R_NilValue) {
+
+  // deep copy here for now, ultimately should be an arg.
+
+  Rcpp::List new_param = clone(param);
+  Rcpp::NumericVector eta = param["eta"]; // these are just pointers
+  Rcpp::NumericVector new_eta = new_param["eta"]; // these are just pointers
+  Rcpp::LogicalVector move_eta = config["move_eta"]; // these are just pointers
+
+  //  double sd_eta = static_cast<double>(config["sd_eta"]);
+  Rcpp::NumericVector sd_eta = config["sd_eta"];
+  
+  double old_logpost = 0.0, new_logpost = 0.0, p_accept = 0.0;
+
+  for (size_t i = 0; i < eta.size(); i++) {
+
+    if(move_eta[i]) {
+      
+      // proposal (normal distribution with SD: config$sd_eta)
+
+      new_eta[i] += R::rnorm(0.0, sd_eta[i]); // new proposed value
+
+      // automatic rejection of eta outside [0;1]
+
+      if (new_eta[i] < 0.0 || new_eta[i] > 1.0) {
+	return param;
+      }
+
+      // compute likelihoods
+      old_logpost = cpp_ll_contact(data, param, R_NilValue, custom_ll);
+      new_logpost = cpp_ll_contact(data, new_param, R_NilValue, custom_ll);
+
+      // compute priors
+      old_logpost += cpp_prior_eta(param, config, custom_prior);
+      new_logpost += cpp_prior_eta(new_param, config, custom_prior);
+
+      // acceptance term
+      p_accept = exp(new_logpost - old_logpost);
+
+      // acceptance: the new value is already in eta, so we only act if the move is
+      // rejected, in which case we restore the previous ('old') value
+
+      if (p_accept < unif_rand()) { // reject new values
+	new_eta[i] = eta[i];
+      }
+
+    } else {
+
+      new_eta[i] = eta[i];
+	
+    }
+
+  }
+  
+  return new_param;
+  
+}
+
+
+
+
+
+
+// ---------------------------
+
 // movement of the non-infectious contact rate 'eps' is done using a dumb
 // normal proposal. This is satisfying for now - we only reject a few
 // non-sensical values outside the range [0;1]. The SD of the proposal is
@@ -333,8 +408,9 @@ Rcpp::List cpp_move_lambda(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::NumericVector new_lambda = new_param["lambda"]; // these are just pointers
   Rcpp::LogicalVector move_lambda = config["move_lambda"]; // these are just pointers
 
-  double sd_lambda = static_cast<double>(config["sd_lambda"]);
-
+  //  double sd_lambda = static_cast<double>(config["sd_lambda"]);
+  Rcpp::NumericVector sd_lambda = config["sd_lambda"];
+  
   double old_logpost = 0.0, new_logpost = 0.0, p_accept = 0.0;
 
 
@@ -344,7 +420,7 @@ Rcpp::List cpp_move_lambda(Rcpp::List param, Rcpp::List data, Rcpp::List config,
       
       // proposal (normal distribution with SD: config$sd_lambda)
 
-      new_lambda[i] += R::rnorm(0.0, sd_lambda); // new proposed value
+      new_lambda[i] += R::rnorm(0.0, sd_lambda[i]); // new proposed value
 
 
       // automatic rejection of lambda outside [0;1]
@@ -885,8 +961,7 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
   Rcpp::NumericMatrix n_contacts = param["n_contacts"];
   Rcpp::NumericMatrix new_n_contacts = clone(n_contacts);
   Rcpp::NumericMatrix old_n_contacts = clone(n_contacts);
-  Rcpp::NumericMatrix old_local_n_contacts;
-  Rcpp::NumericMatrix new_local_n_contacts;
+  Rcpp::NumericMatrix diff_n_contacts;
 
   Rcpp::List swapinfo; // contains alpha and t_inf
   Rcpp::IntegerVector local_cases;
@@ -896,7 +971,9 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
 
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
 
-
+  Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
+  size_t n_mat = ctd_timed_matrix_list.size();
+  
   for (size_t i = 0; i < N; i++) {
 
     // only non-NA ancestries are moved, if there is at least 1 choice
@@ -917,7 +994,6 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
 
       old_loglike = cpp_ll_all(data, param, local_cases, list_custom_ll); // offset
 
-
       // proposal: swap case 'i' and its ancestor
 
       swapinfo = cpp_swap_cases(param, i+1, swap_ward);
@@ -929,13 +1005,23 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
 
       // calculate changes in contact types upon swapping cases
       if(n_contacts.nrow() > 0) {
-	old_local_n_contacts = local_n_contacts(data, param, local_cases);
-	new_local_n_contacts = local_n_contacts(data, new_param, local_cases);
+	//	old_local_n_contacts = local_n_contacts(data, param, local_cases);
+	//	new_local_n_contacts = local_n_contacts(data, new_param, local_cases);
+
+	diff_n_contacts = swap_cases_change(data,
+					    param,
+					    new_param,
+					    i + 1,
+					    alpha,
+					    t_inf,
+					    kappa,
+					    local_cases,
+					    n_mat);
+
 	for(size_t j = 0; j < n_contacts.nrow(); j++) {
 	  for(size_t k = 0; k < 6; k++) {
 	    new_n_contacts(j, k) = old_n_contacts(j, k) +
-	      new_local_n_contacts(j, k) -
-	      old_local_n_contacts(j, k);
+	      diff_n_contacts(j, k);
 	  }
 	}
       }
@@ -1033,6 +1119,8 @@ Rcpp::List cpp_move_kappa(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	    }
 	  }
 	}
+
+	new_param["n_contacts"] = clone(new_n_contacts);
 	
 	// loglike with new parameters
 	new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
@@ -1056,7 +1144,7 @@ Rcpp::List cpp_move_kappa(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
   }
 
-  //  param["n_contacts"] = clone(old_n_contacts);
+  param["n_contacts"] = clone(n_contacts);
   
   return param;
 }

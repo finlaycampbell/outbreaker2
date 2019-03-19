@@ -15,6 +15,9 @@ double cpp_prior_tau(Rcpp::List param, Rcpp::List config,
 double cpp_prior_eps(Rcpp::List param, Rcpp::List config,
 		     Rcpp::RObject custom_function);
 
+double cpp_prior_eta(Rcpp::List param, Rcpp::List config,
+		     Rcpp::RObject custom_function);
+
 double cpp_prior_lambda(Rcpp::List param, Rcpp::List config,
 			Rcpp::RObject custom_function);
 

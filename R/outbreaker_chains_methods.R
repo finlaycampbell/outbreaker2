@@ -391,10 +391,10 @@ summary.outbreaker_chains <- function(object, burnin = 0, ...) {
       if(tab[is.na(nam)] > sum(tab[!is.na(nam)])) {
         out <- NA
       } else {
-        out <- median(x, na.rm = TRUE)
+        out <- ceiling(median(x, na.rm = TRUE))
       }
     } else {
-        out <- median(x, na.rm = TRUE)
+        out <- ceiling(median(x, na.rm = TRUE))
     }
     return(out)
   }

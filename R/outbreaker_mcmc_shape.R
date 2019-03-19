@@ -32,6 +32,13 @@ outbreaker_mcmc_shape <- function(param, data) {
 
   colnames(param$eps) <- seq_len(ncol(param$eps))
 
+  ## unfold eta estimates ##
+  param$eta <- matrix(unlist(param$eta),
+                        ncol = length(data$ctd_matrix) + length(data$ctd_timed_matrix),
+                      byrow = TRUE)
+
+  colnames(param$eta) <- seq_len(ncol(param$eta))
+
   ## unfold lambdailon estimates ##
   param$lambda <- matrix(unlist(param$lambda),
                         ncol = length(data$ctd_matrix) + length(data$ctd_timed_matrix),
@@ -67,11 +74,10 @@ outbreaker_mcmc_shape <- function(param, data) {
   colnames(param$kappa) <- paste("kappa", seq_len(data$N), sep=".")
 
   ## shape data.frame and convert ##
-  param <- data.frame(step = param$step,
-                      post = param$post, like = param$like, prior = param$prior,
-                      mu = param$mu, pi = param$pi, eps = param$eps,
-                      lambda = param$lambda, param$alpha, param$t_inf,
-                      param$kappa)
+  param <- data.frame(step = param$step, post = param$post, like = param$like,
+                      prior = param$prior, mu = param$mu, pi = param$pi,
+                      eps = param$eps, eta = param$eta, lambda = param$lambda,
+                      param$alpha, param$t_inf, param$kappa)
   if(data$move_t_onw) {
     param$tau <- tau
     param <- cbind(param, t_onw)

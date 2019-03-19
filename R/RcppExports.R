@@ -57,6 +57,10 @@ kappa_change <- function(data, param, p, t_inf, alpha, kappa1, kappa2) {
     .Call(`_outbreaker2_kappa_change`, data, param, p, t_inf, alpha, kappa1, kappa2)
 }
 
+swap_cases_change <- function(data, param, new_param, i, alpha, t_inf, kappa, local_cases, n_mat) {
+    .Call(`_outbreaker2_swap_cases_change`, data, param, new_param, i, alpha, t_inf, kappa, local_cases, n_mat)
+}
+
 cpp_ll_genetic <- function(data, param, i = NULL, custom_function = NULL) {
     .Call(`_outbreaker2_cpp_ll_genetic`, data, param, i, custom_function)
 }
@@ -101,6 +105,10 @@ cpp_move_eps <- function(param, data, config, custom_ll = NULL, custom_prior = N
     .Call(`_outbreaker2_cpp_move_eps`, param, data, config, custom_ll, custom_prior)
 }
 
+cpp_move_eta <- function(param, data, config, custom_ll = NULL, custom_prior = NULL) {
+    .Call(`_outbreaker2_cpp_move_eta`, param, data, config, custom_ll, custom_prior)
+}
+
 cpp_move_lambda <- function(param, data, config, custom_ll = NULL, custom_prior = NULL) {
     .Call(`_outbreaker2_cpp_move_lambda`, param, data, config, custom_ll, custom_prior)
 }
@@ -143,6 +151,10 @@ cpp_prior_tau <- function(param, config, custom_function = NULL) {
 
 cpp_prior_eps <- function(param, config, custom_function = NULL) {
     .Call(`_outbreaker2_cpp_prior_eps`, param, config, custom_function)
+}
+
+cpp_prior_eta <- function(param, config, custom_function = NULL) {
+    .Call(`_outbreaker2_cpp_prior_eta`, param, config, custom_function)
 }
 
 cpp_prior_lambda <- function(param, config, custom_function = NULL) {

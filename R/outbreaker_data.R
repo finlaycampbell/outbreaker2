@@ -386,7 +386,7 @@ outbreaker_data <- function(..., data = list(...)) {
       mat <- matrix(0, nrow = data$N,
                     ncol = max(data$ctd_timed[,4]) - min(data$ctd_timed[,3]) + 1)
       for(j in 1:nrow(tmp)) {
-        ind <- (tmp[j,3] + data$C_ind + 1):(data$ctd_timed[j,4] + data$C_ind + 1)
+        ind <- (tmp[j,3] + data$C_ind + 1):(tmp[j,4] + data$C_ind + 1)
         mat[match(tmp[j, 1], data$ids), ind] <- match(tmp[j, 2], place_order)
       }
       data$ctd_timed_matrix[[i]] <- mat

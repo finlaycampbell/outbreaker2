@@ -11,6 +11,10 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 		       Rcpp::RObject custom_ll = R_NilValue,
 		       Rcpp::RObject custom_prior = R_NilValue);
 
+Rcpp::List cpp_move_eta(Rcpp::List param, Rcpp::List data, Rcpp::List config,
+		       Rcpp::RObject custom_ll = R_NilValue,
+		       Rcpp::RObject custom_prior = R_NilValue);
+
 Rcpp::List cpp_move_lambda(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 		       Rcpp::RObject custom_ll = R_NilValue,
 		       Rcpp::RObject custom_prior = R_NilValue);

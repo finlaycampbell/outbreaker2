@@ -42,6 +42,11 @@
 #' functions should use \code{x$eps} to refer to the current value of \code{eps},
 #' assuming their argument is called \code{x}.
 #'
+#' \item \code{eta} (contact sensitivity): default function is a beta
+#' distribution implemented in \code{outbreaker:::cpp_prior_eta}. New prior
+#' functions should use \code{x$eta} to refer to the current value of \code{eta},
+#' assuming their argument is called \code{x}.
+#'
 #' \item \code{lambda} (non-infectious contact rate): default function is a
 #' beta distribution implemented in \code{outbreaker:::cpp_prior_lambda}. New
 #' prior functions should use \code{x$lambda} to refer to the current value of
@@ -133,6 +138,7 @@ custom_priors <- function(...) {
                      pi = NULL, # reporting probability
                      tau = NULL,
                      eps = NULL, # contact reporting coverage
+                     eta = NULL, # contact sensitivity
                      lambda = NULL # non-infectious contact rate
                      )
 

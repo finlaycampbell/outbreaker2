@@ -195,6 +195,25 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// swap_cases_change
+Rcpp::NumericMatrix swap_cases_change(Rcpp::List data, Rcpp::List param, Rcpp::List new_param, size_t i, Rcpp::IntegerVector alpha, Rcpp::IntegerVector t_inf, Rcpp::IntegerVector kappa, Rcpp::IntegerVector local_cases, size_t n_mat);
+RcppExport SEXP _outbreaker2_swap_cases_change(SEXP dataSEXP, SEXP paramSEXP, SEXP new_paramSEXP, SEXP iSEXP, SEXP alphaSEXP, SEXP t_infSEXP, SEXP kappaSEXP, SEXP local_casesSEXP, SEXP n_matSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type param(paramSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type new_param(new_paramSEXP);
+    Rcpp::traits::input_parameter< size_t >::type i(iSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type t_inf(t_infSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type kappa(kappaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type local_cases(local_casesSEXP);
+    Rcpp::traits::input_parameter< size_t >::type n_mat(n_matSEXP);
+    rcpp_result_gen = Rcpp::wrap(swap_cases_change(data, param, new_param, i, alpha, t_inf, kappa, local_cases, n_mat));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_ll_genetic
 double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i, Rcpp::RObject custom_function);
 RcppExport SEXP _outbreaker2_cpp_ll_genetic(SEXP dataSEXP, SEXP paramSEXP, SEXP iSEXP, SEXP custom_functionSEXP) {
@@ -346,6 +365,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_move_eta
+Rcpp::List cpp_move_eta(Rcpp::List param, Rcpp::List data, Rcpp::List config, Rcpp::RObject custom_ll, Rcpp::RObject custom_prior);
+RcppExport SEXP _outbreaker2_cpp_move_eta(SEXP paramSEXP, SEXP dataSEXP, SEXP configSEXP, SEXP custom_llSEXP, SEXP custom_priorSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type param(paramSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type config(configSEXP);
+    Rcpp::traits::input_parameter< Rcpp::RObject >::type custom_ll(custom_llSEXP);
+    Rcpp::traits::input_parameter< Rcpp::RObject >::type custom_prior(custom_priorSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_move_eta(param, data, config, custom_ll, custom_prior));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_move_lambda
 Rcpp::List cpp_move_lambda(Rcpp::List param, Rcpp::List data, Rcpp::List config, Rcpp::RObject custom_ll, Rcpp::RObject custom_prior);
 RcppExport SEXP _outbreaker2_cpp_move_lambda(SEXP paramSEXP, SEXP dataSEXP, SEXP configSEXP, SEXP custom_llSEXP, SEXP custom_priorSEXP) {
@@ -490,6 +524,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_prior_eta
+double cpp_prior_eta(Rcpp::List param, Rcpp::List config, Rcpp::RObject custom_function);
+RcppExport SEXP _outbreaker2_cpp_prior_eta(SEXP paramSEXP, SEXP configSEXP, SEXP custom_functionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type param(paramSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type config(configSEXP);
+    Rcpp::traits::input_parameter< Rcpp::RObject >::type custom_function(custom_functionSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_prior_eta(param, config, custom_function));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_prior_lambda
 double cpp_prior_lambda(Rcpp::List param, Rcpp::List config, Rcpp::RObject custom_function);
 RcppExport SEXP _outbreaker2_cpp_prior_lambda(SEXP paramSEXP, SEXP configSEXP, SEXP custom_functionSEXP) {
@@ -530,6 +576,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_outbreaker2_alpha_change", (DL_FUNC) &_outbreaker2_alpha_change, 6},
     {"_outbreaker2_local_n_contacts", (DL_FUNC) &_outbreaker2_local_n_contacts, 3},
     {"_outbreaker2_kappa_change", (DL_FUNC) &_outbreaker2_kappa_change, 7},
+    {"_outbreaker2_swap_cases_change", (DL_FUNC) &_outbreaker2_swap_cases_change, 9},
     {"_outbreaker2_cpp_ll_genetic", (DL_FUNC) &_outbreaker2_cpp_ll_genetic, 4},
     {"_outbreaker2_cpp_ll_timing_infections", (DL_FUNC) &_outbreaker2_cpp_ll_timing_infections, 4},
     {"_outbreaker2_cpp_ll_timing_sampling", (DL_FUNC) &_outbreaker2_cpp_ll_timing_sampling, 4},
@@ -541,6 +588,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_outbreaker2_cpp_move_pi", (DL_FUNC) &_outbreaker2_cpp_move_pi, 5},
     {"_outbreaker2_cpp_move_tau", (DL_FUNC) &_outbreaker2_cpp_move_tau, 5},
     {"_outbreaker2_cpp_move_eps", (DL_FUNC) &_outbreaker2_cpp_move_eps, 5},
+    {"_outbreaker2_cpp_move_eta", (DL_FUNC) &_outbreaker2_cpp_move_eta, 5},
     {"_outbreaker2_cpp_move_lambda", (DL_FUNC) &_outbreaker2_cpp_move_lambda, 5},
     {"_outbreaker2_cpp_move_t_inf", (DL_FUNC) &_outbreaker2_cpp_move_t_inf, 3},
     {"_outbreaker2_cpp_move_alpha", (DL_FUNC) &_outbreaker2_cpp_move_alpha, 3},
@@ -552,6 +600,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_outbreaker2_cpp_prior_pi", (DL_FUNC) &_outbreaker2_cpp_prior_pi, 3},
     {"_outbreaker2_cpp_prior_tau", (DL_FUNC) &_outbreaker2_cpp_prior_tau, 3},
     {"_outbreaker2_cpp_prior_eps", (DL_FUNC) &_outbreaker2_cpp_prior_eps, 3},
+    {"_outbreaker2_cpp_prior_eta", (DL_FUNC) &_outbreaker2_cpp_prior_eta, 3},
     {"_outbreaker2_cpp_prior_lambda", (DL_FUNC) &_outbreaker2_cpp_prior_lambda, 3},
     {"_outbreaker2_cpp_prior_all", (DL_FUNC) &_outbreaker2_cpp_prior_all, 3},
     {NULL, NULL, 0}

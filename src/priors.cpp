@@ -139,6 +139,36 @@ double cpp_prior_eps(Rcpp::List param, Rcpp::List config,
 
 
 
+// The prior for the contact sensitivity 'eta' is a beta distribution
+
+// [[Rcpp::export(rng = false)]]
+double cpp_prior_eta(Rcpp::List param, Rcpp::List config,
+		    Rcpp::RObject custom_function = R_NilValue) {
+
+  if (custom_function == R_NilValue) {
+    Rcpp::NumericMatrix shape = config["prior_eta"];
+    Rcpp::NumericVector eta = param["eta"];
+    double out = 0;
+    for(size_t i = 0; i < eta.size(); i++) {
+      out += R::dbeta(eta[i],
+		      (double) shape(i, 0),
+		      (double) shape(i, 1),
+		      true);
+    }
+    return(out);
+  } else {
+    Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
+
+    return Rcpp::as<double>(f(param));
+  }
+
+}
+
+
+
+
+
+
 // The prior for the non-transmision contact rate 'lambda' is a beta distribution
 
 // [[Rcpp::export(rng = false)]]

@@ -63,6 +63,9 @@
 #'  \item \code{eps}: A numeric vector of length \code{size}, storing values of
 #' the contact reporting coverage.
 #'
+#'  \item \code{eta}: A numeric vector of length \code{size}, storing values of
+#' the contact sensitivity.
+#'
 #'  \item \code{lambda}: A numeric vector of length \code{size}, storing values of
 #' the non-infectious contact rate.
 #'
@@ -90,6 +93,8 @@
 #'
 #'  \item \code{eps}: The value of the contact reporting coverage.
 #'
+#'  \item \code{eta}: The value of the contact sensitivity.
+#' 
 #'  \item \code{lambda}: The value of the non-infectious contact rate.
 #'
 #' }
@@ -113,6 +118,7 @@ create_param <- function(data = outbreaker_data(),
   step <- integer(size)
   post <- prior <- like <- mu <- pi <- tau <- double(size)
   eps <- as.list(integer(size))
+  eta <- as.list(integer(size))
   lambda <- as.list(integer(size))
   alpha <- as.list(integer(size))
   t_inf <- as.list(integer(size))
@@ -128,6 +134,7 @@ create_param <- function(data = outbreaker_data(),
   current_pi <- pi[1] <- config$init_pi
   current_tau <- tau[1] <- config$init_tau
   current_eps <- eps[[1]] <- config$init_eps
+  current_eta <- eta[[1]] <- config$init_eta
   current_lambda <- lambda[[1]] <- config$init_lambda
   if (is.null(config$init_t_inf)) {
     current_t_inf <- t_inf[[1]] <- data$dates - which.max(data$f_dens) + 1L
@@ -172,17 +179,17 @@ create_param <- function(data = outbreaker_data(),
     post = post, like = like, prior = prior,
     alpha = alpha, t_inf = t_inf, t_onw = t_onw,
     mu = mu, kappa = kappa, pi = pi, tau = tau,
-    eps = eps, lambda = lambda, ward = ward,
+    eps = eps, eta = eta, lambda = lambda, ward = ward,
     counter = counter
   )
   class(store) <- c("outbreaker_store", "list")
 
-  current  <- list(
-    alpha = current_alpha, t_inf = current_t_inf, t_onw = current_t_onw,
-    mu = current_mu, kappa = current_kappa, pi = current_pi, tau = current_tau,
-    eps = current_eps, lambda = current_lambda, ward = current_ward, ward_mat = ward_mat,
-    ward_mat_1 = ward_mat_1
-  )
+  current  <- list(alpha = current_alpha, t_inf = current_t_inf,
+                   t_onw = current_t_onw, mu = current_mu,
+                   kappa = current_kappa, pi = current_pi, tau = current_tau,
+                   eps = current_eps, eta = current_eta,
+                   lambda = current_lambda, ward = current_ward,
+                   ward_mat = ward_mat, ward_mat_1 = ward_mat_1)
   class(current) <- c("outbreaker_param", "list")
 
   tmp <- cpp_swap_cases(current, 1, FALSE)
