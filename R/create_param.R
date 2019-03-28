@@ -118,12 +118,13 @@ create_param <- function(data = outbreaker_data(),
   step <- integer(size)
   post <- prior <- like <- mu <- pi <- tau <- double(size)
   eps <- as.list(integer(size))
+  tau <- as.list(integer(size))
   eta <- as.list(integer(size))
   lambda <- as.list(integer(size))
   alpha <- as.list(integer(size))
   t_inf <- as.list(integer(size))
   t_onw <- as.list(integer(size))
-  ward <- as.list(integer(size))
+  place <- as.list(integer(size))
   kappa <- as.list(integer(size))
   
   ## SET CURRENT VALUES AND COUNTER ##
@@ -132,7 +133,7 @@ create_param <- function(data = outbreaker_data(),
   current_alpha <- alpha[[1]] <- config$init_alpha
   current_kappa <- kappa[[1]] <- config$init_kappa
   current_pi <- pi[1] <- config$init_pi
-  current_tau <- tau[1] <- config$init_tau
+  current_tau <- tau[[1]] <- config$init_tau
   current_eps <- eps[[1]] <- config$init_eps
   current_eta <- eta[[1]] <- config$init_eta
   current_lambda <- lambda[[1]] <- config$init_lambda
@@ -151,25 +152,41 @@ create_param <- function(data = outbreaker_data(),
     current_t_onw <- t_onw[[1]] <- as.integer(tmp_t_onw)
   }
 
-  ## Make sure kappa = 1 matches with ward = 0
-  if (is.null(config$init_ward)) {
-    tmp_ward <- ifelse(config$init_kappa > 1, 1, 0)
-    tmp_ward[is.na(config$init_alpha)] <- 0
-    current_ward <- ward[[1]] <- as.integer(tmp_ward)
+  ## Make sure kappa = 1 matches with place = 0
+  if(length(data$ctd_timed_matrix) == 0) {
+    current_place <- place[[1]] <- matrix(0, 0, 0)
+  } else if (is.null(config$init_place)) {
+    tmp_place <- ifelse(config$init_kappa > 1, 1, 0)
+    tmp_place[is.na(config$init_alpha)] <- 0
+    tmp_place <- matrix(rep(tmp_place, length(data$ctd_timed_matrix)),
+                        nrow = length(data$ctd_timed_matrix), byrow = TRUE)
+    tmp_place[] <- as.integer(tmp_place)
+    current_place <- place[[1]] <- tmp_place
   } else {
-    tmp_ward <- config$init_ward
-    tmp_ward[tmp_ward == 0 & config$init_kappa > 1] <- 1
-    tmp_ward[tmp_ward != 0 & config$init_kappa == 1] <- 0
-    current_ward <- ward[[1]] <- as.integer(tmp_ward)
+    tmp_place <- config$init_place
+    tmp_place[tmp_place == 0 & config$init_kappa > 1] <- 1
+    tmp_place[tmp_place != 0 & config$init_kappa == 1] <- 0
+    tmp_place[] <- as.integer(tmp_place)
+    current_place <- place[[1]] <- tmp_place
   }
 
-  ## Calculate initial ward transition probabilities
-  if (!is.null(data$wards)) {
-    ward_mat <- get_ward_p(data$p_ward, config$init_eps, config$init_tau, config$max_kappa)
-    ward_mat_1 <- get_ward_p(data$p_ward, config$init_eps, 1, 1)
+  ## Calculate initial place transition probabilities
+  if (!is.null(data$ctd_timed)) {
+    trans_mat <- trans_mat_1 <- list()
+    for(i in seq_along(data$p_trans)) {
+      trans_mat[[i]] <- get_transition_mat(data$p_trans[[i]],
+                                           data$p_trans_int[[i]],
+                                           current_eps[i],
+                                           current_tau[i],
+                                           config$max_kappa)
+      
+      trans_mat_1[[i]] <- get_transition_mat(data$p_trans[[i]],
+                                             data$p_trans_int[[i]],
+                                             current_eps[i], 1, 1)
+    }
   } else {
-    ward_mat <- NULL
-    ward_mat_1 <- NULL
+    trans_mat <- list()
+    trans_mat_1 <- list()
   }
   
   counter <- 1L
@@ -179,27 +196,29 @@ create_param <- function(data = outbreaker_data(),
     post = post, like = like, prior = prior,
     alpha = alpha, t_inf = t_inf, t_onw = t_onw,
     mu = mu, kappa = kappa, pi = pi, tau = tau,
-    eps = eps, eta = eta, lambda = lambda, ward = ward,
+    eps = eps, eta = eta, lambda = lambda, place = place,
     counter = counter
   )
+  
   class(store) <- c("outbreaker_store", "list")
 
   current  <- list(alpha = current_alpha, t_inf = current_t_inf,
                    t_onw = current_t_onw, mu = current_mu,
                    kappa = current_kappa, pi = current_pi, tau = current_tau,
                    eps = current_eps, eta = current_eta,
-                   lambda = current_lambda, ward = current_ward,
-                   ward_mat = ward_mat, ward_mat_1 = ward_mat_1)
+                   lambda = current_lambda, place = current_place,
+                   trans_mat = trans_mat, trans_mat_1 = trans_mat_1)
   class(current) <- c("outbreaker_param", "list")
 
-  tmp <- cpp_swap_cases(current, 1, FALSE)
+  ## tmp <- cpp_swap_cases(current, 1, FALSE)
   
-  ## Count the number of contacts
-  if(!is.null(data$ctd_timed)) {
-    current$n_contacts <- local_n_contacts(data, current, seq.int(1, data$N))
-  } else {
-    current$n_contacts <- matrix(, ncol = 0, nrow = 0)
-  }
+  ## ## Count the number of contacts
+  ## if(!is.null(data$ctd_timed)) {
+  ##   current$n_contacts <- local_n_contacts(data, current, seq.int(1, data$N))
+  ## } else {
+  ##   current$n_contacts <- matrix(, ncol = 0, nrow = 0)
+  ## }
+  
   ## SHAPE CHAIN ##
   out <- list(store = store,
               current = current)

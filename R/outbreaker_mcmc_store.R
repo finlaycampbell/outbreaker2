@@ -33,9 +33,9 @@ outbreaker_mcmc_store <- function(param_current, param_store, data, config,
   param_store$lambda[[counter]] <- param_current$lambda
   param_store$alpha[[counter]] <- param_current$alpha
   param_store$t_inf[[counter]] <- param_current$t_inf
-  if(config$move_t_onw) param_store$t_onw[[counter]] <- param_current$t_onw
-  if(config$move_t_onw) param_store$tau[[counter]] <- param_current$tau
-  if(config$move_t_onw) param_store$ward[[counter]] <- param_current$ward
+  if(!is.null(data$ctd_timed)) param_store$t_onw[[counter]] <- param_current$t_onw
+  if(!is.null(data$ctd_timed)) param_store$tau[[counter]] <- param_current$tau
+  if(!is.null(data$ctd_timed)) param_store$place[[counter]] <- param_current$place
   param_store$kappa[[counter]] <- param_current$kappa
 
   return(param_store)

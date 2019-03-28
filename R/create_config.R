@@ -102,6 +102,10 @@
 #' \item{prop_alpha_move}{the proportion of ancestries to move at each iteration
 #' of the MCMC}
 #'
+#' \item{prop_eps_move}{the proportion of iterations at which eps is moved}
+#'
+#' \item{prop_tau_move}{the proportion of iterations at which tau is moved}
+#'
 #' \item{prop_t_inf_move}{the proportion of infection dates to move at each
 #' iteration of the MCMC}
 
@@ -170,6 +174,8 @@ create_config <- function(..., data = NULL) {
     config <- config[[1]]
   }
 
+  have_ctd <- is.null(data$ctd_timed)
+
   ## SET DEFAULTS
   defaults <- list(init_tree = c("seqTrack","star","random"),
                    init_mu = 1e-4,
@@ -177,27 +183,32 @@ create_config <- function(..., data = NULL) {
                    init_kappa = 1,
                    init_t_inf = NULL,
                    init_t_onw = NULL,
-                   init_ward = NULL,
+                   init_place = NULL,
                    init_pi = 0.9,
-                   init_tau = 0.5,
                    init_eps = 0.5,
+                   init_tau = 0.5,
                    init_eta = 0.9,
                    init_lambda = 0.05,
-                   move_alpha = TRUE, move_swap_cases = TRUE,
+                   move_alpha = TRUE,
+                   move_swap_cases = TRUE,
                    move_t_inf = TRUE,
-                   move_t_onw = FALSE,
-                   move_joint = FALSE,
-                   move_model = FALSE,
-                   move_mu = TRUE, move_kappa = TRUE,
-                   move_pi = TRUE, move_tau = FALSE,
-                   move_eps = TRUE, move_eta = TRUE, move_lambda = TRUE,
-                   swap_ward = TRUE,
-                   between_wards = FALSE,
+                   move_joint = ifelse(have_ctd, TRUE, FALSE),
+                   move_model = ifelse(have_ctd, TRUE, FALSE),
+                   move_mu = TRUE,
+                   move_kappa = TRUE,
+                   move_pi = TRUE,
+                   move_tau = ifelse(have_ctd, TRUE, FALSE),
+                   move_eps = TRUE,
+                   move_eta = TRUE,
+                   move_lambda = TRUE,
+                   swap_place = TRUE,
                    n_iter = 1e4, sample_every = 50,
                    sd_mu = 0.0001, sd_pi = 0.1,
-                   sd_eps = 0.1, sd_eta = 0.1, sd_lambda = 0.05,
+                   sd_eps = 0.1, sd_eta = 0.1, sd_lambda = 0.05, sd_tau = 0.1,
                    sd_t_onw = 5.0,
                    prop_alpha_move = 1/4,
+                   prop_eps_move = 0.05,
+                   prop_tau_move = 0.05,
                    prop_t_inf_move = 0.2,
                    prop_model_move = 0.1,
                    paranoid = FALSE,
@@ -272,10 +283,9 @@ create_config <- function(..., data = NULL) {
     warning("values of init_kappa greater than max_kappa have been set to max_kappa")
   }
 
-
-  ## check / process init_ward
-  if (!is.null(config$init_ward)) {
-    config$init_ward <- as.integer(config$init_ward)
+  ## check / process init_place
+  if (!is.null(config$init_place)) {
+    config$init_place[] <- as.integer(config$init_place)
   }
 
   ## check init_pi
@@ -292,23 +302,10 @@ create_config <- function(..., data = NULL) {
     stop("init_pi is infinite or NA")
   }
 
-
-  ## check init_tau
-  if (!is.numeric(config$init_tau)) {
-    stop("init_tau is not a numeric value")
-  }
-  if (config$init_tau < 0) {
-    stop("init_tau is negative")
-  }
-  if (config$init_tau > 1) {
-    stop("init_tau is greater than 1")
-  }
-  if (!is.finite(config$init_tau)) {
-    stop("init_tau is infinite or NA")
-  }
-
   ## define the total number of contact types
-  n_contacts <- length(data$ctd_matrix) + length(data$ctd_timed_matrix)
+  n_timed <- length(data$ctd_timed_matrix)
+  n_untimed <- length(data$ctd_matrix)
+  n_both <- n_timed + n_untimed
 
   ## check init_eps
   if (any(!is.numeric(config$init_eps))) {
@@ -323,11 +320,11 @@ create_config <- function(..., data = NULL) {
   if (any(!is.finite(config$init_eps))) {
     stop("init_eps is infinite or NA")
   }
-  if(n_contacts != 0 && !length(config$init_eps) %in% c(1, n_contacts)) {
-    stop(sprintf("init_eps must be of length 1 or %d", n_contacts))
+  if(n_both != 0 && !length(config$init_eps) %in% c(1, n_both)) {
+    stop(sprintf("init_eps must be of length 1 or %d", n_both))
   }
-  if(n_contacts != 0 && length(config$init_eps) == 1 & n_contacts > 1) {
-    config$init_eps <- rep(config$init_eps[1], n_contacts)
+  if(n_both != 0 && length(config$init_eps) == 1 & n_both > 1) {
+    config$init_eps <- rep(config$init_eps[1], n_both)
   }
 
   ## check init_eta
@@ -343,11 +340,11 @@ create_config <- function(..., data = NULL) {
   if (any(!is.finite(config$init_eta))) {
     stop("init_eta is infinite or NA")
   }
-  if(n_contacts != 0 && !length(config$init_eta) %in% c(1, n_contacts)) {
-    stop(sprintf("init_eta must be of length 1 or %d", n_contacts))
+  if(length(data$ctd_matrix) != 0 && !length(config$init_eta) %in% c(1, length(data$ctd_matrix))) {
+    stop(sprintf("init_eta must be of length 1 or %d", length(data$ctd_matrix)))
   }
-  if(n_contacts != 0 && length(config$init_eta) == 1 & n_contacts > 1) {
-    config$init_eta <- rep(config$init_eta[1], n_contacts)
+  if(length(data$ctd_matrix) != 0 && length(config$init_eta) == 1 & length(data$ctd_matrix) > 1) {
+    config$init_eta <- rep(config$init_eta[1], length(data$ctd_matrix))
   }
 
   ## check init_lambda
@@ -363,13 +360,36 @@ create_config <- function(..., data = NULL) {
   if (any(!is.finite(config$init_lambda))) {
     stop("init_lambda is infinite or NA")
   }
-  if(n_contacts != 0 && !length(config$init_lambda) %in% c(1, n_contacts)) {
-    stop(sprintf("init_lambda must be of length 1 or %d", n_contacts))
+  if(length(data$ctd_matrix) != 0 &&
+     !length(config$init_lambda) %in% c(1, length(data$ctd_matrix))) {
+    stop(sprintf("init_lambda must be of length 1 or %d", length(data$ctd_matrix)))
   }
-  if(n_contacts != 0 && length(config$init_lambda) == 1 & n_contacts > 1) {
-    config$init_lambda <- rep(config$init_lambda[1], n_contacts)
+  if(length(data$ctd_matrix) != 0 &&
+     length(config$init_lambda) == 1 & length(data$ctd_matrix) > 1) {
+    config$init_lambda <- rep(config$init_lambda[1], length(data$ctd_matrix))
   }
 
+  ## check init_tau
+  if (!is.numeric(config$init_tau)) {
+    stop("init_tau is not a numeric value")
+  }
+  if (any(config$init_tau < 0)) {
+    stop("init_tau is negative")
+  }
+  if (any(config$init_tau > 1)) {
+    stop("init_tau is greater than 1")
+  }
+  if (any(!is.finite(config$init_tau))) {
+    stop("init_tau is infinite or NA")
+  }
+  if(n_timed != 0 &&
+     !length(config$init_tau) %in% c(1, n_timed)) {
+    stop(sprintf("init_tau must be of length 1 or %d", n_timed))
+  }
+  if(n_timed != 0 &&
+     length(config$init_tau) == 1 & n_timed > 1) {
+    config$init_tau <- rep(config$init_tau[1], n_timed)
+  }
 
   ## check move_alpha
   if (!all(is.logical(config$move_alpha))) {
@@ -410,23 +430,6 @@ create_config <- function(..., data = NULL) {
   if (any(is.na(config$move_t_inf))) {
     stop("move_t_inf has NAs")
   }
-
-  ## check move_t_onw
-  if (!is.logical(config$move_t_onw)) {
-    stop("move_t_onw is not a logical")
-  }
-  if (any(is.na(config$move_t_onw))) {
-    stop("move_t_onw has NAs")
-  }
-
-  ## check between_wards
-  if (!is.logical(config$between_wards)) {
-    stop("between_wards is not a logical")
-  }
-  if (any(is.na(config$between_wards))) {
-    stop("between_wards has NAs")
-  }
-
   
   ## check move_mu
   if (!is.logical(config$move_mu)) {
@@ -452,14 +455,6 @@ create_config <- function(..., data = NULL) {
     stop("move_pi is NA")
   }
 
-  ## check move_tau
-  if (!is.logical(config$move_tau)) {
-    stop("move_tau is not a logical")
-  }
-  if (is.na(config$move_tau)) {
-    stop("move_tau is NA")
-  }
-
   ## check move_eps
   if (!is.logical(config$move_eps)) {
     stop("move_eps is not a logical")
@@ -467,11 +462,25 @@ create_config <- function(..., data = NULL) {
   if (any(is.na(config$move_eps))) {
     stop("move_eps is NA")
   }
-  if(n_contacts != 0 && !length(config$move_eps) %in% c(1, n_contacts)) {
-    stop(sprintf("move_eps must be of length 1 or %d", n_contacts))
+  if(n_both != 0 && !length(config$move_eps) %in% c(1, n_both)) {
+    stop(sprintf("move_eps must be of length 1 or %d", n_both))
   }
-  if(n_contacts != 0 && length(config$move_eps) == 1 & n_contacts > 1) {
-    config$move_eps <- rep(config$move_eps[1], n_contacts)
+  if(n_both != 0 && length(config$move_eps) == 1 & n_both > 1) {
+    config$move_eps <- rep(config$move_eps[1], n_both)
+  }
+
+  ## check move_tau
+  if (!is.logical(config$move_tau)) {
+    stop("move_tau is not a logical")
+  }
+  if (any(is.na(config$move_tau))) {
+    stop("move_tau is NA")
+  }
+  if(n_timed != 0 && !length(config$move_tau) %in% c(1, n_timed)) {
+    stop(sprintf("move_tau must be of length 1 or %d", n_timed))
+  }
+  if(n_timed != 0 && length(config$move_tau) == 1 & n_timed > 1) {
+    config$move_tau <- rep(config$move_tau[1], n_timed)
   }
 
   ## check move_eta
@@ -481,11 +490,11 @@ create_config <- function(..., data = NULL) {
   if (any(is.na(config$move_eta))) {
     stop("move_eta is NA")
   }
-  if(n_contacts != 0 && !length(config$move_eta) %in% c(1, n_contacts)) {
-    stop(sprintf("move_eta must be of length 1 or %d", n_contacts))
+  if(n_untimed != 0 && !length(config$move_eta) %in% c(1, n_untimed)) {
+    stop(sprintf("move_eta must be of length 1 or %d", n_untimed))
   }
-  if(n_contacts != 0 && length(config$move_eta) == 1 & n_contacts > 1) {
-    config$move_eta <- rep(config$move_eta[1], n_contacts)
+  if(n_untimed != 0 && length(config$move_eta) == 1 & n_untimed > 1) {
+    config$move_eta <- rep(config$move_eta[1], n_untimed)
   }
 
   ## check move_lambda
@@ -495,11 +504,11 @@ create_config <- function(..., data = NULL) {
   if (any(is.na(config$move_lambda))) {
     stop("move_lambda is NA")
   }
-  if(n_contacts != 0 && !length(config$move_lambda) %in% c(1, n_contacts)) {
-    stop(sprintf("move_lambda must be of length 1 or %d", n_contacts))
+  if(n_untimed != 0 && !length(config$move_lambda) %in% c(1, n_untimed)) {
+    stop(sprintf("move_lambda must be of length 1 or %d", n_untimed))
   }
-  if(n_contacts != 0 && length(config$move_lambda) == 1 & n_contacts > 1) {
-    config$move_lambda <- rep(config$move_lambda[1], n_contacts)
+  if(n_untimed != 0 && length(config$move_lambda) == 1 & n_untimed > 1) {
+    config$move_lambda <- rep(config$move_lambda[1], n_untimed)
   }
 
 
@@ -570,11 +579,28 @@ create_config <- function(..., data = NULL) {
   if (any(!is.finite(config$sd_eps))) {
     stop("sd_eps is infinite or NA")
   }
-  if(n_contacts != 0 && !length(config$sd_eps) %in% c(1, n_contacts)) {
-    stop(sprintf("sd_eps must be of length 1 or %d", n_contacts))
+  if(n_both != 0 && !length(config$sd_eps) %in% c(1, n_both)) {
+    stop(sprintf("sd_eps must be of length 1 or %d", n_both))
   }
-  if(n_contacts != 0 && length(config$sd_eps) == 1 & n_contacts > 1) {
-    config$sd_eps <- rep(config$sd_eps[1], n_contacts)
+  if(n_both != 0 && length(config$sd_eps) == 1 & n_both > 1) {
+    config$sd_eps <- rep(config$sd_eps[1], n_both)
+  }
+
+  ## check sd_tau
+  if (!is.numeric(config$sd_tau)) {
+    stop("sd_tau is not a numeric value")
+  }
+  if (any(config$sd_tau < 1e-10)) {
+    stop("sd_tau is close to zero or negative")
+  }
+  if (any(!is.finite(config$sd_tau))) {
+    stop("sd_tau is infinite or NA")
+  }
+  if(n_timed != 0 && !length(config$sd_tau) %in% c(1, n_timed)) {
+    stop(sprintf("sd_tau must be of length 1 or %d", n_timed))
+  }
+  if(n_timed != 0 && length(config$sd_tau) == 1 & n_timed > 1) {
+    config$sd_tau <- rep(config$sd_tau[1], n_timed)
   }
 
   ## check sd_eta
@@ -587,11 +613,11 @@ create_config <- function(..., data = NULL) {
   if (any(!is.finite(config$sd_eta))) {
     stop("sd_eta is infinite or NA")
   }
-  if(n_contacts != 0 && !length(config$sd_eta) %in% c(1, n_contacts)) {
-    stop(sprintf("sd_eta must be of length 1 or %d", n_contacts))
+  if(n_untimed != 0 && !length(config$sd_eta) %in% c(1, n_untimed)) {
+    stop(sprintf("sd_eta must be of length 1 or %d", n_untimed))
   }
-  if(n_contacts != 0 && length(config$sd_eta) == 1 & n_contacts > 1) {
-    config$sd_eta <- rep(config$sd_eta[1], n_contacts)
+  if(n_untimed != 0 && length(config$sd_eta) == 1 & n_untimed > 1) {
+    config$sd_eta <- rep(config$sd_eta[1], n_untimed)
   }
 
   ## check sd_lambda
@@ -604,11 +630,11 @@ create_config <- function(..., data = NULL) {
   if (any(!is.finite(config$sd_lambda))) {
     stop("sd_lambda is infinite or NA")
   }
-  if(n_contacts != 0 && !length(config$sd_lambda) %in% c(1, n_contacts)) {
-    stop(sprintf("sd_lambda must be of length 1 or %d", n_contacts))
+  if(n_untimed != 0 && !length(config$sd_lambda) %in% c(1, n_untimed)) {
+    stop(sprintf("sd_lambda must be of length 1 or %d", n_untimed))
   }
-  if(n_contacts != 0 && length(config$sd_lambda) == 1 & n_contacts > 1) {
-    config$sd_lambda <- rep(config$sd_lambda[1], n_contacts)
+  if(n_untimed != 0 && length(config$sd_lambda) == 1 & n_untimed > 1) {
+    config$sd_lambda <- rep(config$sd_lambda[1], n_untimed)
   }
 
   ## check prop_alpha_move
@@ -623,6 +649,34 @@ create_config <- function(..., data = NULL) {
   }
   if (!is.finite(config$prop_alpha_move)) {
     stop("prop_alpha_move is infinite or NA")
+  }
+
+  ## check prop_eps_move
+  if (!is.numeric(config$prop_eps_move)) {
+    stop("prop_eps_move is not a numeric value")
+  }
+  if (config$prop_eps_move < 0 ) {
+    stop("prop_eps_move is negative")
+  }
+  if (config$prop_eps_move > 1 ) {
+    stop("prop_eps_move is greater than one")
+  }
+  if (!is.finite(config$prop_eps_move)) {
+    stop("prop_eps_move is infinite or NA")
+  }
+  
+  ## check prop_tau_move
+  if (!is.numeric(config$prop_tau_move)) {
+    stop("prop_tau_move is not a numeric value")
+  }
+  if (config$prop_tau_move < 0 ) {
+    stop("prop_tau_move is negative")
+  }
+  if (config$prop_tau_move > 1 ) {
+    stop("prop_tau_move is greater than one")
+  }
+  if (!is.finite(config$prop_tau_move)) {
+    stop("prop_tau_move is infinite or NA")
   }
 
   ## check prop_t_inf_move
@@ -747,20 +801,6 @@ create_config <- function(..., data = NULL) {
     stop("prior_pi is has values which are infinite or NA")
   }
 
-  ## check prior value for tau
-  if (!all(is.numeric(config$prior_tau))) {
-    stop("prior_tau has non-numeric values")
-  }
-  if (any(config$prior_tau < 0)) {
-    stop("prior_tau has negative values")
-  }
-  if (length(config$prior_tau)!=2L) {
-    stop("prior_tau should be a vector of length 2")
-  }
-  if (!all(is.finite(config$prior_tau))) {
-    stop("prior_tau is has values which are infinite or NA")
-  }
-
   ## check prior value for eps
   if (is.numeric(config$prior_eps) | is.data.frame(config$prior_eps)) {
     config$prior_eps <- matrix(config$prior_eps, ncol = 2)
@@ -777,11 +817,34 @@ create_config <- function(..., data = NULL) {
   if (!all(is.finite(config$prior_eps))) {
     stop("prior_eps is has values which are infinite or NA")
   }
-  if(n_contacts != 0 && !nrow(config$prior_eps) %in% c(1, n_contacts)) {
-    stop(sprintf("prior_eps must be of 1 or %d rows", n_contacts))
+  if(n_both != 0 && !nrow(config$prior_eps) %in% c(1, n_both)) {
+    stop(sprintf("prior_eps must be of 1 or %d rows", n_both))
   }
-  if(n_contacts != 0 && nrow(config$prior_eps) == 1 && n_contacts > 1) {
-    config$prior_eps <- config$prior_eps[rep(1, n_contacts),]
+  if(n_both != 0 && nrow(config$prior_eps) == 1 && n_both > 1) {
+    config$prior_eps <- config$prior_eps[rep(1, n_both),]
+  }
+
+  ## check prior value for tau
+  if (is.numeric(config$prior_tau) | is.data.frame(config$prior_tau)) {
+    config$prior_tau <- matrix(config$prior_tau, ncol = 2)
+  }
+  if (any(!apply(config$prior_tau, 2, is.numeric))) {
+    stop("prior_tau has non-numeric values")
+  }
+  if (any(config$prior_tau < 0)) {
+    stop("prior_tau has negative values")
+  }
+  if (ncol(config$prior_tau)!=2L) {
+    stop("prior_tau should be a matrix with two columns")
+  }
+  if (!all(is.finite(config$prior_tau))) {
+    stop("prior_tau is has values which are infinite or NA")
+  }
+  if(n_timed != 0 && !nrow(config$prior_tau) %in% c(1, n_timed)) {
+    stop(sprintf("prior_tau must be of 1 or %d rows", n_timed))
+  }
+  if(n_timed != 0 && nrow(config$prior_tau) == 1 && n_timed > 1) {
+    config$prior_tau <- config$prior_tau[rep(1, n_timed),]
   }
 
   ## check prior value for eta
@@ -800,11 +863,11 @@ create_config <- function(..., data = NULL) {
   if (!all(is.finite(config$prior_eta))) {
     stop("prior_eta is has values which are infinite or NA")
   }
-  if(n_contacts != 0 && !nrow(config$prior_eta) %in% c(1, n_contacts)) {
-    stop(sprintf("prior_eta must be of 1 or %d rows", n_contacts))
+  if(n_untimed != 0 && !nrow(config$prior_eta) %in% c(1, n_untimed)) {
+    stop(sprintf("prior_eta must be of 1 or %d rows", n_untimed))
   }
-  if(n_contacts != 0 && nrow(config$prior_eta) == 1 && n_contacts > 1) {
-    config$prior_eta <- config$prior_eta[rep(1, n_contacts),]
+  if(n_untimed != 0 && nrow(config$prior_eta) == 1 && n_untimed > 1) {
+    config$prior_eta <- config$prior_eta[rep(1, n_untimed),]
   }
 
 
@@ -824,11 +887,11 @@ create_config <- function(..., data = NULL) {
   if (!all(is.finite(config$prior_lambda))) {
     stop("prior_lambda is has values which are infinite or NA")
   }
-  if(n_contacts != 0 && !nrow(config$prior_lambda) %in% c(1, n_contacts)) {
-    stop(sprintf("prior_lambda must be of 1 or %d rows", n_contacts))
+  if(n_untimed != 0 && !nrow(config$prior_lambda) %in% c(1, n_untimed)) {
+    stop(sprintf("prior_lambda must be of 1 or %d rows", n_untimed))
   }
-  if(n_contacts != 0 && nrow(config$prior_lambda) == 1 && n_contacts > 1) {
-    config$prior_lambda <- config$prior_lambda[rep(1, n_contacts),]
+  if(n_untimed != 0 && nrow(config$prior_lambda) == 1 && n_untimed > 1) {
+    config$prior_lambda <- config$prior_lambda[rep(1, n_untimed),]
   }
 
   ## CHECKS POSSIBLE IF DATA IS PROVIDED ##
@@ -936,7 +999,7 @@ create_config <- function(..., data = NULL) {
       config$init_t_onw <- as.integer(round(init_t_onw))
     }
 
-    if (!is.null(config$init_t_onw) & config$move_t_onw) {
+    if (!is.null(config$init_t_onw) & !is.null(data$ctd_timed)) {
       ## check initial t_onw
       unobs <- which(config$init_kappa > 1)
       if (any(config$init_t_onw[unobs] >= data$dates[unobs], na.rm = TRUE)) {
@@ -958,12 +1021,12 @@ create_config <- function(..., data = NULL) {
 
     ## disable moves for eps and lambda if no CTD is provided
     have_ctd <- !(is.null(data$ctd)) || !(is.null(data$ctd_timed))
-    have_ward <- !(is.null(data$ward_matrix) || nrow(data$ward_matrix) < 1)
-    if(!have_ctd & !have_ward) {
+    have_ctd_timed <- !(is.null(data$ctd_timed) || nrow(data$ctd_timed) < 1)
+    if(!have_ctd & !have_ctd_timed) {
       config$move_eps <- config$move_eta <- config$move_lambda <- config$move_tau <- FALSE
-    } else if(!have_ctd & have_ward) {
+    } else if(!have_ctd & have_ctd_timed) {
       config$move_lambda <- FALSE
-    } else if(have_ctd & !have_ward) {
+    } else if(have_ctd & !have_ctd_timed) {
       config$move_tau <- FALSE
     }
   }

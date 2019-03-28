@@ -289,11 +289,8 @@ add_convolutions <- function(data, config) {
 
   ## The option to move t_onw needs to be available to the likelihood function -
   ## use this function to pass information from config to data
-  data$move_t_onw <- config$move_t_onw
-  data$between_wards <- config$between_wards
   data$move_tau <- config$move_tau
-  data$swap_ward <- config$swap_ward
-  data$p_wrong <- config$p_wrong
+  data$swap_place <- config$swap_place
   
   ## name rows/columns (useful if internal debugging needed)
   rownames(data$log_w_dens) <- paste("kappa", seq_len(nrow(data$log_w_dens)), sep="=")

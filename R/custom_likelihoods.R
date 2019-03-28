@@ -108,7 +108,8 @@ custom_likelihoods <- function(...) {
                      reporting = NULL,
                      timing_infections = NULL,
                      timing_sampling = NULL,
-                     contact = NULL
+                     contact = NULL,
+                     timeline = NULL
                      )
 
     likelihoods <-  modify_defaults(defaults, ll_functions, FALSE)

@@ -372,9 +372,9 @@ summary.outbreaker_chains <- function(object, burnin = 0, ...) {
     out$tree$onw <- apply(t_onw, 2, f1)
   }
 
-  ward <- as.matrix(x[,grep("ward", names(x))])
-  if(ncol(ward) > 0) {
-    out$tree$ward <- apply(ward, 2, f1)
+  place <- as.matrix(x[,grep("place", names(x))])
+  if(ncol(place) > 0) {
+    out$tree$place <- apply(place, 2, f1)
   }
   
   ## function to get frequency of most frequent item

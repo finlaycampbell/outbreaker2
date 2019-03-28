@@ -65,15 +65,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_swap_cases
-Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_ward);
-RcppExport SEXP _outbreaker2_cpp_swap_cases(SEXP paramSEXP, SEXP iSEXP, SEXP swap_wardSEXP) {
+Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_place);
+RcppExport SEXP _outbreaker2_cpp_swap_cases(SEXP paramSEXP, SEXP iSEXP, SEXP swap_placeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::List >::type param(paramSEXP);
     Rcpp::traits::input_parameter< size_t >::type i(iSEXP);
-    Rcpp::traits::input_parameter< bool >::type swap_ward(swap_wardSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_swap_cases(param, i, swap_ward));
+    Rcpp::traits::input_parameter< bool >::type swap_place(swap_placeSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_swap_cases(param, i, swap_place));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -103,33 +103,34 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// is_between_ward
-bool is_between_ward(Rcpp::NumericMatrix ward_matrix, Rcpp::IntegerVector t_inf, Rcpp::IntegerVector t_onw, Rcpp::IntegerVector alpha, int C_ind, size_t j);
-RcppExport SEXP _outbreaker2_is_between_ward(SEXP ward_matrixSEXP, SEXP t_infSEXP, SEXP t_onwSEXP, SEXP alphaSEXP, SEXP C_indSEXP, SEXP jSEXP) {
+// is_between_place
+bool is_between_place(Rcpp::NumericMatrix place_matrix, Rcpp::IntegerVector t_inf, Rcpp::IntegerVector t_onw, Rcpp::IntegerVector alpha, int C_ind, size_t j);
+RcppExport SEXP _outbreaker2_is_between_place(SEXP place_matrixSEXP, SEXP t_infSEXP, SEXP t_onwSEXP, SEXP alphaSEXP, SEXP C_indSEXP, SEXP jSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type ward_matrix(ward_matrixSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type place_matrix(place_matrixSEXP);
     Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type t_inf(t_infSEXP);
     Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type t_onw(t_onwSEXP);
     Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< int >::type C_ind(C_indSEXP);
     Rcpp::traits::input_parameter< size_t >::type j(jSEXP);
-    rcpp_result_gen = Rcpp::wrap(is_between_ward(ward_matrix, t_inf, t_onw, alpha, C_ind, j));
+    rcpp_result_gen = Rcpp::wrap(is_between_place(place_matrix, t_inf, t_onw, alpha, C_ind, j));
     return rcpp_result_gen;
 END_RCPP
 }
-// get_ward_p
-Rcpp::NumericVector get_ward_p(Rcpp::NumericVector p_ward, double eps, double tau, int max_gamma);
-RcppExport SEXP _outbreaker2_get_ward_p(SEXP p_wardSEXP, SEXP epsSEXP, SEXP tauSEXP, SEXP max_gammaSEXP) {
+// get_transition_mat
+Rcpp::NumericVector get_transition_mat(Rcpp::NumericMatrix p_trans, Rcpp::NumericMatrix p_trans_int, double eps, double tau, int max_gamma);
+RcppExport SEXP _outbreaker2_get_transition_mat(SEXP p_transSEXP, SEXP p_trans_intSEXP, SEXP epsSEXP, SEXP tauSEXP, SEXP max_gammaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type p_ward(p_wardSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type p_trans(p_transSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type p_trans_int(p_trans_intSEXP);
     Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
     Rcpp::traits::input_parameter< double >::type tau(tauSEXP);
     Rcpp::traits::input_parameter< int >::type max_gamma(max_gammaSEXP);
-    rcpp_result_gen = Rcpp::wrap(get_ward_p(p_ward, eps, tau, max_gamma));
+    rcpp_result_gen = Rcpp::wrap(get_transition_mat(p_trans, p_trans_int, eps, tau, max_gamma));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -279,6 +280,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_ll_timeline
+double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i, Rcpp::RObject custom_function);
+RcppExport SEXP _outbreaker2_cpp_ll_timeline(SEXP dataSEXP, SEXP paramSEXP, SEXP iSEXP, SEXP custom_functionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type param(paramSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type i(iSEXP);
+    Rcpp::traits::input_parameter< Rcpp::RObject >::type custom_function(custom_functionSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_ll_timeline(data, param, i, custom_function));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_ll_timing
 double cpp_ll_timing(Rcpp::List data, Rcpp::List param, SEXP i, Rcpp::RObject custom_functions);
 RcppExport SEXP _outbreaker2_cpp_ll_timing(SEXP dataSEXP, SEXP paramSEXP, SEXP iSEXP, SEXP custom_functionsSEXP) {
@@ -351,17 +365,17 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_move_eps
-Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config, Rcpp::RObject custom_ll, Rcpp::RObject custom_prior);
-RcppExport SEXP _outbreaker2_cpp_move_eps(SEXP paramSEXP, SEXP dataSEXP, SEXP configSEXP, SEXP custom_llSEXP, SEXP custom_priorSEXP) {
+Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config, Rcpp::RObject list_custom_ll, Rcpp::RObject custom_prior);
+RcppExport SEXP _outbreaker2_cpp_move_eps(SEXP paramSEXP, SEXP dataSEXP, SEXP configSEXP, SEXP list_custom_llSEXP, SEXP custom_priorSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::List >::type param(paramSEXP);
     Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
     Rcpp::traits::input_parameter< Rcpp::List >::type config(configSEXP);
-    Rcpp::traits::input_parameter< Rcpp::RObject >::type custom_ll(custom_llSEXP);
+    Rcpp::traits::input_parameter< Rcpp::RObject >::type list_custom_ll(list_custom_llSEXP);
     Rcpp::traits::input_parameter< Rcpp::RObject >::type custom_prior(custom_priorSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_move_eps(param, data, config, custom_ll, custom_prior));
+    rcpp_result_gen = Rcpp::wrap(cpp_move_eps(param, data, config, list_custom_ll, custom_prior));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -570,8 +584,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_outbreaker2_cpp_swap_cases", (DL_FUNC) &_outbreaker2_cpp_swap_cases, 3},
     {"_outbreaker2_cpp_get_n_mutations", (DL_FUNC) &_outbreaker2_cpp_get_n_mutations, 3},
     {"_outbreaker2_cpp_lookup_sequenced_ancestor", (DL_FUNC) &_outbreaker2_cpp_lookup_sequenced_ancestor, 3},
-    {"_outbreaker2_is_between_ward", (DL_FUNC) &_outbreaker2_is_between_ward, 6},
-    {"_outbreaker2_get_ward_p", (DL_FUNC) &_outbreaker2_get_ward_p, 4},
+    {"_outbreaker2_is_between_place", (DL_FUNC) &_outbreaker2_is_between_place, 6},
+    {"_outbreaker2_get_transition_mat", (DL_FUNC) &_outbreaker2_get_transition_mat, 5},
     {"_outbreaker2_t_inf_change", (DL_FUNC) &_outbreaker2_t_inf_change, 6},
     {"_outbreaker2_alpha_change", (DL_FUNC) &_outbreaker2_alpha_change, 6},
     {"_outbreaker2_local_n_contacts", (DL_FUNC) &_outbreaker2_local_n_contacts, 3},
@@ -582,6 +596,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_outbreaker2_cpp_ll_timing_sampling", (DL_FUNC) &_outbreaker2_cpp_ll_timing_sampling, 4},
     {"_outbreaker2_cpp_ll_reporting", (DL_FUNC) &_outbreaker2_cpp_ll_reporting, 4},
     {"_outbreaker2_cpp_ll_contact", (DL_FUNC) &_outbreaker2_cpp_ll_contact, 4},
+    {"_outbreaker2_cpp_ll_timeline", (DL_FUNC) &_outbreaker2_cpp_ll_timeline, 4},
     {"_outbreaker2_cpp_ll_timing", (DL_FUNC) &_outbreaker2_cpp_ll_timing, 4},
     {"_outbreaker2_cpp_ll_all", (DL_FUNC) &_outbreaker2_cpp_ll_all, 4},
     {"_outbreaker2_cpp_move_mu", (DL_FUNC) &_outbreaker2_cpp_move_mu, 5},

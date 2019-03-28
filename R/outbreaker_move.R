@@ -21,8 +21,6 @@ outbreaker_move <- function(moves, data, param_current,
                             param_store, config,
                             likelihoods, priors) {
 
-  param_current$to_print <- FALSE
-  
   ## get number of moves ##
   J <- length(moves)
 

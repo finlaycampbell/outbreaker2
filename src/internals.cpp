@@ -214,26 +214,26 @@ Rcpp::IntegerVector cpp_find_local_cases(Rcpp::IntegerVector alpha, size_t i) {
 // - 'x' is imported, so that 'alpha[x-1]' is NA_INTEGER
 
 // [[Rcpp::export()]]
-Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_ward) {
+Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_place) {
   
   Rcpp::IntegerVector alpha_in = param["alpha"];
   Rcpp::IntegerVector t_inf_in = param["t_inf"];
   Rcpp::IntegerVector t_onw_in = param["t_onw"];
   Rcpp::IntegerVector kappa_in = param["kappa"];
-  Rcpp::IntegerVector ward_in = param["ward"];
+  Rcpp::NumericMatrix place_in = param["place"];
   
   Rcpp::IntegerVector alpha_out = clone(alpha_in);
   Rcpp::IntegerVector t_inf_out = clone(t_inf_in);
   Rcpp::IntegerVector t_onw_out = clone(t_onw_in);
   Rcpp::IntegerVector kappa_out = clone(kappa_in);
-  Rcpp::IntegerVector ward_out = clone(ward_in);
+  Rcpp::NumericMatrix place_out = clone(place_in);
   
   Rcpp::List out;
   out["alpha"] = alpha_out;
   out["t_inf"] = t_inf_out;
   out["t_onw"] = t_onw_out;
   out["kappa"] = kappa_out;
-  out["ward"] = ward_out;
+  out["place"] = place_out;
 
   size_t N = alpha_in.size();
   
@@ -245,9 +245,10 @@ Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_ward) {
 
 
   // escape if ancestor of the case is imported, i.e. alpha[x-1] is NA
+  // if we want to swap imports, we can set swap_place to TRUE
   
   size_t x = (size_t) alpha_in[i-1];
-  if (alpha_in[x-1] == NA_INTEGER && !swap_ward) {
+  if (alpha_in[x-1] == NA_INTEGER && !swap_place) {
    return out;
   }
   
@@ -257,6 +258,8 @@ Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_ward) {
   // - descendents of 'x' become descendents of 'i'
 
   // do this 3/4 of the time; the other 1/4  keep downstream ancestries the same
+  // this improves mixing
+  
   if(unif_rand() > 0.25) {
     for (size_t j = 0; j < N; j++) {
       if (alpha_in[j] == i) {
@@ -279,7 +282,10 @@ Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_ward) {
   t_inf_out[i-1] =   t_inf_in[x-1];
   t_inf_out[x-1] =   t_inf_in[i-1];
 
-  if(swap_ward) {
+  // swap_place is a variable used to fix the imputed place, gamma and infection
+  // time of a case when initiating the tree with eps = 1.0 - otherwise kappa
+  // will be changed even when move_kappa = FALSE and the tree will be messed up
+  if(swap_place) {
 
     t_onw_out[i-1] =   t_onw_in[x-1];
     t_onw_out[x-1] =   t_onw_in[i-1];
@@ -287,8 +293,15 @@ Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_ward) {
     kappa_out[i-1] =   kappa_in[x-1];
     kappa_out[x-1] =   kappa_in[i-1];
 
-    ward_out[i-1] =   ward_in[x-1];
-    ward_out[x-1] =   ward_in[i-1];
+    // Propose new inferred place half the time
+    for(size_t j = 0; j < place_out.nrow(); j++) {
+      place_out[j, i-1] = place_in[j, x-1];
+      place_out[j, x-1] = place_in[j, i-1];
+    }
+    
+    // place_out[i-1] =   place_in[x-1];
+    // place_out[x-1] =   place_in[i-1];
+    
   }
   
   return out;
@@ -451,9 +464,9 @@ void lookup_sequenced_ancestor(Rcpp::IntegerVector alpha, Rcpp::IntegerVector ka
 // ---------------------------
 
 // This function returns a boolean indicating if an unobserved case moved
-// between wards or not - this boils down to determining if the ward at the time
-// of infection (t_inf) is the same as the ward of the infector at the time of
-// onward infection (t_onw)
+// between places or not - this boils down to determining if the place at the time
+// of infection (t_inf) is the same as the place of the infector at the time of
+// onplace infection (t_onw)
 
 // - 'i'
 // - the descendents of 'i'
@@ -464,21 +477,21 @@ void lookup_sequenced_ancestor(Rcpp::IntegerVector alpha, Rcpp::IntegerVector ka
 // 'alpha' are on the scale 1:N. 
 
 // [[Rcpp::export()]]
-bool is_between_ward(Rcpp::NumericMatrix ward_matrix, Rcpp::IntegerVector t_inf,
+bool is_between_place(Rcpp::NumericMatrix place_matrix, Rcpp::IntegerVector t_inf,
 		     Rcpp::IntegerVector t_onw, Rcpp::IntegerVector alpha,
 		     int C_ind, size_t j) {
   
   int ind1 = t_inf[j] + C_ind;
   int ind2 = t_onw[j] + C_ind;
-  int ward1 = ward_matrix(j, ind1);
-  int ward2 = ward_matrix(alpha[j] - 1, ind2);
-  bool out = (ward1 != ward2 &&
-	      ward1 != 0 &&
-	      ward2 != 0 &&
+  int place1 = place_matrix(j, ind1);
+  int place2 = place_matrix(alpha[j] - 1, ind2);
+  bool out = (place1 != place2 &&
+	      place1 != 0 &&
+	      place2 != 0 &&
 	      ind1 >= 0 &&
 	      ind2 >= 0 &&
-	      ind1 < ward_matrix.ncol() &&
-	      ind2 < ward_matrix.ncol());
+	      ind1 < place_matrix.ncol() &&
+	      ind2 < place_matrix.ncol());
 
   return out;
 }
@@ -495,26 +508,30 @@ bool is_between_ward(Rcpp::NumericMatrix ward_matrix, Rcpp::IntegerVector t_inf,
 // indexed mat[k, l, gamma], ie mat[N*N*(gamma - 1) + N*l + k], where N is the
 // number of unique locations
 
+// loc_mat is a matrix x[i,j] of naive transition probabilities of moving from i to j
+
+// int_mat is a matrix x[i,j] of transition probabilities of moving from i
+// to j, summed over all intermediate places that are not i or j
+
 // [[Rcpp::export()]]
-Rcpp::NumericVector get_transition_mat(Rcpp::NumericVector p_loc, double eps, double tau,
+Rcpp::NumericVector get_transition_mat(Rcpp::NumericMatrix p_trans,
+				       Rcpp::NumericMatrix p_trans_int,
+				       double eps,
+				       double tau,
 				       int max_gamma) {
 
-  // number of unique wards
-  int N = p_loc.size();
+  // number of unique places
+  int N = p_trans.nrow();
 
+  arma::mat mat = arma::eye<arma::mat>(N, N);
+
+  //  Rprintf("eps = %f | tau = %f\n", eps, tau);
+  
   // output 3D matrix (ie vector) of transition probabilities
   Rcpp::NumericVector out(N*N*(max_gamma+1));
 
-  Rcpp::NumericVector pp(N);
-
   // a single transition probability
-  double p_trans;
-  
-  for (size_t j = 0; j < N; j++){
-    pp(j) = p_loc(j)/(1-p_loc(j));
-  }
-
-  double sum_pp = Rcpp::sum(pp);
+  double x;
 
   // k is the starting loc - we need to calculate the transition from k to all
   // other locs l, for generations k in 1:max_gamma - including all intermediary locs 
@@ -534,19 +551,37 @@ Rcpp::NumericVector get_transition_mat(Rcpp::NumericVector p_loc, double eps, do
       for (size_t l = 0; l < N; l++){
 
 	// re-set transition probability to zero
-	p_trans = 0.0;
+	x = 0.0;
 
-	// Summing over all intermediary locations that are not l
-	for (size_t w = 0; w < N; w++){
-	  if(w != l) {
-	    p_trans += out(N*N*(depth-1) + N*w + k)*(p_loc(l)/(1-p_loc(w)))*((1-tau)*eps +
-						      tau*(1-eps) +
-						      (1-tau)*(1-eps)*(sum_pp - pp(l) - pp(w)));
+	// Summing over all starting (for that generation) locations s
+	for (size_t s = 0; s < N; s++){
+	  
+	  if(s == l) {
+
+	    // when you are already in place l to start with, the only possible
+	    // moves are those that jump out and back in again, and those that
+	    // don't jump at all
+	    x += out(N*N*(depth-1) + N*s + k)*
+	      (p_trans_int(s,l)*(1-tau)*(1-eps) + tau*eps);
+
+	  } else {
+
+	    // the first line is the probability of having arrived at place s in
+	    // the previous generation - the second line the probability of
+	    // remaining on place s for half the jump, and moving to l in the
+	    // other half - the third line is the probability of jumping both
+	    // times and arriving in place l
+	  
+	    x += out(N*N*(depth-1) + N*s + k)*
+	      (p_trans(s,l)*((1-tau)*eps + tau*(1-eps)) +
+	       p_trans_int(s,l)*(1-tau)*(1-eps));
+
 	  }
+	  
 	}
+
+	out(N*N*depth + N*l + k) = x;
 	
-	p_trans += out(N*N*(depth-1) + N*l + k)*(tau*eps + (1-tau)*(1-eps)*pp(l)*(sum_pp - pp(l)));
-	out(N*N*depth + N*l + k) = p_trans;
       }
     }
   }

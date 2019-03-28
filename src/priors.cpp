@@ -90,12 +90,16 @@ double cpp_prior_tau(Rcpp::List param, Rcpp::List config,
 		    Rcpp::RObject custom_function = R_NilValue) {
 
   if (custom_function == R_NilValue) {
-    Rcpp::NumericVector shape = config["prior_tau"];
-
-    return R::dbeta(Rcpp::as<double>(param["tau"]),
-			  (double) shape[0],
-			  (double) shape[1],
-			  true);
+    Rcpp::NumericMatrix shape = config["prior_tau"];
+    Rcpp::NumericVector tau = param["tau"];
+    double out = 0;
+    for(size_t i = 0; i < tau.size(); i++) {
+      out += R::dbeta(tau[i],
+		      (double) shape(i, 0),
+		      (double) shape(i, 1),
+		      true);
+    }
+    return(out);
   } else {
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
 

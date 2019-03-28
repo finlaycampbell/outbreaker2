@@ -34,19 +34,20 @@ outbreaker_mcmc_shape <- function(param, data) {
 
   ## unfold eta estimates ##
   param$eta <- matrix(unlist(param$eta),
-                        ncol = length(data$ctd_matrix) + length(data$ctd_timed_matrix),
+                      ncol = length(data$ctd_matrix),
                       byrow = TRUE)
 
   colnames(param$eta) <- seq_len(ncol(param$eta))
 
   ## unfold lambdailon estimates ##
   param$lambda <- matrix(unlist(param$lambda),
-                        ncol = length(data$ctd_matrix) + length(data$ctd_timed_matrix),
+                        ncol = length(data$ctd_matrix),
                         byrow = TRUE)
   colnames(param$lambda) <- seq_len(ncol(param$lambda))
 
   ## unfold t_onw dates ##
-  if(data$move_t_onw) {
+  if(!is.null(data$ctd_timed)) {
+    
     if (!all(vapply(param$t_onw, length, integer(1))==data$N)) {
       stop("some onward infection dates are missing in the param")
     }
@@ -54,14 +55,23 @@ outbreaker_mcmc_shape <- function(param, data) {
     t_onw[t_onw == -1000] <- NA
     colnames(t_onw) <- paste("t_onw", seq_len(data$N), sep=".")
 
-    if (!all(vapply(param$ward, length, integer(1))==data$N)) {
-      stop("some onward infection dates are missing in the param")
-    }
-    ward <- matrix(unlist(param$ward), ncol = data$N, byrow = TRUE)
-    ward[ward == 0] <- NA
-    colnames(ward) <- paste("ward", seq_len(data$N), sep=".")
-    
-    tau <- param$tau
+    ## if (!all(vapply(param$place, length, integer(1))==data$N)) {
+    ##   stop("some onward infection dates are missing in the param")
+    ## }
+
+    ## We don't output the inferred place for now - it would be 3xn additional
+    ## columns in the output, mostly of little interest
+
+    ## place <- matrix(unlist(param$place), ncol = data$N, byrow
+    ## = TRUE) place[place == 0] <- NA colnames(place) <- paste("place",
+    ## seq_len(data$N), sep=".")
+
+    ## unfold tauilon estimates ##
+    tau <- matrix(unlist(param$tau),
+                  ncol = length(data$ctd_timed_matrix),
+                  byrow = TRUE)
+
+    colnames(tau) <- paste("tau", seq_len(ncol(tau)), sep = ".")
 
   }
 
@@ -78,10 +88,9 @@ outbreaker_mcmc_shape <- function(param, data) {
                       prior = param$prior, mu = param$mu, pi = param$pi,
                       eps = param$eps, eta = param$eta, lambda = param$lambda,
                       param$alpha, param$t_inf, param$kappa)
-  if(data$move_t_onw) {
-    param$tau <- tau
-    param <- cbind(param, t_onw)
-    param <- cbind(param, ward)
+  if(!is.null(data$ctd_timed)) {
+    param <- cbind(param, tau, t_onw)
+##    param <- cbind(param, place)
   }
   names(param) <- gsub("[.]", "_", names(param))
 

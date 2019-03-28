@@ -50,7 +50,7 @@ bind_moves <- function(moves = custom_moves(), config, data,
     out$tau <- bind_to_function(out$tau,
                                 data = data,
                                 config = config,
-                                custom_ll = likelihoods$reporting,
+                                custom_ll = likelihoods$timeline,
                                 custom_prior = priors$tau
                                 )
   }
@@ -63,11 +63,12 @@ bind_moves <- function(moves = custom_moves(), config, data,
     out$eps <- bind_to_function(out$eps,
                                 data = data,
                                 config = config,
-                                custom_ll = likelihoods$contact,
+                                list_custom_ll = likelihoods,
                                 custom_prior = priors$eps
                                 )
   }
 
+  
   ## remove move$eta if disabled
   if (all(!config$move_eta)) {
     out$eta <- NULL

@@ -21,8 +21,8 @@ cpp_find_local_cases <- function(alpha, i) {
     .Call(`_outbreaker2_cpp_find_local_cases`, alpha, i)
 }
 
-cpp_swap_cases <- function(param, i, swap_ward) {
-    .Call(`_outbreaker2_cpp_swap_cases`, param, i, swap_ward)
+cpp_swap_cases <- function(param, i, swap_place) {
+    .Call(`_outbreaker2_cpp_swap_cases`, param, i, swap_place)
 }
 
 cpp_get_n_mutations <- function(data, i, j) {
@@ -33,12 +33,12 @@ cpp_lookup_sequenced_ancestor <- function(data, param, i) {
     .Call(`_outbreaker2_cpp_lookup_sequenced_ancestor`, data, param, i)
 }
 
-is_between_ward <- function(ward_matrix, t_inf, t_onw, alpha, C_ind, j) {
-    .Call(`_outbreaker2_is_between_ward`, ward_matrix, t_inf, t_onw, alpha, C_ind, j)
+is_between_place <- function(place_matrix, t_inf, t_onw, alpha, C_ind, j) {
+    .Call(`_outbreaker2_is_between_place`, place_matrix, t_inf, t_onw, alpha, C_ind, j)
 }
 
-get_ward_p <- function(p_ward, eps, tau, max_gamma) {
-    .Call(`_outbreaker2_get_ward_p`, p_ward, eps, tau, max_gamma)
+get_transition_mat <- function(p_trans, p_trans_int, eps, tau, max_gamma) {
+    .Call(`_outbreaker2_get_transition_mat`, p_trans, p_trans_int, eps, tau, max_gamma)
 }
 
 t_inf_change <- function(data, alpha, kappa, p, t_inf_1, t_inf_2) {
@@ -81,6 +81,10 @@ cpp_ll_contact <- function(data, param, i = NULL, custom_function = NULL) {
     .Call(`_outbreaker2_cpp_ll_contact`, data, param, i, custom_function)
 }
 
+cpp_ll_timeline <- function(data, param, i = NULL, custom_function = NULL) {
+    .Call(`_outbreaker2_cpp_ll_timeline`, data, param, i, custom_function)
+}
+
 cpp_ll_timing <- function(data, param, i = NULL, custom_functions = NULL) {
     .Call(`_outbreaker2_cpp_ll_timing`, data, param, i, custom_functions)
 }
@@ -101,8 +105,8 @@ cpp_move_tau <- function(param, data, config, custom_ll = NULL, custom_prior = N
     .Call(`_outbreaker2_cpp_move_tau`, param, data, config, custom_ll, custom_prior)
 }
 
-cpp_move_eps <- function(param, data, config, custom_ll = NULL, custom_prior = NULL) {
-    .Call(`_outbreaker2_cpp_move_eps`, param, data, config, custom_ll, custom_prior)
+cpp_move_eps <- function(param, data, config, list_custom_ll = NULL, custom_prior = NULL) {
+    .Call(`_outbreaker2_cpp_move_eps`, param, data, config, list_custom_ll, custom_prior)
 }
 
 cpp_move_eta <- function(param, data, config, custom_ll = NULL, custom_prior = NULL) {

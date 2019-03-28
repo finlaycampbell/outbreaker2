@@ -13,7 +13,7 @@ Rcpp::IntegerVector cpp_find_descendents(Rcpp::IntegerVector alpha, size_t i);
 
 Rcpp::IntegerVector cpp_find_local_cases(Rcpp::IntegerVector alpha, size_t i);
 
-Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_ward);
+Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_place);
 
 size_t cpp_get_n_mutations(Rcpp::List data, size_t i, size_t j);
 
@@ -26,17 +26,19 @@ void lookup_sequenced_ancestor(Rcpp::IntegerVector alpha, Rcpp::IntegerVector ka
 			       bool *found_sequenced_ancestor
 			       );
 
-bool is_between_ward(Rcpp::NumericMatrix ward_matrix,
+bool is_between_place(Rcpp::NumericMatrix place_matrix,
 		     Rcpp::IntegerVector t_inf,
 		     Rcpp::IntegerVector t_onw,
 		     Rcpp::IntegerVector alpha,
 		     int C_ind,
 		     size_t j);
 
-Rcpp::NumericVector get_transition_mat(Rcpp::NumericVector p_ward,
+Rcpp::NumericVector get_transition_mat(Rcpp::NumericMatrix p_trans,
+				       Rcpp::NumericMatrix p_trans_int,
 				       double eps,
 				       double tau,
 				       int max_gamma);
+
 
 Rcpp::NumericMatrix t_inf_change(Rcpp::List data,
 				 Rcpp::IntegerVector alpha,

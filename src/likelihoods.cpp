@@ -204,13 +204,15 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
     Rcpp::IntegerVector t_inf = param["t_inf"];
     Rcpp::IntegerVector kappa = param["kappa"];
     Rcpp::NumericMatrix w_dens = data["log_w_dens"];
-    bool move_t_onw = data["move_t_onw"];
+
+    Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
+    
     size_t K = w_dens.nrow();
 
     double out = 0.0;
     
     // Use the default temporal likelihood
-    if(!move_t_onw) {
+    if(ctd_timed_matrix_list.size() < 1) {
       // all cases are retained
       if (i == R_NilValue) {
 	for (size_t j = 0; j < N; j++) {
@@ -272,14 +274,10 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 		return  R_NegInf;
 	      }
 
-	      //	      std::cout << delay << " | ";
-	      
 	      // We subtract two (one for indexing, one because we incorporate
 	      // the second generation time in the next step
 	      out += w_unobs(kappa[j] - 2, delay - 1);
 
-	      //std::cout << delay << " | " << w_unobs(0, delay - 1) <<std::endl;
-	      
 	      // Account for time between infection of infector and earliest
 	      // unobserved case - this follows the normal w_dens
 	      delay = t_onw[j] - t_inf[alpha[j] - 1]; // offset
@@ -289,10 +287,7 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 	      // This is always going to be one generation (t_unobs is defined
 	      // as such)
 
-	      //	      std::cout << delay << std::endl;
 	      out += w_dens(0, delay - 1);
-
-	      //std::cout << delay << " | " << w_dens(0, delay - 1) <<std::endl;
 	      
 	    }
 	  }
@@ -531,19 +526,14 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
   if (custom_function == R_NilValue) {
 
     Rcpp::List ctd_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_matrix"]);
-    Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
     
-    Rcpp::NumericMatrix ward_matrix = Rcpp::as<Rcpp::NumericMatrix>(data["ward_matrix"]);
-    
-    if(ctd_matrix_list.size() < 1 && ctd_timed_matrix_list.size() < 1 && ward_matrix.nrow() < 1) return 0.0;
+    if(ctd_matrix_list.size() < 1) return 0.0;
     
     int C_ind;
     double out = 0;
 
     size_t C_combn = static_cast<size_t>(data["C_combn"]);
     Rcpp::IntegerVector C_nrow = Rcpp::as<Rcpp::IntegerVector>(data["C_nrow"]);
-    bool move_t_onw = data["move_t_onw"];
-    bool between_wards = data["between_wards"];
 
     Rcpp::NumericVector eps = param["eps"];
     Rcpp::NumericVector eta = param["eta"];
@@ -552,227 +542,237 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
     Rcpp::IntegerVector kappa = param["kappa"];
     Rcpp::IntegerVector t_inf = param["t_inf"];
     Rcpp::IntegerVector t_onw = param["t_onw"];
-    Rcpp::NumericMatrix n_contacts = param["n_contacts"];
-
-    size_t list_size = ctd_matrix_list.size() + ctd_timed_matrix_list.size();
+    
+    size_t list_size = ctd_matrix_list.size();
     size_t true_pos = 0;
     size_t false_pos = 0;
     size_t false_neg = 0;
     size_t true_neg = 0;
     size_t imports = 0;
     size_t unobsv_case = 0;
-    size_t size_1;
-    size_t size_2;
     
-    if(list_size > 0) {
-      
-      for (size_t i = 0; i < list_size; i++) {
+    for (size_t m = 0; m < list_size; m++) {
 
-	if (eps[i] < 0.0 || eta[i] < 0.0 || lambda[i] < 0.0) {
-	  return R_NegInf;
-	}
-	
-	true_pos = false_pos = false_neg = true_neg = imports = unobsv_case = 0;
-	
-	// Go through list of undated contacts
-	if(i < ctd_matrix_list.size()) {
-	  Rcpp::NumericMatrix contacts = Rcpp::as<Rcpp::NumericMatrix>(ctd_matrix_list[i]);
-	  for (size_t j = 0; j < N; j++) {
-	    if (alpha[j] == NA_INTEGER) {
-	      imports += 1;
-	    } else if (kappa[j] > 1) {
-	      unobsv_case += 1;
-	    } else {
-	      true_pos += contacts(j, alpha[j] - 1); // offset
-	    }
-	  }
-
-	  false_pos = C_nrow[i] - true_pos;
-	  false_neg = N - imports - unobsv_case - true_pos;
-	  true_neg = C_combn - true_pos - false_pos - false_neg;
-
-	  // untimed contact model
-	  if(lambda[i] == 0.0) {
-	    if(false_pos > 0) {
-	      out += R_NegInf;
-	    } else {
-	      out += log(eps[i]*eta[i]) * (double) true_pos +
-		log(1 - eps[i]*eta[i]) * (double) false_neg +
-		log(1 - eps[i]*lambda[i]) * (double) true_neg;
-	    }
-	  } else if(eta[i] == 0.0) {
-	    if(true_pos > 0) {
-	      out += R_NegInf;
-	    } else {
-	      out += log(eps[i]*lambda[i]) * false_pos +
-		log(1 - eps[i]*eta[i]) * false_neg +
-		log(1 - eps[i]*lambda[i]) * true_neg;
-	    }
-	  } else if(eta[i]*eps[i] == 1.0) {
-	    if(false_neg > 0) {
-	      out += R_NegInf;
-	    } else {
-	      out += log(eps[i]*eta[i]) * true_pos +
-		log(eps[i]*lambda[i]) * false_pos +
-		log(1 - eps[i]*lambda[i]) * true_neg;
-	    }
-	  } else if(lambda[i]*eps[i] == 1.0) {
-	    if(true_neg > 0) {
-	      out += R_NegInf;
-	    } else {
-	      out += log(eps[i]*eta[i]) * true_pos +
-		log(eps[i]*lambda[i]) * false_pos +
-		log(1 - eps[i]*eta[i]) * false_neg;
-	    }
-	  } else {
-	    out += log(eps[i]*eta[i]) * true_pos +
-	      log(eps[i]*lambda[i]) * false_pos +
-	      log(1 - eps[i]*eta[i]) * false_neg +
-	      log(1 - eps[i]*lambda[i]) * true_neg;
-	  
-	    // Rprintf("true pos %d | false pos %d | true neg %d | false neg %d\n",
-	    // 	  true_pos, false_pos, true_neg, false_neg);
-
-	  }
-	  // Dated contacts
-	} else if(i >= ctd_matrix_list.size()) {
-	  
-	  size_t mat_ind = i - ctd_matrix_list.size();
-	  Rcpp::NumericMatrix contacts_timed = Rcpp::as<Rcpp::NumericMatrix>(ctd_timed_matrix_list[mat_ind]);
-
-	  true_pos = n_contacts(mat_ind, 0);
-	  false_pos = n_contacts(mat_ind, 1);
-	  true_neg = n_contacts(mat_ind, 2);
-	  false_neg = n_contacts(mat_ind, 3);
-	  imports = n_contacts(mat_ind, 4);
-	  unobsv_case = n_contacts(mat_ind, 5);
-
-	  Rcpp::IntegerVector n_unique = Rcpp::IntegerVector::create(297, 275, 22);
-	  
-	  // untimed contact model
-	  out += log(eps[i]) * true_pos +
-	    log((1 - eps[i])/(n_unique[i - ctd_matrix_list.size()] - 1)) * false_neg;
-	  
-	}
-	
-	// if(lambda[i] == 0.0) {
-	//   if(false_pos > 0) {
-	//     out += R_NegInf;
-	//   } else {
-	//     out += log(eps[i]*eta[i]) * (double) true_pos +
-	//       log(1 - eps[i]*eta[i]) * (double) false_neg +
-	//       log(1 - eps[i]*lambda[i]) * (double) true_neg;
-	//   }
-	// } else if(eta[i] == 0.0) {
-	//   if(true_pos > 0) {
-	//     out += R_NegInf;
-	//   } else {
-	//     out += log(eps[i]*lambda[i]) * false_pos +
-	//       log(1 - eps[i]*eta[i]) * false_neg +
-	//       log(1 - eps[i]*lambda[i]) * true_neg;
-	//   }
-	// } else if(eta[i]*eps[i] == 1.0) {
-	//   if(false_neg > 0) {
-	//     out += R_NegInf;
-	//   } else {
-	//     out += log(eps[i]*eta[i]) * true_pos +
-	//       log(eps[i]*lambda[i]) * false_pos +
-	//       log(1 - eps[i]*lambda[i]) * true_neg;
-	//   }
-	// } else if(lambda[i]*eps[i] == 1.0) {
-	//   if(true_neg > 0) {
-	//     out += R_NegInf;
-	//   } else {
-	//     out += log(eps[i]*eta[i]) * true_pos +
-	//       log(eps[i]*lambda[i]) * false_pos +
-	//       log(1 - eps[i]*eta[i]) * false_neg;
-	//   }
-	// } else {
-
-	  // wrong timed contact model
-	  // size_1 = true_pos + false_neg;
-	  // size_2 = false_pos + true_neg;
-	  // out += R::dbinom(true_pos, size_1, eps[i]*eta[i], 1) +
-	  //   R::dbinom(false_pos, size_2, eps[i]*lambda[i], 1) +
-	  //   R::dbinom(false_neg, size_1, 1 - eps[i]*eta[i], 1) +
-	  //   R::dbinom(true_neg, size_2, 1 - eps[i]*lambda[i], 1);
+      if (eps[m] < 0.0 || eta[m] < 0.0 || lambda[m] < 0.0) {
+	return R_NegInf;
       }
-      
-    } else if(ward_matrix.ncol() > 0) {
-
-      double tau = param["tau"];
-      double p_wrong = data["p_wrong"];
-      //      int max_gamma = max(na_omit(kappa));
-      Rcpp::NumericVector p_ward = data["p_ward"];
-      Rcpp::NumericVector ward_mat = param["ward_mat"];
-      Rcpp::NumericVector ward_mat_1 = param["ward_mat_1"];
-
-      //      Rcpp::NumericVector ward_mat = get_ward_p(p_ward, eps, tau, max_gamma);
-      //      Rcpp::NumericVector ward_mat_1 = get_ward_p(p_ward, eps, tau, 1);
-      Rcpp::IntegerVector ward = param["ward"];
-      C_ind = static_cast<int>(data["C_ind"]);
-
-      int N_ward = p_ward.size();
-      
+	
+      true_pos = false_pos = false_neg = true_neg = imports = unobsv_case = 0;
+	  
+      Rcpp::NumericMatrix contacts = Rcpp::as<Rcpp::NumericMatrix>(ctd_matrix_list[m]);
       for (size_t j = 0; j < N; j++) {
-	// Imports are not considered in the ward likelihood
 	if (alpha[j] == NA_INTEGER) {
 	  imports += 1;
-	} else if (kappa[j] == 1) {
-	  int ind1 = t_inf[j] + C_ind;
-
-	  int w1 = static_cast<int>(ward_matrix(j, ind1));
-	  int w2 = static_cast<int>(ward_matrix(alpha[j] - 1, ind1));
-	  
-	  if(w1 != 0 &&
-	     w2 != 0 &&
-	     ind1 >= 0 &&
-	     ind1 < ward_matrix.ncol()) {
-	    out += log(ward_mat_1(N_ward*N_ward*1 + N_ward*(w1-1) + w2 - 1));
-	  } else {
-	    out += log(p_wrong);
-	  }
-	  
 	} else if (kappa[j] > 1) {
-
-	  int ind1 = t_inf[j] + C_ind;
-	  int ind2 = t_onw[j] + C_ind;
-
-	  int w1 = static_cast<int>(ward_matrix(j, ind1));
-	  int w2 = static_cast<int>(ward_matrix(alpha[j] - 1, ind2));
-	  int w3 = ward[j];
-
-	  if(w1 != 0 &&
-	     w2 != 0 &&
-	     w3 != 0 &&
-	     ind1 >= 0 &&
-	     ind1 < ward_matrix.ncol() &&
-	     ind2 >= 0 &&
-	     ind2 < ward_matrix.ncol()) {
-	    out += log(ward_mat_1(N_ward*N_ward*1 + N_ward*(w3-1) + w2 - 1));
-	    out += log(ward_mat(N_ward*N_ward*(kappa[j]-1) + N_ward*(w1-1) + w3 - 1));
-	  } else {
-	    out +=  log(p_wrong);
-	  }
+	  unobsv_case += 1;
+	} else {
+	  true_pos += contacts(j, alpha[j] - 1); // offset
 	}
       }
-    }
 
+      false_pos = C_nrow[m] - true_pos;
+      false_neg = N - imports - unobsv_case - true_pos;
+      true_neg = C_combn - true_pos - false_pos - false_neg;
+
+      // untimed contact model
+      if(lambda[m] == 0.0) {
+	if(false_pos > 0) {
+	  out += R_NegInf;
+	} else {
+	  out += log(eps[m]*eta[m]) * (double) true_pos +
+	    log(1 - eps[m]*eta[m]) * (double) false_neg +
+	    log(1 - eps[m]*lambda[m]) * (double) true_neg;
+	}
+      } else if(eta[m] == 0.0) {
+	if(true_pos > 0) {
+	  out += R_NegInf;
+	} else {
+	  out += log(eps[m]*lambda[m]) * false_pos +
+	    log(1 - eps[m]*eta[m]) * false_neg +
+	    log(1 - eps[m]*lambda[m]) * true_neg;
+	}
+      } else if(eta[m]*eps[m] == 1.0) {
+	if(false_neg > 0) {
+	  out += R_NegInf;
+	} else {
+	  out += log(eps[m]*eta[m]) * true_pos +
+	    log(eps[m]*lambda[m]) * false_pos +
+	    log(1 - eps[m]*lambda[m]) * true_neg;
+	}
+      } else if(lambda[m]*eps[m] == 1.0) {
+	if(true_neg > 0) {
+	  out += R_NegInf;
+	} else {
+	  out += log(eps[m]*eta[m]) * true_pos +
+	    log(eps[m]*lambda[m]) * false_pos +
+	    log(1 - eps[m]*eta[m]) * false_neg;
+	}
+      } else {
+	out += log(eps[m]*eta[m]) * true_pos +
+	  log(eps[m]*lambda[m]) * false_pos +
+	  log(1 - eps[m]*eta[m]) * false_neg +
+	  log(1 - eps[m]*lambda[m]) * true_neg;
+	  
+	// Rprintf("true pos %d | false pos %d | true neg %d | false neg %d\n",
+	// 	  true_pos, false_pos, true_neg, false_neg);
+
+      }
+	
+    } 
+    
     return(out);
     
   } else { //use of a customized likelihood function
-
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
-
     return Rcpp::as<double>(f(data, param));
   }
+  
 }
-
 
 double cpp_ll_contact(Rcpp::List data, Rcpp::List param, size_t i,
 		      Rcpp::RObject custom_function) {
   SEXP si = PROTECT(Rcpp::wrap(i));
   double ret = cpp_ll_contact(data, param, si, custom_function);
+  UNPROTECT(1);
+  return ret;
+}
+
+
+
+
+
+// ---------------------------
+
+// This likelihood corresponds to the probability of observing a reported
+// timeline (i.e. the place a given case is on a given day of the outbreak).
+
+// The likelihood is based on the probability of a case in a given place i
+// infecting a case in a given place j on the day of infection. 
+//
+// with:
+// 'eps' is the probability of i = j
+// 'tau' is probability of an unobserved case remaining in its place of infection
+
+double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
+		       Rcpp::RObject custom_function) {
+
+  size_t N = static_cast<size_t>(data["N"]);
+  if (N < 2) return 0.0;
+
+  if (custom_function == R_NilValue) {
+
+    Rcpp::List ctd_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_matrix"]);
+    Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
+
+    Rcpp::List trans_mat_list = Rcpp::as<Rcpp::List>(param["trans_mat"]);
+    Rcpp::List trans_mat_1_list = Rcpp::as<Rcpp::List>(param["trans_mat_1"]);
+    
+    if(ctd_timed_matrix_list.size() < 1) return 0.0;
+    
+    int C_ind;
+    double out = 0;
+    double p_wrong = data["p_wrong"];
+	
+    Rcpp::NumericVector eps = param["eps"];
+    Rcpp::IntegerVector alpha = param["alpha"];
+    Rcpp::IntegerVector kappa = param["kappa"];
+    Rcpp::IntegerVector t_inf = param["t_inf"];
+    Rcpp::IntegerVector t_onw = param["t_onw"];
+    
+    Rcpp::NumericMatrix place = param["place"];
+    C_ind = static_cast<int>(data["C_ind"]);
+    
+    size_t list_size = ctd_timed_matrix_list.size();
+    size_t imports = 0;
+    size_t size_1;
+    size_t size_2;
+    int w1;
+    int w2;
+    int w3;
+    int ind1;
+    int ind2;
+    size_t length_i;
+    Rcpp::IntegerVector vec_i;
+
+    if(i == R_NilValue) {
+      // evaluate for all cases
+      vec_i = Rcpp::seq(1, N);
+      length_i = vec_i.size();
+    } else {
+      // only the cases listed in 'i' are retained
+      // pass via tmp to so you don't run into declaration issues with vec_i
+      Rcpp::IntegerVector tmp(i);
+      vec_i = tmp;
+      length_i = vec_i.size();
+    }
+    
+    for (size_t m = 0; m < list_size; m++) {
+
+      // index for eps
+      size_t ind = m + ctd_matrix_list.size();
+
+      Rcpp::NumericMatrix timeline = Rcpp::as<Rcpp::NumericMatrix>(ctd_timed_matrix_list[m]);
+      Rcpp::NumericVector trans_mat = Rcpp::as<Rcpp::NumericVector>(trans_mat_list[m]);
+      Rcpp::NumericVector trans_mat_1 = Rcpp::as<Rcpp::NumericVector>(trans_mat_1_list[m]);
+
+      // Get the number of unique places for that timeline type (including place = 0)
+      Rcpp::IntegerVector N_place = data["N_place"];
+      int N_ward = N_place[m] + 1;
+
+      for (size_t k = 0; k < length_i; k++) {
+	
+	size_t j = vec_i[k] - 1; // offset
+
+	if (kappa[j] == 1 && alpha[j] != NA_INTEGER) {
+	      
+	  ind1 = t_inf[j] + C_ind;
+
+	  w1 = static_cast<int>(timeline(j, ind1));
+	  w2 = static_cast<int>(timeline(alpha[j] - 1, ind1));
+	      
+	  if(ind1 >= 0 &&
+	     ind1 < timeline.ncol()) {
+	    out += log(trans_mat_1(N_ward*N_ward*1 + N_ward*(w1) + w2));
+	  } else {
+	    out += log(p_wrong);
+	  }
+	  
+	} else if (kappa[j] > 1 && alpha[j] == NA_INTEGER) {
+
+	  ind1 = t_inf[j] + C_ind;
+	  ind2 = t_onw[j] + C_ind;
+
+	  w1 = static_cast<int>(timeline(j, ind1));
+	  w2 = static_cast<int>(timeline(alpha[j] - 1, ind2));
+	  w3 = place(ind, j);
+
+	  if(ind1 >= 0 &&
+	     ind1 < timeline.ncol() &&
+	     ind2 >= 0 &&
+	     ind2 < timeline.ncol()) {
+	    out += log(trans_mat_1(N_ward*N_ward*1 + N_ward*(w3) + w2));
+	    out += log(trans_mat(N_ward*N_ward*(kappa[j]-1) + N_ward*(w1) + w3));
+	  } else {
+	    out +=  log(p_wrong);
+	  }
+	}
+	
+      }
+    }
+    
+    return(out);
+    
+  } else { //use of a customized likelihood function
+    Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
+    return Rcpp::as<double>(f(data, param));
+  }
+  
+}
+
+double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, size_t i,
+		       Rcpp::RObject custom_function) {
+  SEXP si = PROTECT(Rcpp::wrap(i));
+  double ret = cpp_ll_timeline(data, param, si, custom_function);
   UNPROTECT(1);
   return ret;
 }
@@ -836,7 +836,8 @@ double cpp_ll_all(Rcpp::List data, Rcpp::List param, SEXP i,
       cpp_ll_timing_sampling(data, param, i) +
       cpp_ll_genetic(data, param, i) +
       cpp_ll_reporting(data, param, i) +
-      cpp_ll_contact(data, param, i);
+      cpp_ll_contact(data, param, i) +
+      cpp_ll_timeline(data, param, i);
 
   }  else { // use of a customized likelihood functions
     Rcpp::List list_functions = Rcpp::as<Rcpp::List>(custom_functions);
@@ -845,7 +846,8 @@ double cpp_ll_all(Rcpp::List data, Rcpp::List param, SEXP i,
       cpp_ll_timing_sampling(data, param, i, list_functions["timing_sampling"]) +
       cpp_ll_genetic(data, param, i, list_functions["genetic"]) +
       cpp_ll_reporting(data, param, i, list_functions["reporting"]) +
-      cpp_ll_contact(data, param, i, list_functions["contact"]);
+      cpp_ll_contact(data, param, i, list_functions["contact"]) +
+      cpp_ll_timeline(data, param, i, list_functions["timeline"]);
 
   }
 }
