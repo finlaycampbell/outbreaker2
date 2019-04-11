@@ -73,9 +73,16 @@ outbreaker_data <- function(..., data = list(...)) {
                    C_nrow = NULL,
                    C_ind = NULL,
                    has_dna = logical(0),
+                   has_dna_ind = numeric(),
+                   dna_combn = NULL,
                    N_place = NULL,
+                   N_place_unobserved = NULL,
                    p_trans = NULL,
-                   p_trans_int = NULL,
+                   p_place = NULL,
+                   pp_trans = NULL,
+                   pp_place = NULL,
+                   pp_place_adj = NULL,
+                   prop_place_observed = NULL,
                    p_wrong = 0,
                    id_in_dna = integer(0))
 
@@ -254,6 +261,16 @@ outbreaker_data <- function(..., data = list(...)) {
   }
   data$has_dna <- !is.na(data$id_in_dna)
 
+  ## List all pairwise combinations of cases with DNA and their genetic distance
+  if(sum(data$has_dna) > 1) {
+    data$has_dna_ind <- which(data$has_dna)
+    data$dna_combn <- t(combn(data$has_dna_ind, 2))
+    ind <- matrix(data$ids[data$dna_combn], ncol = 2)
+    data$dna_combn <- cbind(data$dna_combn, data$D[ind])
+  } else {
+    data$dna_combn <- matrix(0, 0, 0)
+  }
+
 
   ## CHECK CTD
   if (!is.null(data$ctd)) {
@@ -374,30 +391,66 @@ outbreaker_data <- function(..., data = list(...)) {
     contact_types <- levels(data$ctd_timed$type)
     n_types <- length(contact_types)
 
-    if(!is.null(data$p_trans) & length(data$p_trans) != n_types) {
-      stop("p_trans must be provided for each timed contact type")
+    ## check p_place
+    if(!is.null(data$p_place)) {
+      if(length(data$p_place) != n_types) {
+        stop("p_place must be provided for each timed contact type")
+      }
+    } else {
+      data$p_place <- vector("list", n_types)
+    }
+    
+    ## check p_trans
+    if(!is.null(data$p_trans)) {
+      if(length(data$p_trans) != n_types) {
+        stop("p_trans must be provided for each timed contact type")
+      }
+    } else {
+      data$p_trans <- vector("list", n_types)
+    }
+
+    ## check prop_place_observed
+    if(!is.null(data$prop_place_observed)) {
+      if(length(data$prop_place_observed) != n_types) {
+        stop("prop_place_observed must be provided for each timed contact type")
+      }
+      if(any(data$prop_place_observed < 0) | any(data$prop_place_observed > 1)) {
+        stop("prop_place_observed must be greater than 0 and smaller than or equal 1")
+      }
+    } else {
+      ## default assumption is that we observed all places
+      data$prop_place_observed = rep(1, n_types)
     }
 
     ## list of timelines for each contact type
-    data$ctd_timed_matrix <- list()
-
-    ## transition probability from i to j (i to i = 0)
-    p_trans <- list()
-
-    ## transition probablity from i to j, integrated over all intermediate places
-    p_trans_int <- list()
+    data$ctd_timed_matrix <-
+      data$pp_place <-
+        data$pp_place_adj <-
+          data$pp_trans <- list()
 
     ## indexing to go from dates to column index
     data$C_ind <- -min(data$ctd_timed[,3])
+
+    ## the inferred number of unobserved places
+    data$N_place_unobserved = numeric(n_types)
     
     ## pass places as numbers rather than strings to speed up comparison
     ## these numbers will refer to the indices in the transition matrices
     place_order <- tapply(data$ctd_timed[,2], data$ctd_timed[,5], unique)
 
+    ## total range of dates
+    t_range <- max(data$ctd_timed[,4]) - min(data$ctd_timed[,3]) + 1
+
     ## this will calculate the pairwise transition probabilities from a vector
     ## of individual probabilties - we specify p(i to i) = 0
     get_trans <- function(x, loc_vec) {
       if(x[2] != x[1]) loc_vec[x[2]]/(1 - loc_vec[x[1]]) else 0
+    }
+
+    ## infers the number of unobserved places, given the number of observed
+    ## places and the proportion of total places they represent
+    get_n_unobs <- function(n_obs, prop) {
+      ceiling(n_obs*((1 - prop)/prop))
     }
     
     ## insert places into timelines - note this will overwrite previous
@@ -408,69 +461,106 @@ outbreaker_data <- function(..., data = list(...)) {
       sub <- subset(data$ctd_timed, data$ctd_timed[,5] == contact_types[i])
 
       ## number of unique places for that contact type - we add one two account
-      ## for 'no place' (i.e. place = 0 in timeline)
-      unq <- length(place_order[[i]]) + 1
+      ## for 'unknown place' (i.e. place = 0 in timeline)
+      unq <- length(place_order[[i]])
 
       ## construct timeline (each row is a case, each column is a day)
-      t_range <- max(data$ctd_timed[,4]) - min(data$ctd_timed[,3]) + 1
       mat <- matrix(0, nrow = data$N, ncol = t_range)
 
+      ## check p_place
+      if(!is.null(data$p_place[[i]])) {
+        
+        if(!length(data$p_place[[i]]) %in% c(unq, unq + 1)) {
+          stop(sprintf(paste("%d probabilities provided in p_place, but",
+                             "%d required (one for each place)"),
+                       length(data$p_place[[i]]), unq))
+        }
+        if(!all.equal(sum(data$p_place[[i]]), 1)) {
+          stop("Probabilities in p_place must sum to 1")
+        }
+
+      } else {
+
+        ## if not provided assume equal prior probability of all places
+        data$p_place[[i]] <- rep(1/unq, unq)
+        
+      }
+      
       if(is.null(data$p_trans[[i]])) {
         
-        ## Assume equal probability of transition between all places if p_trans is
-        ## not provided
-        loc_vec <- rep(1/unq, unq)
-        
-        ## calculate transition matrices for all pairwise combinations
+        ## calculate transition matrices for all pairwise combinations of observed places
         comb <- expand.grid(1:unq, 1:unq)
-        p_trans[[i]] <- matrix(apply(comb, 1, get_trans, loc_vec), unq)
-        
-        ## integrate over all possible intermediate places by matrix multiplication
-        p_trans_int[[i]] <- p_trans[[i]] %*% p_trans[[i]]
-        
+        data$p_trans[[i]] <- matrix(apply(comb, 1, get_trans, data$p_place[[i]]), unq)
 
-      } else if(is.vector(data$p_trans[[i]])) {
-        
-        if(length(data$p_trans[[i]]) != unq) {
-          stop(sprintf(paste("%d transition probabilities provided, but",
-                             "%d required (one for each place, and one",
-                             "for not being in a place)"),
-                       unq, length(data$p_trans[[i]])))
-        }
-        if(sum(data$p_trans[[i]]) != 1) {
-          stop("Probabilities in transition vector must sum to 1")
-        }
-        
-        ## calculate transition probability for all pairwise combinations
-        comb <- expand.grid(1:unq, 1:unq)
-        p_trans[[i]] <- matrix(apply(comb, 1, get_trans, data$p_trans[[i]]), unq)
-        
-        ## integrate over all possible intermediate places by matrix multiplication
-        p_trans_int[[i]] <- p_trans[[i]] %*% p_trans[[i]]
-
-        
       } else if(is.matrix(data$p_trans[[i]])) {
 
-        p_trans[[i]] <- data$p_trans[[i]]
-
-        if(ncol(p_trans[[i]]) != unq | nrow(p_trans[[i]]) != unq) {
+        if(ncol(data$p_trans[[i]]) != unq | nrow(data$p_trans[[i]]) != unq) {
           stop(sprintf(paste("%dx%d matrix of transition probabilities provided, but",
-                             "%dx%d required (one row for each place, and one",
-                             "for not being in a place)"),
-                       ncol(p_trans[[i]]), nrow(p_trans[[i]]), unq, unq))
+                             "%dx%d required (one row for each place)"),
+                       ncol(data$p_trans[[i]]), nrow(data$p_trans[[i]]), unq, unq))
         }
         
-        if(!all(vapply(apply(p_trans[[i]], 1, sum), all.equal, TRUE, 1))) {
+        if(!all(vapply(apply(data$p_trans[[i]], 1, sum), all.equal, TRUE, 1))) {
           stop("Rows of transition matrices must sum to 1")
         }
 
-        ## integrate over all possible intermediate places by matrix multiplication
-        p_trans_int[[i]] <- p_trans[[i]] %*% p_trans[[i]]
-
       } else {
-        stop("p_trans must be NULL, a vector or a matrix")
+        
+        stop("p_trans must be NULL or a matrix")
+        
       }
 
+      ## update p_place and p_trans to account for 'unobserved' places - these
+      ## essentially represent the average of the places we do know of. rmean
+      ## is the average probability *from* a given place to any other - it's
+      ## therefore just the proportion unobserved divided by the number
+      ## unobserved
+
+      ## infer number of unobserved places
+      data$N_place_unobserved[i] <- get_n_unobs(unq, data$prop_place_observed[i])
+
+      p_unob = ifelse(data$prop_place_observed[i] < 1,
+      (1 - data$prop_place_observed[i])/data$N_place_unobserved[i],
+      0)
+
+      rmean <- matrix(c(rep(p_unob, unq), 0), ncol = 1)
+
+      ## cmean is the average probability *to* a given place, from all possible
+      ## starting places - it has to be weighted by the prior probability of
+      ## starting in any given place - and then has to be weighted by p_observed
+
+      .f <- function(i, p_place, p_trans) {
+        p_place <- p_place[-i]
+        p_place <- p_place/sum(p_place)
+        x <- p_trans[-i,i]
+        return(sum(x*p_place))
+      }
+
+      cmean <- vapply(seq_along(data$p_place[[i]]), .f,
+                      1.0, data$p_place[[i]], data$p_trans[[i]])
+
+      cmean <- cmean*data$prop_place_observed[i]
+
+      ## adjust transition probability to account for unobserved places - the
+      ## probability of going to any observed place has to be scaled by
+      ## prop_observed
+      data$pp_trans[[i]] <- data$p_trans[[i]]*data$prop_place_observed[[i]]
+
+      ## remember that diagonal of transition matrix is 0
+      data$pp_trans[[i]] <- rbind(data$pp_trans[[i]],
+                                 matrix(cmean, nrow = 1))
+      data$pp_trans[[i]] <- cbind(data$pp_trans[[i]], rmean)
+
+      ## update prior probability to include unobserved places
+      data$pp_place[[i]] <- c(data$p_place[[i]]*data$prop_place_observed[i], p_unob)
+
+      ## also create adjusted prior where the last term is the probability of
+      ## being in *any* unobserved place
+      data$pp_place_adj[[i]] <- data$pp_place[[i]]
+      data$pp_place_adj[[i]][length(data$pp_place_adj[[i]])] <-
+        data$pp_place_adj[[i]][length(data$pp_place_adj[[i]])]*
+        data$N_place_unobserved[i]
+      
       ## fill timeline with places (not in a place = 0)
       for(j in 1:nrow(sub)) {
         ind <- (sub[j,3] + data$C_ind + 1):(sub[j,4] + data$C_ind + 1)
@@ -481,99 +571,15 @@ outbreaker_data <- function(..., data = list(...)) {
       
     }
 
-    data$p_trans <- p_trans
-    data$p_trans_int <- p_trans_int
-
     ## number of unique places for each contact type
-    data$N_place <- as.integer(vapply(data$p_trans, nrow, 1) - 1)
+    data$N_place <- as.integer(vapply(data$p_trans, nrow, 1))
     data$N_times <- as.integer(t_range)
     
   } else {
-    data$ctd_timed_matrix <- list()
-    data$p_trans <- data$p_trans <- matrix(0, nrow = 0, ncol = 0)
+    data$ctd_timed_matrix <- data$pp_place <- data$pp_place_adj <- list()
+    data$pp_trans <- data$pp_trans <- matrix(0, nrow = 0, ncol = 0)
+    data$prop_place_observed <- data$N_place <- data$N_place_unobserved <- numeric()
   }
-
-  ## if(!is.null(data$wards)) {
-
-  ##   if(ncol(data$wards) != 4) {
-  ##     stop(paste0("Ward data must have four columns (ID | Ward",
-  ##                 " | Admission date | Discharge date)"))
-  ##   }
-  ##   if(!is.null(data$ctd)) {
-  ##     stop("Cannot use ward data and contact data; remove one.")
-  ##   }
-  ##   if(class(min_date) != class(data$wards[,3]) |
-  ##      class(min_date) != class(data$wards[,4])) {
-  ##     stop("Sampling dates and ward dates are not in the same format.")
-  ##   }
-  ##   if(inherits(data$wards[,1], "factor")) {
-  ##     data$wards[,1] <- as.character(data$wards[,1])
-  ##   }
-  ##   if(!inherits(data$wards[,1], c("numeric", "character", "integer"))) {
-  ##     stop("IDs in ward data must be numbers or characters")
-  ##   }
-  ##   if(any(!data$wards[,1] %in% data$ids)) {
-  ##     stop("IDs in ward data not found in case IDs.")
-  ##   }
-  ##   if(data$trans_mat != 1 && sum(data$trans_mat) != 1) {
-  ##     stop("trans_mat must sum to 1")
-  ##   }
-
-  ##   data$N_ward <- length(unique(data$wards$ward))
-
-  ##   if(is.null(data$trans_mat)) {
-  ##     data$trans_mat <- rep(1/data$N_ward, data$N_ward)
-  ##   }
-    
-  ##   ## Replace IDs with their numeric indices
-  ##   data$wards[,1] <- as.character(data$wards[,1])
-
-  ##   ## Set ward names as characters to prevent accidental indicing with numbers
-  ##   data$wards[,2] <- as.character(data$wards[,2])
-    
-  ##   ## Set min(data$date) as day = 0 and adjust contact dates accordingly
-  ##   if (inherits(data$wards[,3], "Date")) {
-  ##     data$wards[,3] <- data$wards[,3] - min_date
-  ##     data$wards[,4] <- data$wards[,4] - min_date
-  ##   }
-  ##   if (inherits(data$wards, "POSIXct")) {
-  ##     data$wards[,3] <- difftime(data$wards[,3], min_date, units="days")
-  ##     data$wards[,4] <- difftime(data$wards[,4], min_date, units="days")
-  ##   }
-  ##   data$wards[,3] <- as.integer(round(data$wards[,3]))
-  ##   data$wards[,4] <- as.integer(round(data$wards[,4]))
-
-  ##   if(any(data$wards[,4] - data$wards[,3] < 0)) {
-  ##     stop("Ward discharge dates must be after admission dates.")
-  ##   }
-
-  ##   ward_matrix <- matrix(0, nrow = data$N,
-  ##                         ncol = max(data$wards[,4]) - min(data$wards[,3]) + 1)
-  ##   data$C_ind <- -min(data$wards$adm)
-  ##   ward_order <- unique(data$wards[,2])
-
-  ##   for(i in 1:nrow(data$wards)) {
-  ##     ind <- (data$wards[i,3] + data$C_ind + 1):(data$wards[i,4] + data$C_ind + 1)
-  ##     ward_matrix[match(data$wards[i, 1], data$ids), ind] <- match(data$wards[i, 2], ward_order)
-  ##   }
-
-  ##   ## ## Calculate the number of contacts from ward data
-  ##   ## n_contacts <- ward_matrix %>%
-  ##   ##   apply(2, function(i) table(i[i != 0])) %>%
-  ##   ##   lapply(function(i) i*(i - 1)/2) %>%
-  ##   ##   lapply(sum) %>%
-  ##   ##   unlist
-    
-  ##   ## ## Define the time of contacts as occuring between the first admission date
-  ##   ## ## and last discharge date
-  ##   ## data$C_nrow <- sum(n_contacts)
-  ##   ## data$C_combn <- (data$N*(data$N - 1)/2)*ncol(ward_matrix)
-  ##   ## data$ward_matrix <- ward_matrix
-  ##   ## data$ward_ncol <- ncol(ward_matrix)
-    
-  ## } else {
-  ##   data$place_matrix <- matrix(0, nrow = 0, ncol = 0)
-  ## }
   
   ## output is a list of checked data
   return(data)

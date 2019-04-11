@@ -1,6 +1,6 @@
 
 #include "internals.h"
-
+#include <RcppEigen.h>
 
 
 // IMPORTANT: ON INDEXING VECTORS AND ANCESTRIES
@@ -295,12 +295,9 @@ Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_place) {
 
     // Propose new inferred place half the time
     for(size_t j = 0; j < place_out.nrow(); j++) {
-      place_out[j, i-1] = place_in[j, x-1];
-      place_out[j, x-1] = place_in[j, i-1];
+      place_out(j, i-1) = place_in(j, x-1);
+      place_out(j, x-1) = place_in(j, i-1);
     }
-    
-    // place_out[i-1] =   place_in[x-1];
-    // place_out[x-1] =   place_in[i-1];
     
   }
   
@@ -448,7 +445,7 @@ void lookup_sequenced_ancestor(Rcpp::IntegerVector alpha, Rcpp::IntegerVector ka
 
   
   if (ances_has_dna) {
-      out_alpha[0] =  alpha[current_case - 1];
+      out_alpha[0] = alpha[current_case - 1];
       out_n_generations[0] = n_generations;
       out_found_sequenced_ancestor[0] = true;
   } else {
@@ -513,80 +510,180 @@ bool is_between_place(Rcpp::NumericMatrix place_matrix, Rcpp::IntegerVector t_in
 // int_mat is a matrix x[i,j] of transition probabilities of moving from i
 // to j, summed over all intermediate places that are not i or j
 
+// [[Rcpp::depends(RcppEigen)]]
 // [[Rcpp::export()]]
 Rcpp::NumericVector get_transition_mat(Rcpp::NumericMatrix p_trans,
-				       Rcpp::NumericMatrix p_trans_int,
+				       Rcpp::NumericVector p_place,
 				       double eps,
 				       double tau,
+				       double N_place_unobserved,
 				       int max_gamma) {
 
-  // number of unique places
-  int N = p_trans.nrow();
+  // number of unique places (add one to account for unknown place)
+  int N = p_trans.nrow() + 1;
 
-  arma::mat mat = arma::eye<arma::mat>(N, N);
-
-  //  Rprintf("eps = %f | tau = %f\n", eps, tau);
-  
   // output 3D matrix (ie vector) of transition probabilities
-  Rcpp::NumericVector out(N*N*(max_gamma+1));
+  Rcpp::NumericVector out(N*N*(max_gamma));
 
-  // a single transition probability
-  double x;
+  // convert to Eigen matrices for multiplication
+  const Eigen::MatrixXd eps_trans = calc_trans(p_trans, p_place, eps, N_place_unobserved);
+  const Eigen::MatrixXd tau_trans = calc_trans(p_trans, p_place, tau, N_place_unobserved);
 
-  // k is the starting loc - we need to calculate the transition from k to all
-  // other locs l, for generations k in 1:max_gamma - including all intermediary locs 
+  // transition matrix in one generation
+  const Eigen::MatrixXd epstau = eps_trans * tau_trans;
 
-  for (size_t k = 0; k < N; k++){
+  // trans is the matrix to be iteratively updated
+  Eigen::MatrixXd trans = epstau;
 
-    // Rcpp::NumericVector x(N);
-    // x(k) = 1.0;
+  // assign to out (convert to vector then fill out)
+  std::vector<double> vec(trans.data(), trans.data() + trans.size());
+  std::copy(vec.begin(), vec.end(), out.begin());
+  int ind = vec.size();
+  
+  for (size_t depth = 2; depth <= max_gamma; depth++) {
+
+    // matrix multiplication
+    trans = trans * epstau;
+
+    // assign to out
+    std::vector<double> tmp(trans.data(), trans.data() + trans.size());
+    std::copy(tmp.begin(), tmp.end(), out.begin() + ind);
     
-    // after 0 generations the case will always be in the same location
-    out(0 + N*k + k) = 1.0;
+    // update vector index
+    ind += tmp.size();
 
-    // iterate over all generations
-    for (size_t depth = 1; depth <= max_gamma; depth++){
-
-      // l is the *to* location (k is the *from* location)
-      for (size_t l = 0; l < N; l++){
-
-	// re-set transition probability to zero
-	x = 0.0;
-
-	// Summing over all starting (for that generation) locations s
-	for (size_t s = 0; s < N; s++){
-	  
-	  if(s == l) {
-
-	    // when you are already in place l to start with, the only possible
-	    // moves are those that jump out and back in again, and those that
-	    // don't jump at all
-	    x += out(N*N*(depth-1) + N*s + k)*
-	      (p_trans_int(s,l)*(1-tau)*(1-eps) + tau*eps);
-
-	  } else {
-
-	    // the first line is the probability of having arrived at place s in
-	    // the previous generation - the second line the probability of
-	    // remaining on place s for half the jump, and moving to l in the
-	    // other half - the third line is the probability of jumping both
-	    // times and arriving in place l
-	  
-	    x += out(N*N*(depth-1) + N*s + k)*
-	      (p_trans(s,l)*((1-tau)*eps + tau*(1-eps)) +
-	       p_trans_int(s,l)*(1-tau)*(1-eps));
-
-	  }
-	  
-	}
-
-	out(N*N*depth + N*l + k) = x;
-	
-      }
-    }
   }
 
   return out;
+  
+}
+
+
+
+
+
+
+
+
+
+
+// ---------------------------
+
+// This function returns a 3D matrix (well, just a vector) of transition
+// probabilities from location k to location l for all 1:max_gamma generations. It is
+// indexed mat[k, l, gamma], ie mat[N*N*(gamma - 1) + N*l + k], where N is the
+// number of unique locations
+
+// loc_mat is a matrix x[i,j] of naive transition probabilities of moving from i to j
+
+// [[Rcpp::depends(RcppEigen)]]
+// [[Rcpp::export()]]
+Rcpp::NumericVector get_transition_mat_1(Rcpp::NumericMatrix p_trans,
+					 Rcpp::NumericVector p_place,
+					 double eps,
+					 double N_place_unobserved) {
+  
+  // number of unique places - 1 extra place for 'unknown'
+  int N = p_trans.nrow() + 1;
+
+  // output 3D matrix (ie vector) of transition probabilities
+  Rcpp::NumericVector out(N*N);
+
+  // get epsilon transition
+  Eigen::MatrixXd eps_trans = calc_trans(p_trans, p_place, eps, N_place_unobserved);
+
+  // assign to out (convert to vector then fill out)
+  std::vector<double> vec(eps_trans.data(), eps_trans.data() + eps_trans.size());
+  std::copy(vec.begin(), vec.end(), out.begin());
+
+  return out;
+  
+}
+
+
+
+
+
+
+
+
+
+
+
+// ---------------------------
+
+// This function returns a 3D matrix (well, just a vector) of transition
+// probabilities from location k to location l for all 1:max_gamma generations. It is
+// indexed mat[k, l, gamma], ie mat[N*N*(gamma - 1) + N*l + k], where N is the
+// number of unique locations
+
+// loc_mat is a matrix x[i,j] of naive transition probabilities of moving from i to j
+
+// int_mat is a matrix x[i,j] of transition probabilities of moving from i
+// to j, summed over all intermediate places that are not i or j
+
+// [[Rcpp::depends(RcppEigen)]]
+// [[Rcpp::export()]]
+Eigen::MatrixXd calc_trans(Rcpp::NumericMatrix p_trans,
+			   Rcpp::NumericVector p_place,
+			   double prob,
+			   double N_place_unobserved) {
+
+    // integrate prob into transition matrix
+  Rcpp::NumericMatrix mat1 = p_trans * (1 - prob);
+  mat1.fill_diag(prob);
+
+  // this represents the average transition probability from unknown - unkown
+  // (i.e. integrating over 1-eps and eps) - this simplifies to 1/N_u
+  if(N_place_unobserved > 0) {
+    mat1(mat1.nrow()-1,mat1.ncol()-1) = 1.0/N_place_unobserved;
+  }
+  
+  // // scale p_place to sum to 1 (this will weight a single 'unobserved' place
+  // // when calculating the mean transition matrices - if not we would swamp the
+  // // average with 'unobserved' place values, which are themselves averages of
+  // // the other places)
+  // Rcpp::NumericVector p_place_adj = p_place/sum(p_place);
+
+  // convert to Eigen for matrix multiplication
+  // we need to copy not map so we can manipulate it later
+  Eigen::MatrixXd prob_mat(Rcpp::as<Eigen::MatrixXd>(mat1));
+
+  // prior probability of being in a given place
+  Eigen::VectorXd place_vec(Rcpp::as<Eigen::VectorXd>(p_place));
+
+  // column means weighted by prior probability of being in that given place
+  // this is the probability of going from place 0 to place != 0 (i.e going from
+  // an unkown place to a given place)
+
+  // prior probability of being in a given place
+
+  // we need to adjust these transition probabilities to 1 when calculating the
+  // mean value - no we do not - this will over-inflate the transition probabilities
+  
+  //  Eigen::MatrixXd prob_mat_adj = prob_mat.array().colwise() / prob_mat.rowwise().sum().array();
+  
+  Eigen::VectorXd cmean = place_vec.transpose() * prob_mat;
+
+  Eigen::VectorXd rmean = prob_mat * place_vec;
+
+  // row means weighted by prior probability of being in that given place
+  // this is the probability of going from place != 0 to place = 0 (i.e going from
+  // a given place to an unkown place)
+  
+  // bigger matrix with extra row and column for place = 0
+  Eigen::MatrixXd out(prob_mat.rows()+1, prob_mat.cols()+1);
+  out.bottomRightCorner(prob_mat.rows(), prob_mat.cols()) = prob_mat;
+
+  // fill with row mean and col means
+  out.block(1, 0, out.rows()-1, 1) = rmean;
+  out.block(0, 1, 1, out.rows()-1) = cmean.transpose();
+
+  // fill (0, 0) with global mean (rowmeans weighted by prior)
+  out(0,0) = (rmean.array() * place_vec.array()).sum();
+
+  return out;
+  
 }
 
 
@@ -1102,4 +1199,121 @@ Rcpp::NumericMatrix swap_cases_change(Rcpp::List data,
 
   return(diff_n_contacts);
 
+}
+
+
+
+
+
+
+
+// ---------------------------
+
+// This function returns a matrix of ancestries. Each row represents the
+// ancestors of one case, ordered from the root to leaf. Indexing by i will only
+// update the ancestries of those cases.
+
+// [[Rcpp::export()]]
+Rcpp::NumericMatrix cpp_find_ancestors(Rcpp::IntegerVector alpha,
+				       Rcpp::NumericMatrix ancestors,
+				       SEXP i) {
+
+  if(ancestors.nrow() == 0) return(ancestors);
+  
+  Rcpp::IntegerVector vec_i;
+  size_t N = alpha.size();
+  
+  if(i == R_NilValue) {
+    // evaluate for all cases
+    vec_i = Rcpp::seq(1, N);
+  } else {
+    // only the cases listed in 'i' are retained
+    // pass via tmp to so you don't run into declaration issues with vec_i
+    Rcpp::IntegerVector tmp(i);
+    vec_i = tmp;
+  }
+  
+  for (size_t j = 0; j < vec_i.size(); j++) {
+	
+    size_t leaf = vec_i[j];
+  
+    Rcpp::IntegerVector vec(N);
+    size_t depth = 0;
+    size_t infector = alpha[leaf-1];
+    size_t node = leaf;
+  
+    while(infector != NA_INTEGER) {
+      vec(depth) = infector;
+      depth += 1;
+      node = infector;
+      infector = alpha[node-1];
+    }
+
+    // reverse the order so the root is listed first (this make identification
+    // of the MRCA much easier)
+    Rcpp::IntegerVector::iterator it = std::find(vec.begin(), vec.end(), 0);
+    int start = std::distance(vec.begin(), it);
+    ancestors(leaf-1, start) = leaf;
+    start -= 1;
+    for(int k = start; k >= 0; k--) {
+      ancestors(leaf-1, start-k) = vec[k];
+    }
+
+  }
+  
+  return ancestors;
+  
+}
+
+
+
+
+
+// Returns a vector with the two nodes downstream of the MRCA - these are the
+// nodes that we need to calculate divergence times. If one of the leaves is the
+// MRCA, return 0 as that node ID. If there is no MRCA, return (0, 0).
+
+// [[Rcpp::export()]]
+Rcpp::IntegerVector cpp_find_mrca(size_t i,
+				  size_t j,
+				  Rcpp::NumericMatrix ancestors) {
+
+  size_t alpha_1, alpha_2;
+  
+  for(size_t k = 0; k < ancestors.ncol(); k++) {
+    alpha_1 = ancestors(i-1,k);
+    alpha_2 = ancestors(j-1,k);
+    if(alpha_1 != alpha_2) {
+      return Rcpp::IntegerVector::create(static_cast<int>(alpha_1),
+					 static_cast<int>(alpha_2));
+    }
+  }
+
+  return Rcpp::IntegerVector::create(0, 0);
+  
+}
+
+
+
+
+
+// Returns the output from cpp_find_mrca across all combinations of cases
+// provided in combn.
+
+// [[Rcpp::export()]]
+Rcpp::NumericMatrix update_mrca(Rcpp::NumericMatrix combn,
+				Rcpp::NumericMatrix ancestors) {
+
+  size_t N = combn.nrow();
+
+  if(N == 0) return(combn);
+  
+  Rcpp::NumericMatrix out(N, 2);
+
+  for(size_t i = 0; i < N; i++) {
+    out.row(i) = cpp_find_mrca(combn(i,0), combn(i,1), ancestors);
+  }
+
+  return out;
+  
 }

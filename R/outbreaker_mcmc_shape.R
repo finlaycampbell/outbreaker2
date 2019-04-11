@@ -25,26 +25,43 @@ outbreaker_mcmc_shape <- function(param, data) {
   param$t_inf <- matrix(unlist(param$t_inf), ncol = data$N, byrow = TRUE)
   colnames(param$t_inf) <- paste("t_inf", seq_len(data$N), sep=".")
 
-  ## unfold epsilon estimates ##
-  param$eps <- matrix(unlist(param$eps),
-                        ncol = length(data$ctd_matrix) + length(data$ctd_timed_matrix),
-                      byrow = TRUE)
+  if(!is.null(data$ctd)) {
+  
+    ## unfold epsilon estimates ##
+    eps <- matrix(unlist(param$eps),
+                  ncol = length(data$ctd_matrix) + length(data$ctd_timed_matrix),
+                  byrow = TRUE)
 
-  colnames(param$eps) <- seq_len(ncol(param$eps))
+    if(ncol(eps) > 1) {
+      colnames(eps) <- paste0("eps_", seq_len(ncol(eps)))
+    } else {
+      colnames(eps) <- 'eps'
+    }
 
-  ## unfold eta estimates ##
-  param$eta <- matrix(unlist(param$eta),
-                      ncol = length(data$ctd_matrix),
-                      byrow = TRUE)
+    ## unfold eta estimates ##
+    eta <- matrix(unlist(param$eta),
+                  ncol = length(data$ctd_matrix),
+                  byrow = TRUE)
 
-  colnames(param$eta) <- seq_len(ncol(param$eta))
+    if(ncol(eta) > 1) {
+      colnames(eta) <- paste0("eta_", seq_len(ncol(eta)))
+    } else {
+      colnames(eta) <- 'eta'
+    }
 
-  ## unfold lambdailon estimates ##
-  param$lambda <- matrix(unlist(param$lambda),
-                        ncol = length(data$ctd_matrix),
-                        byrow = TRUE)
-  colnames(param$lambda) <- seq_len(ncol(param$lambda))
+    ## unfold lambdailon estimates ##
+    lambda <- matrix(unlist(param$lambda),
+                     ncol = length(data$ctd_matrix),
+                     byrow = TRUE)
 
+    if(ncol(lambda) > 1) {
+      colnames(lambda) <- paste0("lambda_", seq_len(ncol(lambda)))
+    } else {
+      colnames(lambda) <- 'lambda'
+    }
+
+  }
+  
   ## unfold t_onw dates ##
   if(!is.null(data$ctd_timed)) {
     
@@ -86,12 +103,17 @@ outbreaker_mcmc_shape <- function(param, data) {
   ## shape data.frame and convert ##
   param <- data.frame(step = param$step, post = param$post, like = param$like,
                       prior = param$prior, mu = param$mu, pi = param$pi,
-                      eps = param$eps, eta = param$eta, lambda = param$lambda,
                       param$alpha, param$t_inf, param$kappa)
+
+  if(!is.null(data$ctd)) {
+    param <- cbind(param, eps, lambda, eta)
+  }
+  
   if(!is.null(data$ctd_timed)) {
     param <- cbind(param, tau, t_onw)
 ##    param <- cbind(param, place)
   }
+  
   names(param) <- gsub("[.]", "_", names(param))
 
   ## output is a data.frame containing all parameters and augmented data, with a dedicated

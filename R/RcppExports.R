@@ -37,8 +37,16 @@ is_between_place <- function(place_matrix, t_inf, t_onw, alpha, C_ind, j) {
     .Call(`_outbreaker2_is_between_place`, place_matrix, t_inf, t_onw, alpha, C_ind, j)
 }
 
-get_transition_mat <- function(p_trans, p_trans_int, eps, tau, max_gamma) {
-    .Call(`_outbreaker2_get_transition_mat`, p_trans, p_trans_int, eps, tau, max_gamma)
+get_transition_mat <- function(p_trans, p_place, eps, tau, N_place_unobserved, max_gamma) {
+    .Call(`_outbreaker2_get_transition_mat`, p_trans, p_place, eps, tau, N_place_unobserved, max_gamma)
+}
+
+get_transition_mat_1 <- function(p_trans, p_place, eps, N_place_unobserved) {
+    .Call(`_outbreaker2_get_transition_mat_1`, p_trans, p_place, eps, N_place_unobserved)
+}
+
+calc_trans <- function(p_trans, p_place, prob, N_place_unobserved) {
+    .Call(`_outbreaker2_calc_trans`, p_trans, p_place, prob, N_place_unobserved)
 }
 
 t_inf_change <- function(data, alpha, kappa, p, t_inf_1, t_inf_2) {
@@ -59,6 +67,18 @@ kappa_change <- function(data, param, p, t_inf, alpha, kappa1, kappa2) {
 
 swap_cases_change <- function(data, param, new_param, i, alpha, t_inf, kappa, local_cases, n_mat) {
     .Call(`_outbreaker2_swap_cases_change`, data, param, new_param, i, alpha, t_inf, kappa, local_cases, n_mat)
+}
+
+cpp_find_ancestors <- function(alpha, ancestors, i) {
+    .Call(`_outbreaker2_cpp_find_ancestors`, alpha, ancestors, i)
+}
+
+cpp_find_mrca <- function(i, j, ancestors) {
+    .Call(`_outbreaker2_cpp_find_mrca`, i, j, ancestors)
+}
+
+update_mrca <- function(combn, ancestors) {
+    .Call(`_outbreaker2_update_mrca`, combn, ancestors)
 }
 
 cpp_ll_genetic <- function(data, param, i = NULL, custom_function = NULL) {

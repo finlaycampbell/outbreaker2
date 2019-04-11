@@ -92,12 +92,15 @@ double cpp_prior_tau(Rcpp::List param, Rcpp::List config,
   if (custom_function == R_NilValue) {
     Rcpp::NumericMatrix shape = config["prior_tau"];
     Rcpp::NumericVector tau = param["tau"];
+    Rcpp::LogicalVector move_tau = config["move_tau"];
     double out = 0;
     for(size_t i = 0; i < tau.size(); i++) {
-      out += R::dbeta(tau[i],
-		      (double) shape(i, 0),
-		      (double) shape(i, 1),
-		      true);
+      if(move_tau) {
+	out += R::dbeta(tau[i],
+			(double) shape(i, 0),
+			(double) shape(i, 1),
+			true);
+      }
     }
     return(out);
   } else {
@@ -122,12 +125,15 @@ double cpp_prior_eps(Rcpp::List param, Rcpp::List config,
   if (custom_function == R_NilValue) {
     Rcpp::NumericMatrix shape = config["prior_eps"];
     Rcpp::NumericVector eps = param["eps"];
+    Rcpp::LogicalVector move_eps = config["move_eps"];
     double out = 0;
     for(size_t i = 0; i < eps.size(); i++) {
-      out += R::dbeta(eps[i],
-		      (double) shape(i, 0),
-		      (double) shape(i, 1),
-		      true);
+      if(move_eps[i]) {
+	out += R::dbeta(eps[i],
+			(double) shape(i, 0),
+			(double) shape(i, 1),
+			true);
+      }
     }
     return(out);
   } else {
@@ -147,17 +153,20 @@ double cpp_prior_eps(Rcpp::List param, Rcpp::List config,
 
 // [[Rcpp::export(rng = false)]]
 double cpp_prior_eta(Rcpp::List param, Rcpp::List config,
-		    Rcpp::RObject custom_function = R_NilValue) {
+		     Rcpp::RObject custom_function = R_NilValue) {
 
   if (custom_function == R_NilValue) {
     Rcpp::NumericMatrix shape = config["prior_eta"];
     Rcpp::NumericVector eta = param["eta"];
+    Rcpp::LogicalVector move_eta = config["move_eta"];
     double out = 0;
     for(size_t i = 0; i < eta.size(); i++) {
-      out += R::dbeta(eta[i],
-		      (double) shape(i, 0),
-		      (double) shape(i, 1),
-		      true);
+      if(move_eta[i]) {
+	out += R::dbeta(eta[i],
+			(double) shape(i, 0),
+			(double) shape(i, 1),
+			true);
+      }
     }
     return(out);
   } else {
@@ -182,12 +191,15 @@ double cpp_prior_lambda(Rcpp::List param, Rcpp::List config,
   if (custom_function == R_NilValue) {
     Rcpp::NumericMatrix shape = config["prior_lambda"];
     Rcpp::NumericVector lambda = param["lambda"];
+    Rcpp::LogicalVector move_lambda = config["move_lambda"];
     double out = 0;
     for(size_t i = 0; i < lambda.size(); i++) {
-      out += R::dbeta(lambda[i],
-		      (double) shape(i, 0),
-		      (double) shape(i, 1),
-		      true);
+      if(move_lambda[i]) {
+	out += R::dbeta(lambda[i],
+			(double) shape(i, 0),
+			(double) shape(i, 1),
+			true);
+      }
     }
   } else {
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
@@ -212,7 +224,8 @@ double cpp_prior_all(Rcpp::List param, Rcpp::List config,
       cpp_prior_pi(param, config) +
       cpp_prior_tau(param, config) +
       cpp_prior_eps(param, config) +
-      cpp_prior_lambda(param, config);
+      cpp_prior_lambda(param, config) +
+      cpp_prior_eta(param, config);
 
   } else {
 
@@ -222,6 +235,7 @@ double cpp_prior_all(Rcpp::List param, Rcpp::List config,
       cpp_prior_pi(param, config, list_functions["pi"]) +
       cpp_prior_tau(param, config, list_functions["tau"]) +
       cpp_prior_eps(param, config, list_functions["eps"]) +
-      cpp_prior_lambda(param, config, list_functions["lambda"]);
+      cpp_prior_lambda(param, config, list_functions["lambda"]) +
+      cpp_prior_eta(param, config, list_functions["eta"]);
   }
 }

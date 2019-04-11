@@ -66,18 +66,9 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
     long int L = Rcpp::as<int>(data["L"]);
     Rcpp::IntegerVector alpha = param["alpha"]; // values are on 1:N
     Rcpp::IntegerVector kappa = param["kappa"];
+    Rcpp::IntegerVector t_inf = param["t_inf"];
+    Rcpp::IntegerVector t_sam = data["dates"];
     Rcpp::LogicalVector has_dna = data["has_dna"];
-
-    // Local variables used for computatoins
-    size_t n_mut = 0, sum_n_mut = 0;
-    size_t sum_n_non_mut = 0;
-    double sum_kappa_combn = 0;
-    bool found[1];
-    size_t ances[1];
-    size_t n_generations[1];
-    found[0] = false;
-    ances[0] = NA_INTEGER;
-    n_generations[0] = NA_INTEGER;
 
   
     // Invalid values of mu
@@ -85,88 +76,70 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
       return R_NegInf;
     }
 
+    Rcpp::NumericMatrix mrca = param["mrca"];
+    Rcpp::NumericMatrix combn = data["dna_combn"];
+
+    t_inf.insert(t_inf.begin(), 100000);
     
-    // NOTE ON MISSING SEQUENCES
+    double out = 0;
 
-    // Terms participating to the genetic likelihood correspond to pairs
-    // of ancestor-descendent which have a genetic sequence. The
-    // log-likelihood of other pairs is 0.0, and can therefore be
-    // ommitted. Note the possible source of confusion in indices here:
+    int t_inf_1, t_inf_2;
 
-    // 'has_dna' is a vector, thus indexed from 0:(N-1)
-	  
-    // 'cpp_get_n_mutations' is a function, and thus takes indices on 1:N
-
-
+    int nmut, t_div, t_diff;
     
-    // all cases are retained
-    
-    if (i == R_NilValue) {
-      for (size_t j = 0; j < N; j++) { // 'j' on 0:(N-1)
-	if (alpha[j] != NA_INTEGER) {
+    double mut_sum = 0, time_sum = 0;
 
-	  // kappa restriction
+    // for(size_t j = 0; j < N; j++) {
+    //   if (alpha[j] != NA_INTEGER) {
+    for(size_t j = 0; j < mrca.nrow(); j++) {
 
-	  if (kappa[j] < 1 || kappa[j] > K) {
-	    return R_NegInf;
-	  }
+      // get infection times of two nodes
+      // we index by case ID because we have added a value to the beginning of t_inf
+      t_inf_1 = t_inf[mrca(j, 0)];
+      t_inf_2 = t_inf[mrca(j, 1)];
 
-	  // missing sequences handled here
-	  
-	  if (has_dna[j]) {
-	 
-	    lookup_sequenced_ancestor(alpha, kappa, has_dna, j + 1,
-				      ances, n_generations, found);
-
-	    if (found[0]) {
-
-	      n_mut = cpp_get_n_mutations(data, j + 1, ances[0]); // remember the offset
-	      sum_n_mut += n_mut;
-	      sum_n_non_mut += (L - n_mut) + (n_generations[0] - 1) * L;
-	      sum_kappa_combn += n_mut * log(n_generations[0]);
-
-	    }
-	  }
-	}
+      // the earlier infection time represents the time of divergence. if one
+      // case is the infector of the other (i.e. mrca = 0), then we choose the
+      // other infection date (because we've set it to 10000)
+      if(t_inf_1 > t_inf_2) {
+      	t_div = t_inf_2;
+      } else {
+      	t_div = t_inf_1;
       }
 
-    } else {
-      // only the cases listed in 'i' are retained
-      size_t length_i = static_cast<size_t>(LENGTH(i));
-      Rcpp::IntegerVector vec_i(i);
-      for (size_t k = 0; k < length_i; k++) {
-	size_t j = vec_i[k] - 1; // offset
-	if (alpha[j] != NA_INTEGER) {
-	  // kappa restriction
-	  if (kappa[j] < 1 || kappa[j] > K) {
-	    return R_NegInf;
-	  }
+      // get total divergence time (divergence to sampling)
+      t_diff = abs(t_sam[combn(j, 0)-1] - t_div) +
+	abs(t_sam[combn(j, 1)-1] - t_div);
 
-	  // missing sequences handled here
-	  	  
-	  if (has_dna[j]) {
-	 
-	    lookup_sequenced_ancestor(alpha, kappa, has_dna, j + 1, 
-				      ances, n_generations, found);
+      nmut = combn(j,2);
 
-	    if (found[0]) {
+      // indexed on 1:N because we've added a value to the front
+      // divergence time is the time of infection of the case
 
-	      n_mut = cpp_get_n_mutations(data, j + 1, ances[0]); // remember the offset
-	      sum_n_mut += n_mut;
-	      sum_n_non_mut += (L - n_mut) + (n_generations[0] - 1) * L;
-	      sum_kappa_combn += n_mut * log(n_generations[0]);
+	// t_div = t_inf[j+1];
 
-	    }
-	  }
-	  
-	}
+	// t_diff = abs(t_sam[j] - t_div) + abs(t_sam[alpha[j]-1] - t_div);
 
-      }
+	// nmut = D(j, alpha[j]-1);
+      
+      // time_sum += t_diff;
+      // mut_sum += combn(j, 2);
+      
+      // if(combn(j,0) == 63 || combn(j,1) == 63) {
+      // 	printf("i = %f | j = %f | ll = %f | t_div = %i | t_diff = %i| mut = %i\n\n", combn(j,0), combn(j,1), R::dpois(nmut, t_diff*mu*L, true), t_div, t_diff, nmut);
+      // }
+      
+      // calculate likelihood
+      out += R::dpois(nmut, t_diff*mu*L, true);
+      //      }
     }
 
-    return log(mu) * (double) sum_n_mut +
-      log(1.0 - mu) * (double) sum_n_non_mut +
-      sum_kappa_combn;
+    // double ratio = mut_sum/(L*time_sum);
+
+    // printf("time_sum = %f | mut_sum = %f | ratio = %f\n",
+    // 	 time_sum, mut_sum, ratio);
+
+    return out;
 
   } else { // use of a customized likelihood function
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
@@ -669,10 +642,9 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
     
     if(ctd_timed_matrix_list.size() < 1) return 0.0;
     
-    int C_ind;
     double out = 0;
     double p_wrong = data["p_wrong"];
-	
+    
     Rcpp::NumericVector eps = param["eps"];
     Rcpp::IntegerVector alpha = param["alpha"];
     Rcpp::IntegerVector kappa = param["kappa"];
@@ -680,7 +652,7 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
     Rcpp::IntegerVector t_onw = param["t_onw"];
     
     Rcpp::NumericMatrix place = param["place"];
-    C_ind = static_cast<int>(data["C_ind"]);
+    int C_ind = static_cast<int>(data["C_ind"]);
     
     size_t list_size = ctd_timed_matrix_list.size();
     size_t imports = 0;
@@ -715,9 +687,10 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
       Rcpp::NumericVector trans_mat = Rcpp::as<Rcpp::NumericVector>(trans_mat_list[m]);
       Rcpp::NumericVector trans_mat_1 = Rcpp::as<Rcpp::NumericVector>(trans_mat_1_list[m]);
 
-      // Get the number of unique places for that timeline type (including place = 0)
+      // Get the number of unique places for that timeline type (add two extra -
+      // one for unknown place and one for unobserved place)
       Rcpp::IntegerVector N_place = data["N_place"];
-      int N_ward = N_place[m] + 1;
+      int N_ward = N_place[m] + 2;
 
       for (size_t k = 0; k < length_i; k++) {
 	
@@ -729,29 +702,40 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
 
 	  w1 = static_cast<int>(timeline(j, ind1));
 	  w2 = static_cast<int>(timeline(alpha[j] - 1, ind1));
+
+//	  printf("w1 = %i | w2 = %i | ll = %f\n", w1,w2, log(trans_mat_1(N_ward*(w1) + w2)));
+		    
 	      
 	  if(ind1 >= 0 &&
 	     ind1 < timeline.ncol()) {
-	    out += log(trans_mat_1(N_ward*N_ward*1 + N_ward*(w1) + w2));
+//    std::printf("kappa = 1 | w1 = %f | w2 = %f | ind = %i\n", w1, w2, N_ward*(w1) + w2);
+	    out += log(trans_mat_1(N_ward*(w1) + w2));
 	  } else {
 	    out += log(p_wrong);
 	  }
 	  
-	} else if (kappa[j] > 1 && alpha[j] == NA_INTEGER) {
+	} else if (kappa[j] > 1 && alpha[j] != NA_INTEGER) {
 
 	  ind1 = t_inf[j] + C_ind;
 	  ind2 = t_onw[j] + C_ind;
 
 	  w1 = static_cast<int>(timeline(j, ind1));
 	  w2 = static_cast<int>(timeline(alpha[j] - 1, ind2));
-	  w3 = place(ind, j);
+
+	  // this is the inferred place - if w3 = N_place + 1, it is one of the
+	  // unobserved places for which we calculate the average transition
+	  // probability
+	  w3 = place(m, j);
 
 	  if(ind1 >= 0 &&
 	     ind1 < timeline.ncol() &&
 	     ind2 >= 0 &&
 	     ind2 < timeline.ncol()) {
-	    out += log(trans_mat_1(N_ward*N_ward*1 + N_ward*(w3) + w2));
-	    out += log(trans_mat(N_ward*N_ward*(kappa[j]-1) + N_ward*(w1) + w3));
+
+	    // std::printf("w1 = %i | w2 = %i | w3 = %i | ll_1 = %f, ll_2 = %f | ind = %i\n", w1, w2, w3, log(trans_mat_1(N_ward*(w3) + w2)), log(trans_mat(N_ward*N_ward*(kappa[j]-2) + N_ward*(w1) + w3)), m);
+	    
+	    out += log(trans_mat_1(N_ward*(w3) + w2));
+	    out += log(trans_mat(N_ward*N_ward*(kappa[j]-2) + N_ward*(w1) + w3));
 	  } else {
 	    out +=  log(p_wrong);
 	  }
@@ -795,11 +779,13 @@ double cpp_ll_timing(Rcpp::List data, Rcpp::List param, SEXP i,
   if (custom_functions == R_NilValue) {
     return cpp_ll_timing_infections(data, param, i) +
       cpp_ll_timing_sampling(data, param, i) +
+      cpp_ll_genetic(data, param, i) +
       cpp_ll_reporting(data, param, i);
   } else { // use of a customized likelihood functions
     Rcpp::List list_functions = Rcpp::as<Rcpp::List>(custom_functions);
     return cpp_ll_timing_infections(data, param, i, list_functions["timing_infections"]) +
       cpp_ll_timing_sampling(data, param, i, list_functions["timing_sampling"]) +
+      cpp_ll_genetic(data, param, i, list_functions["genetic"]) +
       cpp_ll_reporting(data, param, i, list_functions["reporting"]);
   }
 }
@@ -825,7 +811,8 @@ double cpp_ll_timing(Rcpp::List data, Rcpp::List param, size_t i,
 // - p(collection dates): see function cpp_ll_timing_sampling
 // - p(genetic diversity): see function cpp_ll_genetic
 // - p(missing cases): see function cpp_ll_reporting
-// - p(contact): see function cpp_ll_contact 
+// - p(contact): see function cpp_ll_contact
+// - p(timline): see function cpp_ll_timeline
 
 double cpp_ll_all(Rcpp::List data, Rcpp::List param, SEXP i,
 		  Rcpp::RObject custom_functions) {

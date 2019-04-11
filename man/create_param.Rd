@@ -60,6 +60,9 @@ the reporting probability.
  \item \code{eps}: A numeric vector of length \code{size}, storing values of
 the contact reporting coverage.
 
+ \item \code{eta}: A numeric vector of length \code{size}, storing values of
+the contact sensitivity.
+
  \item \code{lambda}: A numeric vector of length \code{size}, storing values of
 the non-infectious contact rate.
 
@@ -86,6 +89,8 @@ number of generations before the last sampled ancestor for each case.
  \item \code{pi}: The value of the reporting probability.
 
  \item \code{eps}: The value of the contact reporting coverage.
+
+ \item \code{eta}: The value of the contact sensitivity.
 
  \item \code{lambda}: The value of the non-infectious contact rate.
 

@@ -60,6 +60,9 @@ provided in \code{data}.}
 
 \item{init_lambda}{initial value for the non-infectious contact rate}
 
+\item{init_eta}{initial value for the contact sensitivity (e.g. the
+proportion of transmission that have this type of contact)}
+
 \item{n_iter}{an integer indicating the number of iterations in the MCMC,
 including the burnin period}
 
@@ -78,6 +81,10 @@ should be estimated ('moved' in the MCMC), or not, all defaulting to TRUE.}
 should be estimated ('moved' in the MCMC), or not, all defaulting to TRUE.}
 
 \item{move_eps}{a logical indicating whether the contact reporting coverage
+should be estimated ('moved' in the MCMC), or not at all, defaulting to
+TRUE.}
+
+\item{move_eta}{a logical indicating whether the contact sensitivity
 should be estimated ('moved' in the MCMC), or not at all, defaulting to
 TRUE.}
 
@@ -106,11 +113,18 @@ probability}
 \item{sd_eps}{the standard deviation for the Normal proposal for the
 contact reporting coverage}
 
+\item{sd_eta}{the standard deviation for the Normal proposal for the
+contact sensitivity}
+
 \item{sd_lambda}{the standard deviation for the Normal proposal for the
 non-infectious contact rate}
 
 \item{prop_alpha_move}{the proportion of ancestries to move at each iteration
 of the MCMC}
+
+\item{prop_eps_move}{the proportion of iterations at which eps is moved}
+
+\item{prop_tau_move}{the proportion of iterations at which tau is moved}
 
 \item{prop_t_inf_move}{the proportion of infection dates to move at each
 iteration of the MCMC}
@@ -134,6 +148,9 @@ parameter of the beta prior for the reporting probability 'pi'}
 
 \item{prior_eps}{a numeric vector of length 2 indicating the first and second
 parameter of the beta prior for the contact reporting coverage 'eps'}
+
+\item{prior_eta}{a numeric vector of length 2 indicating the first and second
+parameter of the beta prior for the contact sensitivity 'eta'}
 
 \item{prior_lambda}{a numeric vector of length 2 indicating the first and
 second parameter of the beta prior for the non-infectious contact rate

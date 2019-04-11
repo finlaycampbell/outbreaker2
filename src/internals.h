@@ -2,6 +2,7 @@
 #define OUTBREAKER2_INTERNALS_H
 
 #include <Rcpp.h>
+#include <RcppEigen.h>
 
 std::vector<int> cpp_are_possible_ancestors(Rcpp::IntegerVector t_inf, size_t i);
 
@@ -34,11 +35,21 @@ bool is_between_place(Rcpp::NumericMatrix place_matrix,
 		     size_t j);
 
 Rcpp::NumericVector get_transition_mat(Rcpp::NumericMatrix p_trans,
-				       Rcpp::NumericMatrix p_trans_int,
+				       Rcpp::NumericVector p_place,
 				       double eps,
 				       double tau,
+				       double N_place_unobserved,
 				       int max_gamma);
 
+Rcpp::NumericVector get_transition_mat_1(Rcpp::NumericMatrix p_trans,
+					 Rcpp::NumericVector p_place,
+					 double eps,
+					 double N_place_unobserved);
+
+Eigen::MatrixXd calc_trans(Rcpp::NumericMatrix p_trans,
+			   Rcpp::NumericVector p_place,
+			   double prob,
+			   double N_place_unobserved);
 
 Rcpp::NumericMatrix t_inf_change(Rcpp::List data,
 				 Rcpp::IntegerVector alpha,
@@ -75,5 +86,16 @@ Rcpp::NumericMatrix swap_cases_change(Rcpp::List data,
 				      Rcpp::IntegerVector kappa,
 				      Rcpp::IntegerVector local_cases,
 				      size_t n_mat);
+
+Rcpp::NumericMatrix cpp_find_ancestors(Rcpp::IntegerVector alpha,
+				       Rcpp::NumericMatrix ancestors,
+				       SEXP i = R_NilValue);
+
+Rcpp::IntegerVector cpp_find_mrca(size_t i,
+				  size_t j,
+				  Rcpp::NumericMatrix ancestors);
+
+Rcpp::NumericMatrix update_mrca(Rcpp::NumericMatrix combn,
+				Rcpp::NumericMatrix ancestors);
 
 #endif

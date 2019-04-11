@@ -35,12 +35,13 @@ Imports:
     stats,
     grDevices,
     Rcpp,
+    RcppEigen (>= 0.3.3.5.0),
     ape,
     ggplot2,
     magrittr,
     visNetwork
 LazyData: true
-LinkingTo: Rcpp
-RoxygenNote: 6.0.1
+LinkingTo: Rcpp, RcppEigen
+RoxygenNote: 6.1.1
 SystemRequirements: C++11
 VignetteBuilder: knitr

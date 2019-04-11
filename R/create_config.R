@@ -38,6 +38,8 @@
 #'
 #' \item{init_eps}{initial value for the contact reporting coverage}
 #'
+#' \item{init_tau}{initial value for the mobility paramter of unobserved cases}
+#'
 #' \item{init_lambda}{initial value for the non-infectious contact rate}
 #'
 #' \item{init_eta}{initial value for the contact sensitivity (e.g. the
@@ -174,7 +176,7 @@ create_config <- function(..., data = NULL) {
     config <- config[[1]]
   }
 
-  have_ctd <- is.null(data$ctd_timed)
+  have_ctd <- !is.null(data$ctd_timed)
 
   ## SET DEFAULTS
   defaults <- list(init_tree = c("seqTrack","star","random"),
@@ -1029,6 +1031,7 @@ create_config <- function(..., data = NULL) {
     } else if(have_ctd & !have_ctd_timed) {
       config$move_tau <- FALSE
     }
+    
   }
 
   ## output is a list of checked settings with a dedicated class (for

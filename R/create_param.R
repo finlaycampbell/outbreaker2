@@ -137,6 +137,7 @@ create_param <- function(data = outbreaker_data(),
   current_eps <- eps[[1]] <- config$init_eps
   current_eta <- eta[[1]] <- config$init_eta
   current_lambda <- lambda[[1]] <- config$init_lambda
+  
   if (is.null(config$init_t_inf)) {
     current_t_inf <- t_inf[[1]] <- data$dates - which.max(data$f_dens) + 1L
   } else {
@@ -173,20 +174,33 @@ create_param <- function(data = outbreaker_data(),
   ## Calculate initial place transition probabilities
   if (!is.null(data$ctd_timed)) {
     trans_mat <- trans_mat_1 <- list()
+    ## number of untimed contact types for indexing
+    n_u <- length(data$ctd_matrix)
     for(i in seq_along(data$p_trans)) {
-      trans_mat[[i]] <- get_transition_mat(data$p_trans[[i]],
-                                           data$p_trans_int[[i]],
-                                           current_eps[i],
+      trans_mat[[i]] <- get_transition_mat(data$pp_trans[[i]],
+                                           data$pp_place_adj[[i]],
+                                           current_eps[i+n_u],
                                            current_tau[i],
+                                           data$N_place_unobserved[i],
                                            config$max_kappa)
       
-      trans_mat_1[[i]] <- get_transition_mat(data$p_trans[[i]],
-                                             data$p_trans_int[[i]],
-                                             current_eps[i], 1, 1)
+      trans_mat_1[[i]] <- get_transition_mat_1(data$pp_trans[[i]],
+                                               data$pp_place_adj[[i]],
+                                               current_eps[i+n_u],
+                                               data$N_place_unobserved[i])
     }
   } else {
     trans_mat <- list()
     trans_mat_1 <- list()
+  }
+
+  ## Calculate initial ancestor tree if genetic sequences provided
+  if(!is.null(data$dna)) {
+    ancestors <- matrix(0, data$N, data$N)
+    ancestors <- cpp_find_ancestors(current_alpha, ancestors, NULL)
+    mrca <- t(apply(data$dna_combn, 1, function(x) cpp_find_mrca(x[1], x[2], ancestors)))
+  } else {
+    ancestors <- mrca <- matrix(0, 0, 0)
   }
   
   counter <- 1L
@@ -207,7 +221,8 @@ create_param <- function(data = outbreaker_data(),
                    kappa = current_kappa, pi = current_pi, tau = current_tau,
                    eps = current_eps, eta = current_eta,
                    lambda = current_lambda, place = current_place,
-                   trans_mat = trans_mat, trans_mat_1 = trans_mat_1)
+                   trans_mat = trans_mat, trans_mat_1 = trans_mat_1,
+                   ancestors = ancestors, mrca = mrca)
   class(current) <- c("outbreaker_param", "list")
 
   ## tmp <- cpp_swap_cases(current, 1, FALSE)
