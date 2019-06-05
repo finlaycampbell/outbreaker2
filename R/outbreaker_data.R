@@ -111,7 +111,7 @@ outbreaker_data <- function(..., data = list(...)) {
   if(!is.null(data$ids)) {
     data$ids <- as.character(data$ids)
   } else {
-    data$ids <- seq_len(data$N)
+    data$ids <- as.character(seq_len(data$N))
   }
 
   ## CHECK W_DENS
