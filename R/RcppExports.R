@@ -37,16 +37,12 @@ is_between_place <- function(place_matrix, t_inf, t_onw, alpha, C_ind, j) {
     .Call(`_outbreaker2_is_between_place`, place_matrix, t_inf, t_onw, alpha, C_ind, j)
 }
 
-get_transition_mat <- function(p_trans, p_place, eps, tau, N_place_unobserved, max_gamma) {
-    .Call(`_outbreaker2_get_transition_mat`, p_trans, p_place, eps, tau, N_place_unobserved, max_gamma)
+get_transition_mat <- function(p_trans, p_place, p_place_adj, eps, tau, prop_place_unobserved, max_kappa) {
+    .Call(`_outbreaker2_get_transition_mat`, p_trans, p_place, p_place_adj, eps, tau, prop_place_unobserved, max_kappa)
 }
 
-get_transition_mat_1 <- function(p_trans, p_place, eps, N_place_unobserved) {
-    .Call(`_outbreaker2_get_transition_mat_1`, p_trans, p_place, eps, N_place_unobserved)
-}
-
-calc_trans <- function(p_trans, p_place, prob, N_place_unobserved) {
-    .Call(`_outbreaker2_calc_trans`, p_trans, p_place, prob, N_place_unobserved)
+get_marginal_trans <- function(p_trans, p_place, p_place_adj) {
+    .Call(`_outbreaker2_get_marginal_trans`, p_trans, p_place, p_place_adj)
 }
 
 t_inf_change <- function(data, alpha, kappa, p, t_inf_1, t_inf_2) {

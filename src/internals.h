@@ -36,20 +36,15 @@ bool is_between_place(Rcpp::NumericMatrix place_matrix,
 
 Rcpp::NumericVector get_transition_mat(Rcpp::NumericMatrix p_trans,
 				       Rcpp::NumericVector p_place,
+				       Rcpp::NumericVector p_place_adj,
 				       double eps,
 				       double tau,
-				       double N_place_unobserved,
-				       int max_gamma);
+				       double prop_place_unobserved,
+				       int max_kappa);
 
-Rcpp::NumericVector get_transition_mat_1(Rcpp::NumericMatrix p_trans,
-					 Rcpp::NumericVector p_place,
-					 double eps,
-					 double N_place_unobserved);
-
-Eigen::MatrixXd calc_trans(Rcpp::NumericMatrix p_trans,
-			   Rcpp::NumericVector p_place,
-			   double prob,
-			   double N_place_unobserved);
+Eigen::MatrixXd get_marginal_trans(Eigen::MatrixXd p_trans,
+				   Eigen::VectorXd p_place,
+				   Eigen::VectorXd p_place_adj);
 
 Rcpp::NumericMatrix t_inf_change(Rcpp::List data,
 				 Rcpp::IntegerVector alpha,

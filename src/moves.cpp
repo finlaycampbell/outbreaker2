@@ -178,21 +178,21 @@ Rcpp::List cpp_move_tau(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::NumericVector eps = param["eps"]; // these are just pointers
   Rcpp::NumericVector new_tau = new_param["tau"]; // these are just pointers
   Rcpp::LogicalVector move_tau = config["move_tau"]; // these are just pointers
-  Rcpp::NumericVector N_u = data["N_place_unobserved"]; // these are just pointers
+  Rcpp::NumericVector prop_u = data["prop_place_observed"]; // these are just pointers
 
   // transition matrics to be updated
   Rcpp::List new_trans_mat = Rcpp::as<Rcpp::List>(new_param["trans_mat"]);
-  Rcpp::List new_trans_mat_1 = Rcpp::as<Rcpp::List>(new_param["trans_mat_1"]);
 
-  int max_gamma = static_cast<int>(config["max_kappa"]);
+  int max_kappa = static_cast<int>(config["max_kappa"]);
   double prop_tau_move = config["prop_tau_move"];
 
   // this is required to adjust the indexing when accessing epsilon
   int n_undated = eps.size() - tau.size();
 
   // raw transition probabilities
-  Rcpp::List p_trans_list = Rcpp::as<Rcpp::List>(data["pp_trans"]);
-  Rcpp::List p_place_list = Rcpp::as<Rcpp::List>(data["pp_place_adj"]);
+  Rcpp::List p_trans_list = Rcpp::as<Rcpp::List>(data["pp_trans_adj"]);
+  Rcpp::List p_place_list = Rcpp::as<Rcpp::List>(data["pp_place"]);
+  Rcpp::List p_place_adj_list = Rcpp::as<Rcpp::List>(data["pp_place_adj"]);
   
   Rcpp::NumericVector sd_tau = config["sd_tau"];
 
@@ -212,15 +212,16 @@ Rcpp::List cpp_move_tau(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
       Rcpp::NumericMatrix p_trans = Rcpp::as<Rcpp::NumericMatrix>(p_trans_list[i]);
       Rcpp::NumericMatrix p_place = Rcpp::as<Rcpp::NumericMatrix>(p_place_list[i]);
+      Rcpp::NumericMatrix p_place_adj = Rcpp::as<Rcpp::NumericMatrix>(p_place_adj_list[i]);
 
-      // update trans mat - trans_mat_1 doesn't need to be updated as it is
-      // independent of tau
+      // update trans mat
       new_trans_mat[i] = get_transition_mat(p_trans,
 					    p_place,
+					    p_place_adj,
 					    eps[i + n_undated],
 					    tau[i],
-					    N_u[i],
-					    max_gamma);
+					    prop_u[i],
+					    max_kappa);
   
       // compute likelihoods
       old_logpost = cpp_ll_timeline(data, param, R_NilValue, custom_ll);
@@ -276,21 +277,20 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
   // transition matrics to be updated
   Rcpp::List new_trans_mat = Rcpp::as<Rcpp::List>(new_param["trans_mat"]);
-  Rcpp::List new_trans_mat_1 = Rcpp::as<Rcpp::List>(new_param["trans_mat_1"]);
 
   // old transition matrics
   Rcpp::List trans_mat = Rcpp::as<Rcpp::List>(param["trans_mat"]);
-  Rcpp::List trans_mat_1 = Rcpp::as<Rcpp::List>(param["trans_mat_1"]);
   
   // raw transition probabilities
-  Rcpp::List p_trans_list = Rcpp::as<Rcpp::List>(data["pp_trans"]);
-  Rcpp::List p_place_list = Rcpp::as<Rcpp::List>(data["pp_place_adj"]);
+  Rcpp::List p_trans_list = Rcpp::as<Rcpp::List>(data["pp_trans_adj"]);
+  Rcpp::List p_place_list = Rcpp::as<Rcpp::List>(data["pp_place"]);
+  Rcpp::List p_place_adj_list = Rcpp::as<Rcpp::List>(data["pp_place_adj"]);
 
   // get config
   Rcpp::LogicalVector move_eps = config["move_eps"];
   Rcpp::NumericVector sd_eps = config["sd_eps"];
-  Rcpp::NumericVector N_u = data["N_place_unobserved"];
-  int max_gamma = static_cast<int>(config["max_kappa"]);
+  Rcpp::NumericVector prop_u = data["prop_place_observed"]; // these are just pointers
+  int max_kappa = static_cast<int>(config["max_kappa"]);
   double prop_eps_move = config["prop_eps_move"];
   
   // number of untimed contact types
@@ -321,19 +321,15 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	
 	Rcpp::NumericMatrix p_trans = Rcpp::as<Rcpp::NumericMatrix>(p_trans_list[ind]);
 	Rcpp::NumericVector p_place = Rcpp::as<Rcpp::NumericVector>(p_place_list[ind]);
+	Rcpp::NumericVector p_place_adj = Rcpp::as<Rcpp::NumericVector>(p_place_adj_list[ind]);
 	
 	new_trans_mat[ind] = get_transition_mat(p_trans,
 						p_place,
+						p_place_adj,
 						new_eps[i],
 						tau[ind],
-						N_u[ind],
-						max_gamma);
-
-	// ONLY TEMPORARY - replace second p_trans with p_place
-	new_trans_mat_1[ind] = get_transition_mat_1(p_trans,
-						    p_place,
-						    new_eps[i],
-						    N_u[ind]);
+						prop_u[ind],
+						max_kappa);
 
 	// use timeline likelihood
 	if(list_custom_ll == R_NilValue) {
@@ -376,7 +372,6 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	new_eps[i] = eps[i];
 	if(ind >= 0) {
 	  new_trans_mat[ind] = trans_mat[ind];
-	  new_trans_mat_1[ind] = trans_mat_1[ind];
 	}
       } else {
 	// replace values in param (needed because we use param to calculate
@@ -386,7 +381,6 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	eps[i] = new_eps[i];
 	if(ind >= 0) {
 	  trans_mat[ind] = new_trans_mat[ind];
-	  trans_mat_1[ind] = new_trans_mat_1[ind];
 	}
       }
       
@@ -699,30 +693,85 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
       // new proposed value (on scale 1 ... N)
       new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1);
 
-      // update ancestry matrix
-      new_ancestors = cpp_find_ancestors(new_alpha, ancestors, has_dna);
+      // if(i == 49) {
+      // 	Rcpp::Rcout << "new_before\n";
+      // 	for(size_t hi = 0; hi < new_ancestors.nrow(); hi++) {
+      // 	  Rcpp::Rcout << new_ancestors(hi, 2);
+      // 	}
+      // }
+      
+      // if(i == 49) {
+      // 	Rcpp::Rcout << "\nold_before\n";
+      // 	for(size_t hi = 0; hi < ancestors.nrow(); hi++) {
+      // 	  Rcpp::Rcout << ancestors(hi, 2);
+      // 	}
+      // }
 
+      // update ancestry matrixx
+      new_ancestors = cpp_find_ancestors(new_alpha, ancestors, has_dna);
+      
+      // if(i == 49) {
+      // 	Rcpp::Rcout << "\nnew_after\n";
+      // 	for(size_t hi = 0; hi < new_ancestors.nrow(); hi++) {
+      // 	  Rcpp::Rcout << new_ancestors(hi, 2);
+      // 	}
+      // }
+            
+      // if(i == 49) {
+      // 	Rcpp::Rcout << "\nold_after\n";
+      // 	for(size_t hi = 0; hi < ancestors.nrow(); hi++) {
+      // 	  Rcpp::Rcout << ancestors(hi, 2);
+      // 	}
+      // }
+      
       // update mrca
       new_mrca = update_mrca(combn, new_ancestors);
+
+      new_param["ancestors"] = new_ancestors;
+      new_param["mrca"] = new_mrca;
       
       // loglike with current value
       new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
 
       // acceptance term
       p_accept = exp(new_loglike - old_loglike);
-
+      
       // which case we restore the previous ('old') value
       if (p_accept < unif_rand()) { // reject new values
 	new_alpha[i] = alpha[i];
-	new_ancestors = ancestors;
-	new_mrca = mrca;
+	new_ancestors = clone(ancestors);
+	new_mrca = clone(mrca);
+	// if(i == 49) {
+	//   Rcpp::Rcout << "\nreject\n";
+	// }
       } else {
 	alpha[i] = new_alpha[i];
-	ancestors = new_ancestors;
-	mrca = new_mrca;
+	ancestors = clone(new_ancestors);
+	mrca = clone(new_mrca);
+	// if(i == 49) {
+	//   Rcpp::Rcout << "\naccept\n" << std::endl;
+	// }
       }
+
+      // if(i == 49) {
+      // 	Rcpp::Rcout << "new_post\n";
+      // 	for(size_t hi = 0; hi < new_ancestors.nrow(); hi++) {
+      // 	  Rcpp::Rcout << new_ancestors(hi, 2);
+      // 	}
+      // }
+
+      // if(i == 49) {
+      // 	Rcpp::Rcout << "\nold_post\n";
+      // 	for(size_t hi = 0; hi < ancestors.nrow(); hi++) {
+      // 	  Rcpp::Rcout << ancestors(hi, 2);
+      // 	}
+      // }
+      
     }
   }
+
+  new_param["ancestors"] = ancestors;
+  new_param["mrca"] = mrca;
   
   return new_param;
   
@@ -749,7 +798,6 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector t_inf = param["t_inf"]; // pointer to param$t_inf
   Rcpp::IntegerVector t_onw = param["t_onw"]; // pointer to param$t_onw
   Rcpp::IntegerVector kappa = param["kappa"]; // pointer to param$kappa
-  Rcpp::NumericMatrix place = param["place"]; // pointer to param$place
 
   size_t N = static_cast<size_t>(data["N"]);
   size_t K = static_cast<size_t>(config["max_kappa"]);
@@ -757,7 +805,6 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector new_t_onw = new_param["t_onw"];
   Rcpp::IntegerVector new_kappa = new_param["kappa"];
   Rcpp::IntegerVector new_alpha = new_param["alpha"];
-  Rcpp::NumericMatrix new_place = new_param["place"];
 
   Rcpp::NumericMatrix ancestors = param["ancestors"];
   Rcpp::NumericMatrix new_ancestors = new_param["ancestors"];
@@ -771,14 +818,11 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   // N_times is the number of days for which we have timeline data
   int N_times = data["N_times"];
 
-
-
   Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
   int C_ind = static_cast<int>(data["C_ind"]);
   
   // N_place is the number of unique places for each type of timeline data
   Rcpp::IntegerVector N_place = data["N_place"];
-  Rcpp::List p_place_list = Rcpp::as<Rcpp::List>(data["pp_place_adj"]);
   
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
     
@@ -799,6 +843,9 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
       // update mrca
       new_mrca = update_mrca(combn, new_ancestors);
+
+      new_param["ancestors"] = new_ancestors;
+      new_param["mrca"] = new_mrca;
 
       // Make sure m1 <-> m2 are proposed 50% of the time (otherwise you will
       // propose m1 -> m2 more if you spend more time in m1, and vice versa)
@@ -826,16 +873,6 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	  // our proposal probabilities and prior probabilites cancel out in the
 	  // between model move. We also propose place = N_place + 1, which
 	  // represents an unsampled place.
-
-	  for(size_t j = 0; j < place.nrow(); j++) {
-	    Rcpp::IntegerVector place_seq = Rcpp::seq(1, N_place[j] + 1);
-	    Rcpp::NumericVector p_place = Rcpp::as<Rcpp::NumericVector>(p_place_list[j]);
-	    new_place(j, i) = Rcpp::as<int>(Rcpp::sample(place_seq, 1, true, p_place));
-	    // Rcpp::NumericMatrix timeline = Rcpp::as<Rcpp::NumericMatrix>(ctd_timed_matrix_list[j]);
-	    // 	    int w2 = static_cast<int>(timeline(alpha[i] - 1, ind1));
-
-	    //	    new_place(j, i) = w2;
-	  }
 	  
 	  // loglike with current value
 	  new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
@@ -854,12 +891,6 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	// No longer inferring t_onw - set to -1000 (NA_INTEGER causes segfault)
 	new_t_onw[i] = -1000;
 	new_kappa[i] = 1;
-
-	// set place to 0 - this is NOT an 'unkown' place, this is simply when
-	// it is not being inferred at all
-	for(size_t j = 0; j < place.nrow(); j++) {
-	  new_place(j, i) = 0;
-	}
 	
 	// loglike with current value
 	new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
@@ -888,28 +919,25 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
       // which case we restore the previous ('old') value
       if (p_accept < unif_rand()) { // reject new values
-	// std::printf("\nreject %u | p_old = %f | p_new = %f | k_old = %i | k_new = %i | ll_old = %f | ll_new = %f | p_accept = %f\n", i, place(2, i), new_place(2, i), kappa[i], new_kappa[i], old_loglike, new_loglike, p_accept);
+	// std::printf("\nreject %u | k_old = %i | k_new = %i | t_diff = %i | ll_old = %f | ll_new = %f | p_accept = %f\n", i, kappa[i], new_kappa[i], t_inf[i] - t_inf[new_alpha[i] - 1], old_loglike, new_loglike, p_accept);
 	new_alpha[i] = alpha[i];
 	new_t_onw[i] = t_onw[i];
 	new_kappa[i] = kappa[i];
-	for(size_t j = 0; j < place.nrow(); j++) {
-	  new_place(j, i) = place(j, i);
-	}
-	new_ancestors = ancestors;
-	new_mrca = mrca;
+	new_ancestors = clone(ancestors);
+	new_mrca = clone(mrca);
       } else {
-	// std::printf("\naccept %u | p_old = %f | p_new = %f | k_old = %i | k_new = %i | ll_old = %f | ll_new = %f | p_accept = %f\n", i, place(2, i), new_place(2, i), kappa[i], new_kappa[i], old_loglike, new_loglike, p_accept);
+	// std::printf("\naccept %u | k_old = %i | k_new = %i | t_diff = %i | ll_old = %f | ll_new = %f | p_accept = %f\n", i, kappa[i], new_kappa[i], t_inf[i] - t_inf[new_alpha[i] - 1], old_loglike, new_loglike, p_accept);
 	alpha[i] = new_alpha[i];
 	t_onw[i] = new_t_onw[i];
 	kappa[i] = new_kappa[i];
-	for(size_t j = 0; j < place.nrow(); j++) {
-	  place(j, i) = new_place(j, i);
-	}
-	mrca = new_mrca;
-	ancestors = new_ancestors;
+	mrca = clone(new_mrca);
+	ancestors = clone(new_ancestors);
       }
     }
   }
+
+  new_param["ancestors"] = ancestors;
+  new_param["mrca"] = mrca;
 
   return new_param;
 
@@ -941,7 +969,6 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector t_inf = param["t_inf"]; // pointer to param$t_inf
   Rcpp::IntegerVector t_onw = param["t_onw"];
   Rcpp::IntegerVector kappa = param["kappa"];
-  Rcpp::NumericMatrix place = param["place"];
 
   Rcpp::NumericMatrix ancestors = param["ancestors"];
   Rcpp::NumericMatrix new_ancestors = new_param["ancestors"];
@@ -958,9 +985,6 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector N_place = data["N_place"];
   double prop_alpha_move = config["prop_alpha_move"];
 
-  Rcpp::List p_place_list = Rcpp::as<Rcpp::List>(data["pp_place"]);
-  Rcpp::List p_place_adj_list = Rcpp::as<Rcpp::List>(data["pp_place_adj"]);
-  
   int jump;
 
   double sd_t_onw = static_cast<double>(config["sd_t_onw"]);
@@ -968,7 +992,6 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector new_t_onw = new_param["t_onw"];
   Rcpp::IntegerVector new_kappa = new_param["kappa"];
   Rcpp::IntegerVector new_alpha = new_param["alpha"];
-  Rcpp::NumericMatrix new_place = new_param["place"];
   
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
     
@@ -993,6 +1016,9 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
 	// update mrca
 	new_mrca = update_mrca(combn, new_ancestors);
+
+	new_param["ancestors"] = new_ancestors;
+	new_param["mrca"] = new_mrca;
 	
 	// loglike with current value
 	new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
@@ -1023,28 +1049,14 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
 	    // update mrca
 	    new_mrca = update_mrca(combn, new_ancestors);
+
+	    new_param["ancestors"] = new_ancestors;
+	    new_param["mrca"] = new_mrca;
 	    
 	  }
 	  
 	  // Normal MH move from previous state
 	  new_t_onw[i] += std::round(R::rnorm(0.0, sd_t_onw));
-
-	  Rcpp::IntegerVector place_seq;
-	  Rcpp::NumericVector p_place_adj;
-	  Rcpp::NumericVector p_place;
-	  
-	  // Propose new inferred place half the time - we include the
-	  // prior probabilities of the inferred places at this point
-	  for(size_t j = 0; j < place.nrow(); j++) {
-	    if(unif_rand() > 0.5) {
-	      place_seq = Rcpp::seq(1, N_place[j] + 1);
-	      p_place_adj = Rcpp::as<Rcpp::NumericVector>(p_place_adj_list[j]);
-	      p_place = Rcpp::as<Rcpp::NumericVector>(p_place_list[j]);
-	      new_place(j, i) = Rcpp::as<int>(Rcpp::sample(place_seq, 1, true, p_place_adj));
-	      old_loglike += log(p_place[place(j, i)-1]);
-	      new_loglike += log(p_place[new_place(j, i)-1]);
-	    }
-	  }
 	  
 	  //	  loglike with current value
 	  new_loglike += cpp_ll_all(data, new_param, i+1, list_custom_ll);
@@ -1060,23 +1072,20 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	new_alpha[i] = alpha[i];
 	new_t_onw[i] = t_onw[i];
 	new_kappa[i] = kappa[i];
-	for(size_t j = 0; j < place.nrow(); j++) {
-	  new_place(j, i) = place(j, i);
-	}
-	new_ancestors = ancestors;
-	new_mrca = mrca;
+	new_ancestors = clone(ancestors);
+	new_mrca = clone(mrca);
       } else {  // update param for next iteration if accepted 
 	alpha[i] = new_alpha[i];
 	t_onw[i] = new_t_onw[i];
 	kappa[i] = new_kappa[i];
-	for(size_t j = 0; j < place.nrow(); j++) {
-	  place(j, i) = new_place(j, i);
-	}
-	ancestors = new_ancestors;
-	mrca = new_mrca;
+	ancestors = clone(new_ancestors);
+	mrca = clone(new_mrca);
       }
     }
   }
+
+  new_param["ancestors"] = ancestors;
+  new_param["mrca"] = mrca;
 
   return new_param;
 
@@ -1112,7 +1121,6 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
   Rcpp::IntegerVector t_inf = param["t_inf"]; // pointer to param$t_inf
   Rcpp::IntegerVector kappa = param["kappa"]; // pointer to param$kappa
   Rcpp::IntegerVector t_onw = param["t_onw"]; // pointer to param$t_inf
-  Rcpp::NumericMatrix place = param["place"]; // pointer to param$place
 
   Rcpp::NumericMatrix ancestors = param["ancestors"];
   Rcpp::NumericMatrix new_ancestors = new_param["ancestors"];
@@ -1161,16 +1169,17 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
       new_param["t_inf"] = swapinfo["t_inf"];
       new_param["t_onw"] = swapinfo["t_onw"];
       new_param["kappa"] = swapinfo["kappa"];
-      new_param["place"] = swapinfo["place"];
 
       // update ancestry matrix
       new_ancestors = cpp_find_ancestors(new_param["alpha"], ancestors, has_dna);
 
       // update mrca
       new_mrca = update_mrca(combn, new_ancestors);
+
+      new_param["ancestors"] = new_ancestors;
+      new_param["mrca"] = new_mrca;
       
       // loglike with new parameters
-
       new_loglike = cpp_ll_all(data, new_param, local_cases, list_custom_ll);
 
 
@@ -1185,9 +1194,10 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
 	param["t_inf"] = new_param["t_inf"];
 	param["t_onw"] = new_param["t_onw"];
 	param["kappa"] = new_param["kappa"];
-	param["place"] = new_param["place"];
-	ancestors = new_ancestors;
-	mrca = new_mrca;
+	param["ancestors"] = clone(new_ancestors);
+	param["mrca"] = clone(new_mrca);
+	ancestors = clone(new_ancestors);
+	mrca = clone(new_mrca);
       }
     }
   }

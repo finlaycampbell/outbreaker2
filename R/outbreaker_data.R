@@ -54,6 +54,7 @@ outbreaker_data <- function(..., data = list(...)) {
                    w_dens = NULL,
                    f_dens = NULL,
                    dna = NULL,
+                   dna_dates = NULL,
                    ctd = NULL,
                    ctd_timed = NULL,
                    wards = NULL,
@@ -261,8 +262,15 @@ outbreaker_data <- function(..., data = list(...)) {
   }
   data$has_dna <- !is.na(data$id_in_dna)
 
-  ## List all pairwise combinations of cases with DNA and their genetic distance
+  ## Find the minimum spanning tree between all cases; this defines the pairwise
+  ## distances we will be conditioning the likelihood on
   if(sum(data$has_dna) > 1) {
+    ## mst <- ape::mst(-1*dist.dna(data$dna, 'N'))
+    ## mst[lower.tri(mst, diag = TRUE)] <- 0
+    ## mst <- which(mst > 0, arr.ind = TRUE)
+    ## dst <- data$D[mst]
+    ## mst[] <- match(rownames(data$dna)[mst], data$ids)
+    ## data$dna_combn <- cbind(mst, dst)
     data$has_dna_ind <- which(data$has_dna)
     data$dna_combn <- t(combn(data$has_dna_ind, 2))
     ind <- matrix(data$ids[data$dna_combn], ncol = 2)
@@ -271,6 +279,26 @@ outbreaker_data <- function(..., data = list(...)) {
     data$dna_combn <- matrix(0, 0, 0)
   }
 
+
+  ## CHECK DNA_DATES
+  if (!is.null(data$dna_dates)) {
+    if(is.null(data$dna)) {
+    } else if(length(data$dna_dates) != nrow(data$dna)) {
+      stop(sprintf("Different number of dna sequences and dna dates provided (%i vs %i)",
+                   nrow(data$dna), length(data$dna_dates)))
+    }
+    if (inherits(data$dna_dates, "Date")) {
+      data$dna_dates <- data$dna_dates - min_date
+    } else if (inherits(data$dna_dates, "POSIXct")) {
+      data$dna_dates <- difftime(data$dna_dates, min_date, units="days")
+    } else if (inherits(data$dna_dates, 'numeric')) {
+      data$dna_dates <- data$dna_dates - min_date
+    }
+    data$dna_dates <- as.integer(round(data$dna_dates))
+  } else {
+    data$dna_dates <- data$dates[which(!is.na(data$id_in_dna))]
+  }
+  
 
   ## CHECK CTD
   if (!is.null(data$ctd)) {
@@ -426,7 +454,8 @@ outbreaker_data <- function(..., data = list(...)) {
     data$ctd_timed_matrix <-
       data$pp_place <-
         data$pp_place_adj <-
-          data$pp_trans <- list()
+          data$pp_trans <-
+            data$pp_trans_adj <- list()
 
     ## indexing to go from dates to column index
     data$C_ind <- -min(data$ctd_timed[,3])
@@ -531,14 +560,12 @@ outbreaker_data <- function(..., data = list(...)) {
 
       .f <- function(i, p_place, p_trans) {
         p_place <- p_place[-i]
-        p_place <- p_place/sum(p_place)
         x <- p_trans[-i,i]
         return(sum(x*p_place))
       }
 
       cmean <- vapply(seq_along(data$p_place[[i]]), .f,
                       1.0, data$p_place[[i]], data$p_trans[[i]])
-
       cmean <- cmean*data$prop_place_observed[i]
 
       ## adjust transition probability to account for unobserved places - the
@@ -551,15 +578,20 @@ outbreaker_data <- function(..., data = list(...)) {
                                  matrix(cmean, nrow = 1))
       data$pp_trans[[i]] <- cbind(data$pp_trans[[i]], rmean)
 
+      ## also create adjusted transition matrix where the last column represents
+      ## the probabilities of transitioning to *any* unobserved place
+      tmp <- data$pp_trans[[i]]
+      tmp[,ncol(tmp)] <- tmp[,ncol(tmp)]*data$N_place_unobserved[i]
+      data$pp_trans_adj[[i]] <- tmp
+      
       ## update prior probability to include unobserved places
       data$pp_place[[i]] <- c(data$p_place[[i]]*data$prop_place_observed[i], p_unob)
 
       ## also create adjusted prior where the last term is the probability of
       ## being in *any* unobserved place
-      data$pp_place_adj[[i]] <- data$pp_place[[i]]
-      data$pp_place_adj[[i]][length(data$pp_place_adj[[i]])] <-
-        data$pp_place_adj[[i]][length(data$pp_place_adj[[i]])]*
-        data$N_place_unobserved[i]
+      tmp <- data$pp_place[[i]]
+      tmp[length(tmp)] <- tmp[length(tmp)]*data$N_place_unobserved[i]
+      data$pp_place_adj[[i]] <- tmp
       
       ## fill timeline with places (not in a place = 0)
       for(j in 1:nrow(sub)) {
@@ -577,8 +609,8 @@ outbreaker_data <- function(..., data = list(...)) {
     
   } else {
     data$ctd_timed_matrix <- data$pp_place <- data$pp_place_adj <- list()
-    data$pp_trans <- data$pp_trans <- matrix(0, nrow = 0, ncol = 0)
-    data$prop_place_observed <- data$N_place <- data$N_place_unobserved <- numeric()
+    data$pp_trans <- data$pp_trans_adj <- matrix(0, nrow = 0, ncol = 0)
+    data$prop_place_observed <- data$N_place <- data$N_times <- data$N_place_unobserved <- numeric()
   }
   
   ## output is a list of checked data

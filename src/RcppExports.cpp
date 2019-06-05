@@ -121,46 +121,32 @@ BEGIN_RCPP
 END_RCPP
 }
 // get_transition_mat
-Rcpp::NumericVector get_transition_mat(Rcpp::NumericMatrix p_trans, Rcpp::NumericVector p_place, double eps, double tau, double N_place_unobserved, int max_gamma);
-RcppExport SEXP _outbreaker2_get_transition_mat(SEXP p_transSEXP, SEXP p_placeSEXP, SEXP epsSEXP, SEXP tauSEXP, SEXP N_place_unobservedSEXP, SEXP max_gammaSEXP) {
+Rcpp::NumericVector get_transition_mat(Rcpp::NumericMatrix p_trans, Rcpp::NumericVector p_place, Rcpp::NumericVector p_place_adj, double eps, double tau, double prop_place_unobserved, int max_kappa);
+RcppExport SEXP _outbreaker2_get_transition_mat(SEXP p_transSEXP, SEXP p_placeSEXP, SEXP p_place_adjSEXP, SEXP epsSEXP, SEXP tauSEXP, SEXP prop_place_unobservedSEXP, SEXP max_kappaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type p_trans(p_transSEXP);
     Rcpp::traits::input_parameter< Rcpp::NumericVector >::type p_place(p_placeSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type p_place_adj(p_place_adjSEXP);
     Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
     Rcpp::traits::input_parameter< double >::type tau(tauSEXP);
-    Rcpp::traits::input_parameter< double >::type N_place_unobserved(N_place_unobservedSEXP);
-    Rcpp::traits::input_parameter< int >::type max_gamma(max_gammaSEXP);
-    rcpp_result_gen = Rcpp::wrap(get_transition_mat(p_trans, p_place, eps, tau, N_place_unobserved, max_gamma));
+    Rcpp::traits::input_parameter< double >::type prop_place_unobserved(prop_place_unobservedSEXP);
+    Rcpp::traits::input_parameter< int >::type max_kappa(max_kappaSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_transition_mat(p_trans, p_place, p_place_adj, eps, tau, prop_place_unobserved, max_kappa));
     return rcpp_result_gen;
 END_RCPP
 }
-// get_transition_mat_1
-Rcpp::NumericVector get_transition_mat_1(Rcpp::NumericMatrix p_trans, Rcpp::NumericVector p_place, double eps, double N_place_unobserved);
-RcppExport SEXP _outbreaker2_get_transition_mat_1(SEXP p_transSEXP, SEXP p_placeSEXP, SEXP epsSEXP, SEXP N_place_unobservedSEXP) {
+// get_marginal_trans
+Eigen::MatrixXd get_marginal_trans(Eigen::MatrixXd p_trans, Eigen::VectorXd p_place, Eigen::VectorXd p_place_adj);
+RcppExport SEXP _outbreaker2_get_marginal_trans(SEXP p_transSEXP, SEXP p_placeSEXP, SEXP p_place_adjSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type p_trans(p_transSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type p_place(p_placeSEXP);
-    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
-    Rcpp::traits::input_parameter< double >::type N_place_unobserved(N_place_unobservedSEXP);
-    rcpp_result_gen = Rcpp::wrap(get_transition_mat_1(p_trans, p_place, eps, N_place_unobserved));
-    return rcpp_result_gen;
-END_RCPP
-}
-// calc_trans
-Eigen::MatrixXd calc_trans(Rcpp::NumericMatrix p_trans, Rcpp::NumericVector p_place, double prob, double N_place_unobserved);
-RcppExport SEXP _outbreaker2_calc_trans(SEXP p_transSEXP, SEXP p_placeSEXP, SEXP probSEXP, SEXP N_place_unobservedSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type p_trans(p_transSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type p_place(p_placeSEXP);
-    Rcpp::traits::input_parameter< double >::type prob(probSEXP);
-    Rcpp::traits::input_parameter< double >::type N_place_unobserved(N_place_unobservedSEXP);
-    rcpp_result_gen = Rcpp::wrap(calc_trans(p_trans, p_place, prob, N_place_unobserved));
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type p_trans(p_transSEXP);
+    Rcpp::traits::input_parameter< Eigen::VectorXd >::type p_place(p_placeSEXP);
+    Rcpp::traits::input_parameter< Eigen::VectorXd >::type p_place_adj(p_place_adjSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_marginal_trans(p_trans, p_place, p_place_adj));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -653,9 +639,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_outbreaker2_cpp_get_n_mutations", (DL_FUNC) &_outbreaker2_cpp_get_n_mutations, 3},
     {"_outbreaker2_cpp_lookup_sequenced_ancestor", (DL_FUNC) &_outbreaker2_cpp_lookup_sequenced_ancestor, 3},
     {"_outbreaker2_is_between_place", (DL_FUNC) &_outbreaker2_is_between_place, 6},
-    {"_outbreaker2_get_transition_mat", (DL_FUNC) &_outbreaker2_get_transition_mat, 6},
-    {"_outbreaker2_get_transition_mat_1", (DL_FUNC) &_outbreaker2_get_transition_mat_1, 4},
-    {"_outbreaker2_calc_trans", (DL_FUNC) &_outbreaker2_calc_trans, 4},
+    {"_outbreaker2_get_transition_mat", (DL_FUNC) &_outbreaker2_get_transition_mat, 7},
+    {"_outbreaker2_get_marginal_trans", (DL_FUNC) &_outbreaker2_get_marginal_trans, 3},
     {"_outbreaker2_t_inf_change", (DL_FUNC) &_outbreaker2_t_inf_change, 6},
     {"_outbreaker2_alpha_change", (DL_FUNC) &_outbreaker2_alpha_change, 6},
     {"_outbreaker2_local_n_contacts", (DL_FUNC) &_outbreaker2_local_n_contacts, 3},

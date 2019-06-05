@@ -67,9 +67,8 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
     Rcpp::IntegerVector alpha = param["alpha"]; // values are on 1:N
     Rcpp::IntegerVector kappa = param["kappa"];
     Rcpp::IntegerVector t_inf = param["t_inf"];
-    Rcpp::IntegerVector t_sam = data["dates"];
-    Rcpp::LogicalVector has_dna = data["has_dna"];
-
+    Rcpp::IntegerVector t_sam = data["dna_dates"];
+    Rcpp::IntegerVector id_in_dna = data["id_in_dna"];
   
     // Invalid values of mu
     if (mu < 0.0 || mu > 1.0) {
@@ -87,7 +86,7 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
 
     int nmut, t_div, t_diff;
     
-    double mut_sum = 0, time_sum = 0;
+    //    double mut_sum = 0, time_sum = 0;
 
     // for(size_t j = 0; j < N; j++) {
     //   if (alpha[j] != NA_INTEGER) {
@@ -108,15 +107,15 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
       }
 
       // get total divergence time (divergence to sampling)
-      t_diff = abs(t_sam[combn(j, 0)-1] - t_div) +
-	abs(t_sam[combn(j, 1)-1] - t_div);
+      t_diff = abs(t_sam[id_in_dna[combn(j, 0)-1]-1] - t_div) +
+	abs(t_sam[id_in_dna[combn(j, 1)-1]-1] - t_div);
 
       nmut = combn(j,2);
 
       // indexed on 1:N because we've added a value to the front
       // divergence time is the time of infection of the case
 
-	// t_div = t_inf[j+1];
+      // t_div = t_inf[j+1];
 
 	// t_diff = abs(t_sam[j] - t_div) + abs(t_sam[alpha[j]-1] - t_div);
 
@@ -638,7 +637,6 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
     Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
 
     Rcpp::List trans_mat_list = Rcpp::as<Rcpp::List>(param["trans_mat"]);
-    Rcpp::List trans_mat_1_list = Rcpp::as<Rcpp::List>(param["trans_mat_1"]);
     
     if(ctd_timed_matrix_list.size() < 1) return 0.0;
     
@@ -651,7 +649,8 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
     Rcpp::IntegerVector t_inf = param["t_inf"];
     Rcpp::IntegerVector t_onw = param["t_onw"];
     
-    Rcpp::NumericMatrix place = param["place"];
+    Rcpp::IntegerVector N_place_vec = data["N_place"];
+
     int C_ind = static_cast<int>(data["C_ind"]);
     
     size_t list_size = ctd_timed_matrix_list.size();
@@ -660,7 +659,6 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
     size_t size_2;
     int w1;
     int w2;
-    int w3;
     int ind1;
     int ind2;
     size_t length_i;
@@ -685,57 +683,34 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
 
       Rcpp::NumericMatrix timeline = Rcpp::as<Rcpp::NumericMatrix>(ctd_timed_matrix_list[m]);
       Rcpp::NumericVector trans_mat = Rcpp::as<Rcpp::NumericVector>(trans_mat_list[m]);
-      Rcpp::NumericVector trans_mat_1 = Rcpp::as<Rcpp::NumericVector>(trans_mat_1_list[m]);
 
-      // Get the number of unique places for that timeline type (add two extra -
-      // one for unknown place and one for unobserved place)
-      Rcpp::IntegerVector N_place = data["N_place"];
-      int N_ward = N_place[m] + 2;
+      int N_place = N_place_vec[m] + 2;
 
       for (size_t k = 0; k < length_i; k++) {
 	
 	size_t j = vec_i[k] - 1; // offset
 
-	if (kappa[j] == 1 && alpha[j] != NA_INTEGER) {
-	      
-	  ind1 = t_inf[j] + C_ind;
+	if (alpha[j] != NA_INTEGER) {
 
-	  w1 = static_cast<int>(timeline(j, ind1));
-	  w2 = static_cast<int>(timeline(alpha[j] - 1, ind1));
-
-//	  printf("w1 = %i | w2 = %i | ll = %f\n", w1,w2, log(trans_mat_1(N_ward*(w1) + w2)));
-		    
-	      
-	  if(ind1 >= 0 &&
-	     ind1 < timeline.ncol()) {
-//    std::printf("kappa = 1 | w1 = %f | w2 = %f | ind = %i\n", w1, w2, N_ward*(w1) + w2);
-	    out += log(trans_mat_1(N_ward*(w1) + w2));
-	  } else {
-	    out += log(p_wrong);
+	  if(kappa[j] == 1) {
+	    ind1 = ind2 = t_inf[j] + C_ind;
+	  } else if(kappa[j] > 1) {
+	    ind1 = t_inf[j] + C_ind;
+	    ind2 = t_onw[j] + C_ind;
 	  }
 	  
-	} else if (kappa[j] > 1 && alpha[j] != NA_INTEGER) {
-
-	  ind1 = t_inf[j] + C_ind;
-	  ind2 = t_onw[j] + C_ind;
-
 	  w1 = static_cast<int>(timeline(j, ind1));
 	  w2 = static_cast<int>(timeline(alpha[j] - 1, ind2));
 
-	  // this is the inferred place - if w3 = N_place + 1, it is one of the
-	  // unobserved places for which we calculate the average transition
-	  // probability
-	  w3 = place(m, j);
-
+	  if(w1 != 0 && w2 != 0 && m == 0) {
+	    // std::printf("t_inf = %i | ind1 = %i | i = %i | alpha_i = %i | w1 = %i | w2 = %i | ll = %f | ind = %i\n", t_inf[j], ind1, j+1, alpha[j], w1, w2, log(trans_mat(N_place*N_place*(kappa[j]-1) + N_place*(w1) + w2)), m);
+	  }
+	    
 	  if(ind1 >= 0 &&
 	     ind1 < timeline.ncol() &&
 	     ind2 >= 0 &&
 	     ind2 < timeline.ncol()) {
-
-	    // std::printf("w1 = %i | w2 = %i | w3 = %i | ll_1 = %f, ll_2 = %f | ind = %i\n", w1, w2, w3, log(trans_mat_1(N_ward*(w3) + w2)), log(trans_mat(N_ward*N_ward*(kappa[j]-2) + N_ward*(w1) + w3)), m);
-	    
-	    out += log(trans_mat_1(N_ward*(w3) + w2));
-	    out += log(trans_mat(N_ward*N_ward*(kappa[j]-2) + N_ward*(w1) + w3));
+	    out += log(trans_mat(N_place*N_place*(kappa[j]-1) + N_place*(w1) + w2));
 	  } else {
 	    out +=  log(p_wrong);
 	  }
