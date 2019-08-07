@@ -64,9 +64,11 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
     size_t K = w_dens.nrow();
     double mu = Rcpp::as<double>(param["mu"]);
     long int L = Rcpp::as<int>(data["L"]);
+    bool has_ctd_timed = data["has_ctd_timed"];
     Rcpp::IntegerVector alpha = param["alpha"]; // values are on 1:N
     Rcpp::IntegerVector kappa = param["kappa"];
     Rcpp::IntegerVector t_inf = param["t_inf"];
+    Rcpp::IntegerVector t_onw = param["t_onw"];
     Rcpp::IntegerVector t_sam = data["dna_dates"];
     Rcpp::IntegerVector id_in_dna = data["id_in_dna"];
   
@@ -78,12 +80,14 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
     Rcpp::NumericMatrix mrca = param["mrca"];
     Rcpp::NumericMatrix combn = data["dna_combn"];
 
+    // add at the beginning of vector - indexing is now by case ID! (not ID - 1)
     t_inf.insert(t_inf.begin(), 100000);
+    t_onw.insert(t_onw.begin(), 100000);
     
     double out = 0;
 
     int t_inf_1, t_inf_2;
-
+    int id_1, id_2;
     int nmut, t_div, t_diff;
     
     //    double mut_sum = 0, time_sum = 0;
@@ -94,8 +98,31 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
 
       // get infection times of two nodes
       // we index by case ID because we have added a value to the beginning of t_inf
-      t_inf_1 = t_inf[mrca(j, 0)];
-      t_inf_2 = t_inf[mrca(j, 1)];
+      id_1 = mrca(j, 0);
+      id_2 = mrca(j, 1);
+
+      // if we are imputing t_onw, use this infection time
+      if(has_ctd_timed) {
+
+	// if we have an unobserved case, use the infection time from t_onw
+	if(kappa[id_1-1] == 1) {
+	  t_inf_1 = t_inf[id_1];
+	} else {
+	  t_inf_1 = t_onw[id_1];
+	}
+
+	if(kappa[id_2-1] == 1) {
+	  t_inf_2 = t_inf[id_2];
+	} else {
+	  t_inf_2 = t_onw[id_2];
+	}
+	
+      } else {
+	
+	  t_inf_1 = t_inf[id_1];
+	  t_inf_2 = t_onw[id_2];
+	  
+      }
 
       // the earlier infection time represents the time of divergence. if one
       // case is the infector of the other (i.e. mrca = 0), then we choose the
@@ -110,27 +137,12 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
       t_diff = abs(t_sam[id_in_dna[combn(j, 0)-1]-1] - t_div) +
 	abs(t_sam[id_in_dna[combn(j, 1)-1]-1] - t_div);
 
+      // get number of mutations
       nmut = combn(j,2);
-
-      // indexed on 1:N because we've added a value to the front
-      // divergence time is the time of infection of the case
-
-      // t_div = t_inf[j+1];
-
-	// t_diff = abs(t_sam[j] - t_div) + abs(t_sam[alpha[j]-1] - t_div);
-
-	// nmut = D(j, alpha[j]-1);
-      
-      // time_sum += t_diff;
-      // mut_sum += combn(j, 2);
-      
-      // if(combn(j,0) == 63 || combn(j,1) == 63) {
-      // 	printf("i = %f | j = %f | ll = %f | t_div = %i | t_diff = %i| mut = %i\n\n", combn(j,0), combn(j,1), R::dpois(nmut, t_diff*mu*L, true), t_div, t_diff, nmut);
-      // }
       
       // calculate likelihood
       out += R::dpois(nmut, t_diff*mu*L, true);
-      //      }
+
     }
 
     // double ratio = mut_sum/(L*time_sum);
@@ -177,14 +189,14 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
     Rcpp::IntegerVector kappa = param["kappa"];
     Rcpp::NumericMatrix w_dens = data["log_w_dens"];
 
-    Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
+    bool has_ctd_timed = data["has_ctd_timed"];
     
     size_t K = w_dens.nrow();
 
     double out = 0.0;
     
     // Use the default temporal likelihood
-    if(ctd_timed_matrix_list.size() < 1) {
+    if(true) {
       // all cases are retained
       if (i == R_NilValue) {
 	for (size_t j = 0; j < N; j++) {

@@ -147,6 +147,7 @@ bind_moves <- function(moves = custom_moves(), config, data,
   } else {
     out$swap_cases <- bind_to_function(out$swap_cases,
                                        data = data,
+                                       config = config,
                                        list_custom_ll = likelihoods
                                        )
   }

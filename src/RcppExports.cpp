@@ -518,15 +518,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_move_swap_cases
-Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data, Rcpp::RObject list_custom_ll);
-RcppExport SEXP _outbreaker2_cpp_move_swap_cases(SEXP paramSEXP, SEXP dataSEXP, SEXP list_custom_llSEXP) {
+Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data, Rcpp::List config, Rcpp::RObject list_custom_ll);
+RcppExport SEXP _outbreaker2_cpp_move_swap_cases(SEXP paramSEXP, SEXP dataSEXP, SEXP configSEXP, SEXP list_custom_llSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::List >::type param(paramSEXP);
     Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type config(configSEXP);
     Rcpp::traits::input_parameter< Rcpp::RObject >::type list_custom_ll(list_custom_llSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_move_swap_cases(param, data, list_custom_ll));
+    rcpp_result_gen = Rcpp::wrap(cpp_move_swap_cases(param, data, config, list_custom_ll));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -667,7 +668,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_outbreaker2_cpp_move_alpha", (DL_FUNC) &_outbreaker2_cpp_move_alpha, 3},
     {"_outbreaker2_cpp_move_model", (DL_FUNC) &_outbreaker2_cpp_move_model, 4},
     {"_outbreaker2_cpp_move_joint", (DL_FUNC) &_outbreaker2_cpp_move_joint, 4},
-    {"_outbreaker2_cpp_move_swap_cases", (DL_FUNC) &_outbreaker2_cpp_move_swap_cases, 3},
+    {"_outbreaker2_cpp_move_swap_cases", (DL_FUNC) &_outbreaker2_cpp_move_swap_cases, 4},
     {"_outbreaker2_cpp_move_kappa", (DL_FUNC) &_outbreaker2_cpp_move_kappa, 4},
     {"_outbreaker2_cpp_prior_mu", (DL_FUNC) &_outbreaker2_cpp_prior_mu, 3},
     {"_outbreaker2_cpp_prior_pi", (DL_FUNC) &_outbreaker2_cpp_prior_pi, 3},

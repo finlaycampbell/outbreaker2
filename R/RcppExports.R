@@ -149,8 +149,8 @@ cpp_move_joint <- function(param, data, config, list_custom_ll = NULL) {
     .Call(`_outbreaker2_cpp_move_joint`, param, data, config, list_custom_ll)
 }
 
-cpp_move_swap_cases <- function(param, data, list_custom_ll = NULL) {
-    .Call(`_outbreaker2_cpp_move_swap_cases`, param, data, list_custom_ll)
+cpp_move_swap_cases <- function(param, data, config, list_custom_ll = NULL) {
+    .Call(`_outbreaker2_cpp_move_swap_cases`, param, data, config, list_custom_ll)
 }
 
 cpp_move_kappa <- function(param, data, config, list_custom_ll = NULL) {

@@ -25,8 +25,8 @@ outbreaker_mcmc_shape <- function(param, data) {
   param$t_inf <- matrix(unlist(param$t_inf), ncol = data$N, byrow = TRUE)
   colnames(param$t_inf) <- paste("t_inf", seq_len(data$N), sep=".")
 
-  if(!is.null(data$ctd)) {
-  
+  if(!is.null(data$ctd) | !is.null(data$ctd_timed)) {
+
     ## unfold epsilon estimates ##
     eps <- matrix(unlist(param$eps),
                   ncol = length(data$ctd_matrix) + length(data$ctd_timed_matrix),
@@ -38,26 +38,29 @@ outbreaker_mcmc_shape <- function(param, data) {
       colnames(eps) <- 'eps'
     }
 
-    ## unfold eta estimates ##
-    eta <- matrix(unlist(param$eta),
-                  ncol = length(data$ctd_matrix),
-                  byrow = TRUE)
+    if(!is.null(data$ctd)) {
+      
+      ## unfold eta estimates ##
+      eta <- matrix(unlist(param$eta),
+                    ncol = length(data$ctd_matrix),
+                    byrow = TRUE)
 
-    if(ncol(eta) > 1) {
-      colnames(eta) <- paste0("eta_", seq_len(ncol(eta)))
-    } else {
-      colnames(eta) <- 'eta'
-    }
+      if(ncol(eta) > 1) {
+        colnames(eta) <- paste0("eta_", seq_len(ncol(eta)))
+      } else {
+        colnames(eta) <- 'eta'
+      }
 
-    ## unfold lambdailon estimates ##
-    lambda <- matrix(unlist(param$lambda),
-                     ncol = length(data$ctd_matrix),
-                     byrow = TRUE)
+      ## unfold lambdailon estimates ##
+      lambda <- matrix(unlist(param$lambda),
+                       ncol = length(data$ctd_matrix),
+                       byrow = TRUE)
 
-    if(ncol(lambda) > 1) {
-      colnames(lambda) <- paste0("lambda_", seq_len(ncol(lambda)))
-    } else {
-      colnames(lambda) <- 'lambda'
+      if(ncol(lambda) > 1) {
+        colnames(lambda) <- paste0("lambda_", seq_len(ncol(lambda)))
+      } else {
+        colnames(lambda) <- 'lambda'
+      }
     }
 
   }
@@ -110,7 +113,11 @@ outbreaker_mcmc_shape <- function(param, data) {
   }
   
   if(!is.null(data$ctd_timed)) {
-    param <- cbind(param, tau, t_onw)
+    if(!is.null(data$ctd)) {
+      param <- cbind(param, tau, t_onw)
+    } else {
+      param <- cbind(param, eps, tau, t_onw)
+    }
 ##    param <- cbind(param, place)
   }
   

@@ -211,8 +211,8 @@ Rcpp::List cpp_move_tau(Rcpp::List param, Rcpp::List data, Rcpp::List config,
       }
 
       Rcpp::NumericMatrix p_trans = Rcpp::as<Rcpp::NumericMatrix>(p_trans_list[i]);
-      Rcpp::NumericMatrix p_place = Rcpp::as<Rcpp::NumericMatrix>(p_place_list[i]);
-      Rcpp::NumericMatrix p_place_adj = Rcpp::as<Rcpp::NumericMatrix>(p_place_adj_list[i]);
+      Rcpp::NumericVector p_place = Rcpp::as<Rcpp::NumericVector>(p_place_list[i]);
+      Rcpp::NumericVector p_place_adj = Rcpp::as<Rcpp::NumericVector>(p_place_adj_list[i]);
 
       // update trans mat
       new_trans_mat[i] = get_transition_mat(p_trans,
@@ -222,7 +222,7 @@ Rcpp::List cpp_move_tau(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 					    tau[i],
 					    prop_u[i],
 					    max_kappa);
-  
+      
       // compute likelihoods
       old_logpost = cpp_ll_timeline(data, param, R_NilValue, custom_ll);
       new_logpost = cpp_ll_timeline(data, new_param, R_NilValue, custom_ll);
@@ -693,36 +693,8 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
       // new proposed value (on scale 1 ... N)
       new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1);
 
-      // if(i == 49) {
-      // 	Rcpp::Rcout << "new_before\n";
-      // 	for(size_t hi = 0; hi < new_ancestors.nrow(); hi++) {
-      // 	  Rcpp::Rcout << new_ancestors(hi, 2);
-      // 	}
-      // }
-      
-      // if(i == 49) {
-      // 	Rcpp::Rcout << "\nold_before\n";
-      // 	for(size_t hi = 0; hi < ancestors.nrow(); hi++) {
-      // 	  Rcpp::Rcout << ancestors(hi, 2);
-      // 	}
-      // }
-
       // update ancestry matrixx
       new_ancestors = cpp_find_ancestors(new_alpha, ancestors, has_dna);
-      
-      // if(i == 49) {
-      // 	Rcpp::Rcout << "\nnew_after\n";
-      // 	for(size_t hi = 0; hi < new_ancestors.nrow(); hi++) {
-      // 	  Rcpp::Rcout << new_ancestors(hi, 2);
-      // 	}
-      // }
-            
-      // if(i == 49) {
-      // 	Rcpp::Rcout << "\nold_after\n";
-      // 	for(size_t hi = 0; hi < ancestors.nrow(); hi++) {
-      // 	  Rcpp::Rcout << ancestors(hi, 2);
-      // 	}
-      // }
       
       // update mrca
       new_mrca = update_mrca(combn, new_ancestors);
@@ -741,32 +713,11 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
 	new_alpha[i] = alpha[i];
 	new_ancestors = clone(ancestors);
 	new_mrca = clone(mrca);
-	// if(i == 49) {
-	//   Rcpp::Rcout << "\nreject\n";
-	// }
       } else {
 	alpha[i] = new_alpha[i];
 	ancestors = clone(new_ancestors);
 	mrca = clone(new_mrca);
-	// if(i == 49) {
-	//   Rcpp::Rcout << "\naccept\n" << std::endl;
-	// }
-      }
-
-      // if(i == 49) {
-      // 	Rcpp::Rcout << "new_post\n";
-      // 	for(size_t hi = 0; hi < new_ancestors.nrow(); hi++) {
-      // 	  Rcpp::Rcout << new_ancestors(hi, 2);
-      // 	}
-      // }
-
-      // if(i == 49) {
-      // 	Rcpp::Rcout << "\nold_post\n";
-      // 	for(size_t hi = 0; hi < ancestors.nrow(); hi++) {
-      // 	  Rcpp::Rcout << ancestors(hi, 2);
-      // 	}
-      // }
-      
+      }      
     }
   }
 
@@ -790,9 +741,6 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
   // Only propose a model swap prop_model_move % of the time
   double prop_model_move = config["prop_model_move"];
-  if(prop_model_move < unif_rand()) {
-    return(new_param);
-  }
   
   Rcpp::IntegerVector alpha = param["alpha"]; // pointer to param$alpha
   Rcpp::IntegerVector t_inf = param["t_inf"]; // pointer to param$t_inf
@@ -829,7 +777,9 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   for (size_t i = 0; i < N; i++) {
 
     // only non-NA ancestries are moved, if there is at least 1 choice
-    if (alpha[i] != NA_INTEGER && sum(t_inf < t_inf[i]) > 0) {
+    if (alpha[i] != NA_INTEGER &&
+	sum(t_inf < t_inf[i]) > 0 &&
+	prop_model_move < unif_rand()) {
 
       // loglike with current value
       // old_loglike = cpp_ll_all(data, param, R_NilValue);
@@ -1041,7 +991,7 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	  
 	  // Only propose a new ancestry prop_alpha_move % of the time - this
 	  // allows t_onw to mix independently of alpha at times
-	  if(prop_alpha_move < unif_rand()) {
+	  if(unif_rand() < prop_alpha_move) {
 	    new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1);
 
 	    // update ancestry matrix
@@ -1113,7 +1063,7 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 // is that the move impacts all descendents from 'a' as well as 'x'.
 
 // [[Rcpp::export(rng = true)]]
-Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
+Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 			       Rcpp::RObject list_custom_ll = R_NilValue) {
 
   Rcpp::List new_param = clone(param);
@@ -1137,6 +1087,8 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
   bool swap_place = Rcpp::as<bool>(data["swap_place"]);
   size_t N = static_cast<size_t>(data["N"]);
 
+  double prop_alpha_move = config["prop_alpha_move"];
+
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
 
   Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
@@ -1145,7 +1097,9 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data,
   for (size_t i = 0; i < N; i++) {
 
     // only non-NA ancestries are moved, if there is at least 1 choice
-    if (alpha[i] != NA_INTEGER && sum(t_inf < t_inf[i]) > 0) {
+    if (alpha[i] != NA_INTEGER &&
+	sum(t_inf < t_inf[i]) > 0 &&
+	unif_rand() < prop_alpha_move) {
 
       // The local likelihood is defined as the likelihood computed for the
       // cases affected by the swap; these include:

@@ -1166,6 +1166,10 @@ Rcpp::NumericMatrix cpp_find_ancestors(Rcpp::IntegerVector alpha,
   Rcpp::NumericMatrix out = clone(ancestors);
   
   Rcpp::IntegerVector vec_i;
+  size_t depth, infector, node, leaf;
+  Rcpp::IntegerVector::iterator it;
+  int start;
+  
   size_t N = alpha.size();
   
   if(i == R_NilValue) {
@@ -1183,25 +1187,24 @@ Rcpp::NumericMatrix cpp_find_ancestors(Rcpp::IntegerVector alpha,
   
   for (size_t j = 0; j < vec_i.size(); j++) {
 	
-    size_t leaf = vec_i[j];
+    leaf = vec_i[j];
   
     Rcpp::IntegerVector vec(N);
-    size_t depth = 0;
-    size_t infector = alpha[leaf-1];
-    size_t node = leaf;
-  
+    depth = 0;
+    infector = alpha[leaf-1];
+    node = leaf;
+    
     while(infector != NA_INTEGER) {
       vec(depth) = infector;
       depth += 1;
-      node = infector;
-      infector = alpha[node-1];
+      infector = alpha[infector-1];
     }
 
-    // reverse the order so the root is listed first (this make identification
+    // reverse the order so the root is listed first (this makes identification
     // of the MRCA much easier)
-    Rcpp::IntegerVector::iterator it = std::find(vec.begin(), vec.end(), 0);
-    int start = std::distance(vec.begin(), it);
-
+    it = std::find(vec.begin(), vec.end(), 0);
+    start = std::distance(vec.begin(), it);
+    
     out.row(leaf-1) = zero_vec;
     
     out(leaf-1, start) = leaf;
@@ -1209,7 +1212,7 @@ Rcpp::NumericMatrix cpp_find_ancestors(Rcpp::IntegerVector alpha,
     for(int k = start; k >= 0; k--) {
       out(leaf-1, start-k) = vec[k];
     }
-
+    
   }
   
   return out;

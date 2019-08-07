@@ -84,6 +84,7 @@ outbreaker_data <- function(..., data = list(...)) {
                    pp_place = NULL,
                    pp_place_adj = NULL,
                    prop_place_observed = NULL,
+                   has_ctd_timed = NULL,
                    p_wrong = 0,
                    id_in_dna = integer(0))
 
@@ -265,7 +266,7 @@ outbreaker_data <- function(..., data = list(...)) {
   ## Find the minimum spanning tree between all cases; this defines the pairwise
   ## distances we will be conditioning the likelihood on
   if(sum(data$has_dna) > 1) {
-    ## mst <- ape::mst(-1*dist.dna(data$dna, 'N'))
+    ## mst <- ape::mst(1*dist.dna(data$dna, 'N'))
     ## mst[lower.tri(mst, diag = TRUE)] <- 0
     ## mst <- which(mst > 0, arr.ind = TRUE)
     ## dst <- data$D[mst]
@@ -606,11 +607,17 @@ outbreaker_data <- function(..., data = list(...)) {
     ## number of unique places for each contact type
     data$N_place <- as.integer(vapply(data$p_trans, nrow, 1))
     data$N_times <- as.integer(t_range)
+
+    data$has_ctd_timed <- TRUE
     
   } else {
     data$ctd_timed_matrix <- data$pp_place <- data$pp_place_adj <- list()
     data$pp_trans <- data$pp_trans_adj <- matrix(0, nrow = 0, ncol = 0)
-    data$prop_place_observed <- data$N_place <- data$N_times <- data$N_place_unobserved <- numeric()
+    data$prop_place_observed <-
+      data$N_place <-
+        data$N_times <-
+          data$N_place_unobserved <- numeric()
+    data$has_ctd_timed <- FALSE
   }
   
   ## output is a list of checked data
