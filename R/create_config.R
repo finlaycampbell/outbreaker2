@@ -123,8 +123,8 @@
 #' \item{max_kappa}{an integer indicating the largest number of generations
 #' between any two linked cases; defaults to 5}
 #'
-#' \item{prior_mu}{a numeric value indicating the rate of the exponential prior
-#' for the mutation rate 'mu'}
+#' \item{prior_mu}{a numeric vector of length 2 indicating the first and second
+#' parameter of the gamma prior for the mutation rate 'mu'}
 #'
 #' \item{prior_pi}{a numeric vector of length 2 indicating the first and second
 #' parameter of the beta prior for the reporting probability 'pi'}
@@ -221,7 +221,7 @@ create_config <- function(..., data = NULL) {
                    n_iter_import = 5000,
                    sample_every_import = 50,
                    p_wrong = 0,
-                   prior_mu = 1,
+                   prior_mu = c(0.01, 0.01),
                    prior_pi = c(10,1),
                    prior_tau = c(2,2),
                    prior_eps = c(1,1),
@@ -782,10 +782,10 @@ create_config <- function(..., data = NULL) {
   if (!is.numeric(config$prior_mu)) {
     stop("prior_mu is not a numeric value")
   }
-  if (config$prior_mu < 0) {
+  if (any((config$prior_mu < 0))) {
     stop("prior_mu is negative (it should be a rate)")
   }
-  if (!is.finite(config$prior_mu)) {
+  if (any(!is.finite(config$prior_mu))) {
     stop("prior_mu is infinite or NA")
   }
 
