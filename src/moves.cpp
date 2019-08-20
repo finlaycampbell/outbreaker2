@@ -193,6 +193,10 @@ Rcpp::List cpp_move_tau(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::List p_trans_list = Rcpp::as<Rcpp::List>(data["pp_trans_adj"]);
   Rcpp::List p_place_list = Rcpp::as<Rcpp::List>(data["pp_place"]);
   Rcpp::List p_place_adj_list = Rcpp::as<Rcpp::List>(data["pp_place_adj"]);
+
+  Rcpp::NumericMatrix p_trans;
+  Rcpp::NumericVector p_place;
+  Rcpp::NumericVector p_place_adj;
   
   Rcpp::NumericVector sd_tau = config["sd_tau"];
 
@@ -210,9 +214,9 @@ Rcpp::List cpp_move_tau(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	return param;
       }
 
-      Rcpp::NumericMatrix p_trans = Rcpp::as<Rcpp::NumericMatrix>(p_trans_list[i]);
-      Rcpp::NumericVector p_place = Rcpp::as<Rcpp::NumericVector>(p_place_list[i]);
-      Rcpp::NumericVector p_place_adj = Rcpp::as<Rcpp::NumericVector>(p_place_adj_list[i]);
+      p_trans = Rcpp::as<Rcpp::NumericMatrix>(p_trans_list[i]);
+      p_place = Rcpp::as<Rcpp::NumericVector>(p_place_list[i]);
+      p_place_adj = Rcpp::as<Rcpp::NumericVector>(p_place_adj_list[i]);
 
       // update trans mat
       new_trans_mat[i] = get_transition_mat(p_trans,
@@ -292,15 +296,22 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::NumericVector prop_u = data["prop_place_observed"]; // these are just pointers
   int max_kappa = static_cast<int>(config["max_kappa"]);
   double prop_eps_move = config["prop_eps_move"];
+
+  Rcpp::NumericMatrix p_trans;
+  Rcpp::NumericVector p_place;
+  Rcpp::NumericVector p_place_adj;
   
   // number of untimed contact types
   int n_ctd_untimed = eps.size() - p_trans_list.size();
 
+  int ind;
+  Rcpp::List list_func;
+  
   double old_logpost = 0.0, new_logpost = 0.0, p_accept = 0.0;
 
   for (size_t i = 0; i < eps.size(); i++) {
 
-    int ind = i - n_ctd_untimed;
+    ind = i - n_ctd_untimed;
     
     if((move_eps[i] && ind < 0) ||
        (move_eps[i] && ind >= 0 && unif_rand() < prop_eps_move)) {
@@ -319,9 +330,9 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
       
       if(ind >= 0) {
 	
-	Rcpp::NumericMatrix p_trans = Rcpp::as<Rcpp::NumericMatrix>(p_trans_list[ind]);
-	Rcpp::NumericVector p_place = Rcpp::as<Rcpp::NumericVector>(p_place_list[ind]);
-	Rcpp::NumericVector p_place_adj = Rcpp::as<Rcpp::NumericVector>(p_place_adj_list[ind]);
+	p_trans = Rcpp::as<Rcpp::NumericMatrix>(p_trans_list[ind]);
+	p_place = Rcpp::as<Rcpp::NumericVector>(p_place_list[ind]);
+	p_place_adj = Rcpp::as<Rcpp::NumericVector>(p_place_adj_list[ind]);
 	
 	new_trans_mat[ind] = get_transition_mat(p_trans,
 						p_place,
@@ -337,7 +348,7 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	  new_logpost = cpp_ll_timeline(data, new_param, R_NilValue);
 	} else {
 	  // custom functions
-	  Rcpp::List list_func = Rcpp::as<Rcpp::List>(list_custom_ll);
+	  list_func = Rcpp::as<Rcpp::List>(list_custom_ll);
 	  old_logpost = cpp_ll_timeline(data, param, R_NilValue, list_func["timeline"]);
 	  new_logpost = cpp_ll_timeline(data, new_param, R_NilValue, list_func["timeline"]);
 	}
@@ -349,7 +360,7 @@ Rcpp::List cpp_move_eps(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	  old_logpost = cpp_ll_contact(data, param, R_NilValue);
 	  new_logpost = cpp_ll_contact(data, new_param, R_NilValue);
 	} else {
-	  Rcpp::List list_func = Rcpp::as<Rcpp::List>(list_custom_ll);
+	  list_func = Rcpp::as<Rcpp::List>(list_custom_ll);
 	  old_logpost = cpp_ll_contact(data, param, R_NilValue, list_func["contact"]);
 	  new_logpost = cpp_ll_contact(data, new_param, R_NilValue, list_func["contact"]);
 	}
@@ -693,10 +704,10 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
       // new proposed value (on scale 1 ... N)
       new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1);
 
-      // update ancestry matrixx
+      // // update ancestry matrix
       new_ancestors = cpp_find_ancestors(new_alpha, ancestors, has_dna);
       
-      // update mrca
+      // // update mrca
       new_mrca = update_mrca(combn, new_ancestors);
 
       new_param["ancestors"] = new_ancestors;
@@ -773,7 +784,13 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector N_place = data["N_place"];
   
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
-    
+
+  bool m1_to_m2;
+  Rcpp::IntegerVector t_seq;
+  Rcpp::IntegerVector kappa_seq;
+  int ind1;
+  double tdiff;
+  
   for (size_t i = 0; i < N; i++) {
 
     // only non-NA ancestries are moved, if there is at least 1 choice
@@ -799,7 +816,7 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
       // Make sure m1 <-> m2 are proposed 50% of the time (otherwise you will
       // propose m1 -> m2 more if you spend more time in m1, and vice versa)
-      bool m1_to_m2 = (unif_rand() > 0.5) ? true : false;
+      m1_to_m2 = (unif_rand() > 0.5) ? true : false;
 
       // jump from Model1 to Model2
       if(kappa[i] == 1 && m1_to_m2) {
@@ -810,13 +827,13 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	} else {
 
 	  // Propose t_onw between the infection times of the two sampled cases
-	  Rcpp::IntegerVector t_seq = Rcpp::seq(t_inf[new_alpha[i] - 1] + 1, t_inf[i] - 1);
+	  t_seq = Rcpp::seq(t_inf[new_alpha[i] - 1] + 1, t_inf[i] - 1);
 	  new_t_onw[i] = Rcpp::as<int>(Rcpp::sample(t_seq, 1, true));
 
-	  int ind1 = new_t_onw[i] + C_ind;
+	  ind1 = new_t_onw[i] + C_ind;
 	  
 	  // Propose kappa between the 2 and max_kappa
-	  Rcpp::IntegerVector kappa_seq = Rcpp::seq(2, K);
+	  kappa_seq = Rcpp::seq(2, K);
 	  new_kappa[i] = Rcpp::as<int>(Rcpp::sample(kappa_seq, 1, true));
 
 	  // Propose a new place using prior probabilities. This ensures that
@@ -832,7 +849,8 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	  if(new_loglike == R_NegInf) {
 	    p_accept = 0.0;
 	  } else {
-	    p_accept = exp(new_loglike - old_loglike)*t_seq.size()/N_times;
+	    // p_accept = exp(new_loglike - old_loglike)*t_seq.size()/N_times;
+	    p_accept = exp(new_loglike - old_loglike);
 	  }
 	}
 	// Jump from Model2 to Model1
@@ -856,11 +874,12 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	// t_onw * range of possible kappa_beta_i) - we therefore need adjust
 	// for this - however the prior on these infection times is 1/(Tend -
 	// T0), which goes on the numerator
-	  double tdiff = t_inf[i] - t_inf[new_alpha[i] - 1] - 1;
+	  tdiff = t_inf[i] - t_inf[new_alpha[i] - 1] - 1;
 	  if(tdiff == 0.0) {
 	    p_accept = 0;
 	  } else {
-	    p_accept = exp(new_loglike - old_loglike)*N_times/tdiff;
+	    // p_accept = exp(new_loglike - old_loglike)*N_times/tdiff;
+	    p_accept = exp(new_loglike - old_loglike);
 	  }
 	}
       } else {

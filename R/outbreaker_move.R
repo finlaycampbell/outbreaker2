@@ -32,9 +32,8 @@ outbreaker_move <- function(moves, data, param_current,
 
     ## move parameters / augmented data
     for (j in seq_len(J)) {
-
-      ## move parameters
       hi <<- param_current
+      ## move parameters
       param_current <- moves[[j]](param_current)
 
       ## safemode

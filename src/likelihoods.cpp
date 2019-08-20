@@ -194,6 +194,9 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
     size_t K = w_dens.nrow();
 
     double out = 0.0;
+
+    size_t delay;
+    size_t j;
     
     // Use the default temporal likelihood
     if(true) {
@@ -201,7 +204,7 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
       if (i == R_NilValue) {
 	for (size_t j = 0; j < N; j++) {
 	  if (alpha[j] != NA_INTEGER) {
-	    size_t delay = t_inf[j] - t_inf[alpha[j] - 1]; // offset
+	    delay = t_inf[j] - t_inf[alpha[j] - 1]; // offset
 	    if (delay < 1 || delay > w_dens.ncol()) {
 	      return  R_NegInf;
 	    }
@@ -217,9 +220,9 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 	size_t length_i = static_cast<size_t>(LENGTH(i));
 	Rcpp::IntegerVector vec_i(i);
 	for (size_t k = 0; k < length_i; k++) {
-	  size_t j = vec_i[k] - 1; // offset
+	  j = vec_i[k] - 1; // offset
 	  if (alpha[j] != NA_INTEGER) {
-	    size_t delay = t_inf[j] - t_inf[alpha[j] - 1]; // offset
+	    delay = t_inf[j] - t_inf[alpha[j] - 1]; // offset
 	    if (delay < 1 || delay > w_dens.ncol()) {
 	      return  R_NegInf;
 	    }
@@ -243,7 +246,7 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 	    }
 	    // If we have no unobserved cases, use the default likelihood
 	    if (kappa[j] == 1) {
-	      size_t delay = t_inf[j] - t_inf[alpha[j] - 1]; // offset
+	      delay = t_inf[j] - t_inf[alpha[j] - 1]; // offset
 	      if (delay < 1 || delay > w_dens.ncol()) {
 		return  R_NegInf;
 	      }
@@ -253,7 +256,7 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 	      // earliest unobserved case in the unobserved transmission chain -
 	      // this uses w_unobs generation time (e.g. if the asymptomatic
 	      // generation time is much longer)
-	      size_t delay = t_inf[j] - t_onw[j];
+	      delay = t_inf[j] - t_onw[j];
 	      if (delay < 1 || delay > w_unobs.ncol()) {
 		return  R_NegInf;
 	      }
@@ -358,11 +361,13 @@ double cpp_ll_timing_sampling(Rcpp::List data, Rcpp::List param, SEXP i,
     Rcpp::NumericVector f_dens = data["log_f_dens"];
 
     double out = 0.0;
+    size_t delay;
+    size_t j;
 
     // all cases are retained
     if (i == R_NilValue) {
       for (size_t j = 0; j < N; j++) {
-	size_t delay = dates[j] - t_inf[j];
+	delay = dates[j] - t_inf[j];
 	if (delay < 1 || delay > f_dens.size()) {
 	  return  R_NegInf;
 	}
@@ -373,8 +378,8 @@ double cpp_ll_timing_sampling(Rcpp::List data, Rcpp::List param, SEXP i,
       size_t length_i = static_cast<size_t>(LENGTH(i));
       Rcpp::IntegerVector vec_i(i);
       for (size_t k = 0; k < length_i; k++) {
-	size_t j = vec_i[k] - 1; // offset
-	size_t delay = dates[j] - t_inf[j];
+	j = vec_i[k] - 1; // offset
+	delay = dates[j] - t_inf[j];
 	if (delay < 1 || delay > f_dens.size()) {
 	  return  R_NegInf;
 	}
@@ -534,6 +539,8 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
     size_t true_neg = 0;
     size_t imports = 0;
     size_t unobsv_case = 0;
+
+    Rcpp::NumericMatrix contacts;
     
     for (size_t m = 0; m < list_size; m++) {
 
@@ -543,7 +550,7 @@ double cpp_ll_contact(Rcpp::List data, Rcpp::List param, SEXP i,
 	
       true_pos = false_pos = false_neg = true_neg = imports = unobsv_case = 0;
 	  
-      Rcpp::NumericMatrix contacts = Rcpp::as<Rcpp::NumericMatrix>(ctd_matrix_list[m]);
+      contacts = Rcpp::as<Rcpp::NumericMatrix>(ctd_matrix_list[m]);
       for (size_t j = 0; j < N; j++) {
 	if (alpha[j] == NA_INTEGER) {
 	  imports += 1;
@@ -663,6 +670,10 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
     
     Rcpp::IntegerVector N_place_vec = data["N_place"];
 
+    Rcpp::NumericMatrix timeline;
+    Rcpp::NumericVector trans_mat;
+
+
     int C_ind = static_cast<int>(data["C_ind"]);
     
     size_t list_size = ctd_timed_matrix_list.size();
@@ -675,6 +686,9 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
     int ind2;
     size_t length_i;
     Rcpp::IntegerVector vec_i;
+    size_t ind;
+    int N_place;
+    size_t j;
 
     if(i == R_NilValue) {
       // evaluate for all cases
@@ -691,16 +705,16 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
     for (size_t m = 0; m < list_size; m++) {
 
       // index for eps
-      size_t ind = m + ctd_matrix_list.size();
+      ind = m + ctd_matrix_list.size();
 
-      Rcpp::NumericMatrix timeline = Rcpp::as<Rcpp::NumericMatrix>(ctd_timed_matrix_list[m]);
-      Rcpp::NumericVector trans_mat = Rcpp::as<Rcpp::NumericVector>(trans_mat_list[m]);
+      timeline = Rcpp::as<Rcpp::NumericMatrix>(ctd_timed_matrix_list[m]);
+      trans_mat = Rcpp::as<Rcpp::NumericVector>(trans_mat_list[m]);
 
-      int N_place = N_place_vec[m] + 2;
+      N_place = N_place_vec[m] + 2;
 
       for (size_t k = 0; k < length_i; k++) {
 	
-	size_t j = vec_i[k] - 1; // offset
+	j = vec_i[k] - 1; // offset
 
 	if (alpha[j] != NA_INTEGER) {
 
@@ -714,9 +728,9 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
 	  w1 = static_cast<int>(timeline(j, ind1));
 	  w2 = static_cast<int>(timeline(alpha[j] - 1, ind2));
 
-	  if(w1 != 0 && w2 != 0 && m == 0) {
+	  //	  if(w1 != 0 && w2 != 0 && m == 0) {
 	    // std::printf("t_inf = %i | ind1 = %i | i = %i | alpha_i = %i | w1 = %i | w2 = %i | ll = %f | ind = %i\n", t_inf[j], ind1, j+1, alpha[j], w1, w2, log(trans_mat(N_place*N_place*(kappa[j]-1) + N_place*(w1) + w2)), m);
-	  }
+	    //	  }
 	    
 	  if(ind1 >= 0 &&
 	     ind1 < timeline.ncol() &&
