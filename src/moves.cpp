@@ -1028,7 +1028,7 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	  new_t_onw[i] += std::round(R::rnorm(0.0, sd_t_onw));
 	  
 	  //	  loglike with current value
-	  new_loglike += cpp_ll_all(data, new_param, i+1, list_custom_ll);
+	  new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
 
 	  // acceptance term
 	  p_accept = exp(new_loglike - old_loglike);
