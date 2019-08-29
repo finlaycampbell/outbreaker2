@@ -73,6 +73,8 @@ Rcpp::List cpp_move_mu(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
   p_accept = exp(new_logpost - old_logpost);
 
+  printf("old = %f | new = %f | ll_old = %f | ll_new = %f\n",
+	 mu[0], new_mu[0], old_logpost, new_logpost);
 
   // acceptance: the new value is already in mu, so we only act if the move is
   // rejected, in which case we restore the previous ('old') value

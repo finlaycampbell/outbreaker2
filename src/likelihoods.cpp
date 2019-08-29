@@ -120,7 +120,7 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
       } else {
 	
 	  t_inf_1 = t_inf[id_1];
-	  t_inf_2 = t_onw[id_2];
+	  t_inf_2 = t_inf[id_2];
 	  
       }
 
@@ -139,6 +139,8 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
 
       // get number of mutations
       nmut = combn(j,2);
+
+      //      printf("t_diff = %i | n_mut = %i \n", t_diff, nmut);
       
       // calculate likelihood
       out += R::dpois(nmut, t_diff*mu*L, true);
@@ -194,12 +196,14 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
     size_t K = w_dens.nrow();
 
     double out = 0.0;
+    double ll_1 = 0.0;
+    double ll_2 = 0.0;
 
     size_t delay;
     size_t j;
     
     // Use the default temporal likelihood
-    if(true) {
+    if(!has_ctd_timed) {
       // all cases are retained
       if (i == R_NilValue) {
 	for (size_t j = 0; j < N; j++) {
@@ -263,7 +267,7 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 
 	      // We subtract two (one for indexing, one because we incorporate
 	      // the second generation time in the next step
-	      out += w_unobs(kappa[j] - 2, delay - 1);
+	      ll_1 = w_unobs(kappa[j] - 2, delay - 1);
 
 	      // Account for time between infection of infector and earliest
 	      // unobserved case - this follows the normal w_dens
@@ -274,7 +278,9 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 	      // This is always going to be one generation (t_unobs is defined
 	      // as such)
 
-	      out += w_dens(0, delay - 1);
+	      ll_2 = w_dens(0, delay - 1);
+
+	      out += (ll_1 + ll_2)/2;
 	      
 	    }
 	  }
@@ -307,7 +313,7 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 	      }
 	      // We subtract two (one for indexing, one because we incorporate
 	      // the second generation time in the next step
-	      out += w_unobs(kappa[j] - 2, delay - 1);
+	      ll_1 = w_unobs(kappa[j] - 2, delay - 1);
 	      // Account for time between infection of infector and earliest
 	      // unobserved case - this follows the normal w_dens
 	      delay = t_onw[j] - t_inf[alpha[j] - 1]; // offset
@@ -316,7 +322,10 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 	      }
 	      // This is always going to be one generation (t_unobs is defined
 	      // as such)
-	      out += w_dens(0, delay - 1);
+	      ll_2 = w_dens(0, delay - 1);
+
+	      out += (ll_1 + ll_2)/2;
+	      
 	    }
 	  }
 	}
@@ -339,7 +348,6 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, size_t i,
   UNPROTECT(1);
   return ret;
 }
-
 
 
 
