@@ -678,14 +678,14 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
   Rcpp::IntegerVector t_inf = param["t_inf"]; // pointer to param$t_inf
   Rcpp::IntegerVector new_alpha = new_param["alpha"];
 
-  Rcpp::NumericMatrix ancestors = param["ancestors"];
-  Rcpp::NumericMatrix new_ancestors = new_param["ancestors"];
+  // Rcpp::NumericMatrix ancestors = param["ancestors"];
+  // Rcpp::NumericMatrix new_ancestors = new_param["ancestors"];
 
-  Rcpp::NumericMatrix mrca = param["mrca"];
-  Rcpp::NumericMatrix new_mrca = new_param["mrca"];
+  // Rcpp::NumericMatrix mrca = param["mrca"];
+  // Rcpp::NumericMatrix new_mrca = new_param["mrca"];
 
-  Rcpp::NumericMatrix combn = data["dna_combn"];
-  Rcpp::IntegerVector has_dna = data["has_dna_ind"];
+  // Rcpp::NumericMatrix combn = data["dna_combn"];
+  // Rcpp::IntegerVector has_dna = data["has_dna_ind"];
   
   // Deep copy to prevent pointer exchange
   
@@ -706,14 +706,14 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
       // new proposed value (on scale 1 ... N)
       new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1);
 
-      // // update ancestry matrix
-      new_ancestors = cpp_find_ancestors(new_alpha, ancestors, has_dna);
+      // // // update ancestry matrix
+      // new_ancestors = cpp_find_ancestors(new_alpha, ancestors, has_dna);
       
-      // // update mrca
-      new_mrca = update_mrca(combn, new_ancestors);
+      // // // update mrca
+      // new_mrca = update_mrca(combn, new_ancestors);
 
-      new_param["ancestors"] = new_ancestors;
-      new_param["mrca"] = new_mrca;
+      // new_param["ancestors"] = new_ancestors;
+      // new_param["mrca"] = new_mrca;
       
       // loglike with current value
       new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
@@ -724,18 +724,18 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
       // which case we restore the previous ('old') value
       if (p_accept < unif_rand()) { // reject new values
 	new_alpha[i] = alpha[i];
-	new_ancestors = clone(ancestors);
-	new_mrca = clone(mrca);
+	// new_ancestors = clone(ancestors);
+	// new_mrca = clone(mrca);
       } else {
 	alpha[i] = new_alpha[i];
-	ancestors = clone(new_ancestors);
-	mrca = clone(new_mrca);
+	// ancestors = clone(new_ancestors);
+	// mrca = clone(new_mrca);
       }      
     }
   }
 
-  new_param["ancestors"] = ancestors;
-  new_param["mrca"] = mrca;
+  // new_param["ancestors"] = ancestors;
+  // new_param["mrca"] = mrca;
   
   return new_param;
   
@@ -767,14 +767,14 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector new_kappa = new_param["kappa"];
   Rcpp::IntegerVector new_alpha = new_param["alpha"];
 
-  Rcpp::NumericMatrix ancestors = param["ancestors"];
-  Rcpp::NumericMatrix new_ancestors = new_param["ancestors"];
+  // Rcpp::NumericMatrix ancestors = param["ancestors"];
+  // Rcpp::NumericMatrix new_ancestors = new_param["ancestors"];
 
-  Rcpp::NumericMatrix mrca = param["mrca"];
-  Rcpp::NumericMatrix new_mrca = new_param["mrca"];
+  // Rcpp::NumericMatrix mrca = param["mrca"];
+  // Rcpp::NumericMatrix new_mrca = new_param["mrca"];
 
-  Rcpp::NumericMatrix combn = data["dna_combn"];
-  Rcpp::IntegerVector has_dna = data["has_dna_ind"];
+  // Rcpp::NumericMatrix combn = data["dna_combn"];
+  // Rcpp::IntegerVector has_dna = data["has_dna_ind"];
 
   // N_times is the number of days for which we have timeline data
   int N_times = data["N_times"];
@@ -807,14 +807,14 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
       // Pick a new sampled ancestor (new proposed value (on scale 1 ... N)
       new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1);
 
-      // update ancestry matrix
-      new_ancestors = cpp_find_ancestors(new_alpha, ancestors, has_dna);
+      // // update ancestry matrix
+      // new_ancestors = cpp_find_ancestors(new_alpha, ancestors, has_dna);
 
-      // update mrca
-      new_mrca = update_mrca(combn, new_ancestors);
+      // // update mrca
+      // new_mrca = update_mrca(combn, new_ancestors);
 
-      new_param["ancestors"] = new_ancestors;
-      new_param["mrca"] = new_mrca;
+      // new_param["ancestors"] = new_ancestors;
+      // new_param["mrca"] = new_mrca;
 
       // Make sure m1 <-> m2 are proposed 50% of the time (otherwise you will
       // propose m1 -> m2 more if you spend more time in m1, and vice versa)
@@ -890,25 +890,23 @@ Rcpp::List cpp_move_model(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 
       // which case we restore the previous ('old') value
       if (p_accept < unif_rand()) { // reject new values
-	// std::printf("\nreject %u | k_old = %i | k_new = %i | t_diff = %i | ll_old = %f | ll_new = %f | p_accept = %f\n", i, kappa[i], new_kappa[i], t_inf[i] - t_inf[new_alpha[i] - 1], old_loglike, new_loglike, p_accept);
 	new_alpha[i] = alpha[i];
 	new_t_onw[i] = t_onw[i];
 	new_kappa[i] = kappa[i];
-	new_ancestors = clone(ancestors);
-	new_mrca = clone(mrca);
+	// new_ancestors = clone(ancestors);
+	// new_mrca = clone(mrca);
       } else {
-	// std::printf("\naccept %u | k_old = %i | k_new = %i | t_diff = %i | ll_old = %f | ll_new = %f | p_accept = %f\n", i, kappa[i], new_kappa[i], t_inf[i] - t_inf[new_alpha[i] - 1], old_loglike, new_loglike, p_accept);
 	alpha[i] = new_alpha[i];
 	t_onw[i] = new_t_onw[i];
 	kappa[i] = new_kappa[i];
-	mrca = clone(new_mrca);
-	ancestors = clone(new_ancestors);
+	// mrca = clone(new_mrca);
+	// ancestors = clone(new_ancestors);
       }
     }
   }
 
-  new_param["ancestors"] = ancestors;
-  new_param["mrca"] = mrca;
+  // new_param["ancestors"] = ancestors;
+  // new_param["mrca"] = mrca;
 
   return new_param;
 
@@ -941,14 +939,14 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
   Rcpp::IntegerVector t_onw = param["t_onw"];
   Rcpp::IntegerVector kappa = param["kappa"];
 
-  Rcpp::NumericMatrix ancestors = param["ancestors"];
-  Rcpp::NumericMatrix new_ancestors = new_param["ancestors"];
+  // Rcpp::NumericMatrix ancestors = param["ancestors"];
+  // Rcpp::NumericMatrix new_ancestors = new_param["ancestors"];
 
-  Rcpp::NumericMatrix mrca = param["mrca"];
-  Rcpp::NumericMatrix new_mrca = new_param["mrca"];
+  // Rcpp::NumericMatrix mrca = param["mrca"];
+  // Rcpp::NumericMatrix new_mrca = new_param["mrca"];
 
-  Rcpp::NumericMatrix combn = data["dna_combn"];
-  Rcpp::IntegerVector has_dna = data["has_dna_ind"];
+  // Rcpp::NumericMatrix combn = data["dna_combn"];
+  // Rcpp::IntegerVector has_dna = data["has_dna_ind"];
   
   size_t N = static_cast<size_t>(data["N"]);
   size_t K = static_cast<size_t>(config["max_kappa"]);
@@ -982,14 +980,14 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	// new proposed value (on scale 1 ... N)
 	new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1); 
 
-	// update ancestry matrix
-	new_ancestors = cpp_find_ancestors(new_alpha, ancestors, has_dna);
+	// // update ancestry matrix
+	// new_ancestors = cpp_find_ancestors(new_alpha, ancestors, has_dna);
 
-	// update mrca
-	new_mrca = update_mrca(combn, new_ancestors);
+	// // update mrca
+	// new_mrca = update_mrca(combn, new_ancestors);
 
-	new_param["ancestors"] = new_ancestors;
-	new_param["mrca"] = new_mrca;
+	// new_param["ancestors"] = new_ancestors;
+	// new_param["mrca"] = new_mrca;
 	
 	// loglike with current value
 	new_loglike = cpp_ll_all(data, new_param, i+1, list_custom_ll);
@@ -1015,14 +1013,14 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	  if(unif_rand() < prop_alpha_move) {
 	    new_alpha[i] = cpp_pick_possible_ancestor(t_inf, i+1);
 
-	    // update ancestry matrix
-	    new_ancestors = cpp_find_ancestors(new_alpha, ancestors, has_dna);
+	    // // update ancestry matrix
+	    // new_ancestors = cpp_find_ancestors(new_alpha, ancestors, has_dna);
 
-	    // update mrca
-	    new_mrca = update_mrca(combn, new_ancestors);
+	    // // update mrca
+	    // new_mrca = update_mrca(combn, new_ancestors);
 
-	    new_param["ancestors"] = new_ancestors;
-	    new_param["mrca"] = new_mrca;
+	    // new_param["ancestors"] = new_ancestors;
+	    // new_param["mrca"] = new_mrca;
 	    
 	  }
 	  
@@ -1043,20 +1041,20 @@ Rcpp::List cpp_move_joint(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	new_alpha[i] = alpha[i];
 	new_t_onw[i] = t_onw[i];
 	new_kappa[i] = kappa[i];
-	new_ancestors = clone(ancestors);
-	new_mrca = clone(mrca);
+	// new_ancestors = clone(ancestors);
+	// new_mrca = clone(mrca);
       } else {  // update param for next iteration if accepted 
 	alpha[i] = new_alpha[i];
 	t_onw[i] = new_t_onw[i];
 	kappa[i] = new_kappa[i];
-	ancestors = clone(new_ancestors);
-	mrca = clone(new_mrca);
+	// ancestors = clone(new_ancestors);
+	// mrca = clone(new_mrca);
       }
     }
   }
 
-  new_param["ancestors"] = ancestors;
-  new_param["mrca"] = mrca;
+  // new_param["ancestors"] = ancestors;
+  // new_param["mrca"] = mrca;
 
   return new_param;
 
@@ -1093,14 +1091,14 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data, Rcpp::List con
   Rcpp::IntegerVector kappa = param["kappa"]; // pointer to param$kappa
   Rcpp::IntegerVector t_onw = param["t_onw"]; // pointer to param$t_inf
 
-  Rcpp::NumericMatrix ancestors = param["ancestors"];
-  Rcpp::NumericMatrix new_ancestors = new_param["ancestors"];
+  // Rcpp::NumericMatrix ancestors = param["ancestors"];
+  // Rcpp::NumericMatrix new_ancestors = new_param["ancestors"];
 
-  Rcpp::NumericMatrix mrca = param["mrca"];
-  Rcpp::NumericMatrix new_mrca = new_param["mrca"];
+  // Rcpp::NumericMatrix mrca = param["mrca"];
+  // Rcpp::NumericMatrix new_mrca = new_param["mrca"];
 
-  Rcpp::NumericMatrix combn = data["dna_combn"];
-  Rcpp::IntegerVector has_dna = data["has_dna_ind"];
+  // Rcpp::NumericMatrix combn = data["dna_combn"];
+  // Rcpp::IntegerVector has_dna = data["has_dna_ind"];
   
   Rcpp::List swapinfo; // contains alpha and t_inf
   Rcpp::IntegerVector local_cases;
@@ -1145,14 +1143,14 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data, Rcpp::List con
       new_param["t_onw"] = swapinfo["t_onw"];
       new_param["kappa"] = swapinfo["kappa"];
 
-      // update ancestry matrix
-      new_ancestors = cpp_find_ancestors(new_param["alpha"], ancestors, has_dna);
+      // // update ancestry matrix
+      // new_ancestors = cpp_find_ancestors(new_param["alpha"], ancestors, has_dna);
 
-      // update mrca
-      new_mrca = update_mrca(combn, new_ancestors);
+      // // update mrca
+      // new_mrca = update_mrca(combn, new_ancestors);
 
-      new_param["ancestors"] = new_ancestors;
-      new_param["mrca"] = new_mrca;
+      // new_param["ancestors"] = new_ancestors;
+      // new_param["mrca"] = new_mrca;
       
       // loglike with new parameters
       new_loglike = cpp_ll_all(data, new_param, local_cases, list_custom_ll);
@@ -1169,10 +1167,10 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data, Rcpp::List con
 	param["t_inf"] = new_param["t_inf"];
 	param["t_onw"] = new_param["t_onw"];
 	param["kappa"] = new_param["kappa"];
-	param["ancestors"] = clone(new_ancestors);
-	param["mrca"] = clone(new_mrca);
-	ancestors = clone(new_ancestors);
-	mrca = clone(new_mrca);
+	// param["ancestors"] = clone(new_ancestors);
+	// param["mrca"] = clone(new_mrca);
+	// ancestors = clone(new_ancestors);
+	// mrca = clone(new_mrca);
       }
     }
   }

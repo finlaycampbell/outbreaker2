@@ -40,15 +40,10 @@ double cpp_prior_mu(Rcpp::List param, Rcpp::List config,
 		    Rcpp::RObject custom_function = R_NilValue) {
 
   if (custom_function == R_NilValue) {
-    
-    // first value is shape, second is scale
-    Rcpp::NumericVector shape = config["prior_mu"];
-    
-    return R::dgamma(Rcpp::as<double>(param["mu"]),
-                     (double) shape[0], 
-		     (double) shape[1],
-		     true);
-    
+    // note: R::dexp is parametrised by scale, not rate
+    double scale = 1.0 / Rcpp::as<double>(config["prior_mu"]);
+
+    return R::dexp(Rcpp::as<double>(param["mu"]), scale, true);
  } else {
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
 
@@ -56,7 +51,6 @@ double cpp_prior_mu(Rcpp::List param, Rcpp::List config,
  }
 
 }
-
 
 
 
