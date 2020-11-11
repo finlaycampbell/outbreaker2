@@ -54,7 +54,6 @@ outbreaker_data <- function(..., data = list(...)) {
                    w_dens = NULL,
                    f_dens = NULL,
                    dna = NULL,
-                   dna_dates = NULL,
                    ctd = NULL,
                    ctd_timed = NULL,
                    ids = NULL,
@@ -280,24 +279,24 @@ outbreaker_data <- function(..., data = list(...)) {
   ## }
 
 
-  ## CHECK DNA_DATES
-  if (!is.null(data$dna_dates)) {
-    if(is.null(data$dna)) {
-    } else if(length(data$dna_dates) != nrow(data$dna)) {
-      stop(sprintf("Different number of dna sequences and dna dates provided (%i vs %i)",
-                   nrow(data$dna), length(data$dna_dates)))
-    }
-    if (inherits(data$dna_dates, "Date")) {
-      data$dna_dates <- data$dna_dates - min_date
-    } else if (inherits(data$dna_dates, "POSIXct")) {
-      data$dna_dates <- difftime(data$dna_dates, min_date, units="days")
-    } else if (inherits(data$dna_dates, 'numeric')) {
-      data$dna_dates <- data$dna_dates - min_date
-    }
-    data$dna_dates <- as.integer(round(data$dna_dates))
-  } else {
-    data$dna_dates <- data$dates[which(!is.na(data$id_in_dna))]
-  }
+  ## ## CHECK DNA_DATES
+  ## if (!is.null(data$dna_dates)) {
+  ##   if(is.null(data$dna)) {
+  ##   } else if(length(data$dna_dates) != nrow(data$dna)) {
+  ##     stop(sprintf("Different number of dna sequences and dna dates provided (%i vs %i)",
+  ##                  nrow(data$dna), length(data$dna_dates)))
+  ##   }
+  ##   if (inherits(data$dna_dates, "Date")) {
+  ##     data$dna_dates <- data$dna_dates - min_date
+  ##   } else if (inherits(data$dna_dates, "POSIXct")) {
+  ##     data$dna_dates <- difftime(data$dna_dates, min_date, units="days")
+  ##   } else if (inherits(data$dna_dates, 'numeric')) {
+  ##     data$dna_dates <- data$dna_dates - min_date
+  ##   }
+  ##   data$dna_dates <- as.integer(round(data$dna_dates))
+  ## } else {
+  ##   data$dna_dates <- data$dates[which(!is.na(data$id_in_dna))]
+  ## }
 
 
   ## CHECK CTD
