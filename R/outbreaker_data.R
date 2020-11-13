@@ -84,6 +84,7 @@ outbreaker_data <- function(..., data = list(...)) {
                    prop_place_observed = NULL,
                    has_ctd_timed = NULL,
                    p_wrong = 0,
+                   id_in_f = integer(0),
                    id_in_dna = integer(0))
 
   ## MODIFY DATA WITH ARGUMENTS ##
@@ -100,8 +101,12 @@ outbreaker_data <- function(..., data = list(...)) {
     if (inherits(data$dates, "POSIXct")) {
       data$dates <- difftime(data$dates, min_date, units="days")
     }
-    data$dates <- as.integer(round(data$dates))
+    data$dates <- setNames(as.integer(round(data$dates)), names(data$dates))
     data$dates <- data$dates - min(data$dates)
+    ## assign 'default' name for mapping to f_dens
+    if(is.null(names(data$dates))) {
+      names(data$dates) <- rep("default", length(data$dates))
+    }
     data$N <- length(data$dates)
     data$max_range <- diff(range(data$dates))
   }
@@ -186,16 +191,26 @@ outbreaker_data <- function(..., data = list(...)) {
     data$f_dens <- data$w_dens
   }
   if (!is.null(data$f_dens)) {
+    if(!inherits(data$f_dens, c("matrix", "numeric"))) {
+      stop("f_dens must be a numeric matrix or vector")
+    }
+    if(!is.matrix(data$f_dens)) {
+      data$f_dens <- matrix(data$f_dens, ncol = 1, dimnames = list(NULL, "default"))
+    }
     if (any(data$f_dens<0)) {
       stop("f_dens has negative entries (these should be probabilities!)")
     }
-
     if (any(!is.finite(data$f_dens))) {
       stop("non-finite values detected in f_dens")
     }
-
-    data$f_dens <- data$f_dens / sum(data$f_dens)
-    data$log_f_dens <- log(data$f_dens)
+    missing_f <- names(data$dates)[!names(data$dates) %in% colnames(data$f_dens)]
+    if (length(missing_f) > 0) {
+      stop(sprintf("incubation periods were not defined for the following groups: %s",
+                   paste0(unique(missing_f), collapse = ", ")))
+    }
+    data$f_dens <- apply(data$f_dens, 2, function(x) x/sum(x))
+    data$log_f_dens <- apply(data$f_dens, 2, log)
+    data$id_in_f <- match(names(data$dates), colnames(data$f_dens))
   }
 
   ## Add temporal ordering constraints using Serial Interval
@@ -213,10 +228,10 @@ outbreaker_data <- function(..., data = list(...)) {
     ## This allows for i to infect j even if it sampled after (SI < 0)
     .can_be_ances <- function(date1, date2, SI) {
       tdiff <- date2 - date1
-      out <- sapply(tdiff, function(i) if(i %in% SI$x) return(TRUE) else return(FALSE))
+      out <- sapply(tdiff, function(i) return(i %in% SI$x))
       return(out)
     }
-    SI <- .get_SI(data$w_dens, data$f_dens)
+    SI <- .get_SI(data$w_dens, data$f_dens[,1])
     data$can_be_ances <- outer(data$dates,
                                data$dates,
                                FUN=.can_be_ances,

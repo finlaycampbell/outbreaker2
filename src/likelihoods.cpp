@@ -380,7 +380,8 @@ double cpp_ll_timing_sampling(Rcpp::List data, Rcpp::List param, SEXP i,
 
     Rcpp::IntegerVector dates = data["dates"];
     Rcpp::IntegerVector t_inf = param["t_inf"];
-    Rcpp::NumericVector f_dens = data["log_f_dens"];
+    Rcpp::IntegerVector id_in_f = data["id_in_f"];
+    Rcpp::NumericMatrix f_dens = data["log_f_dens"];
 
     double out = 0.0;
     size_t delay;
@@ -390,10 +391,11 @@ double cpp_ll_timing_sampling(Rcpp::List data, Rcpp::List param, SEXP i,
     if (i == R_NilValue) {
       for (size_t j = 0; j < N; j++) {
 	delay = dates[j] - t_inf[j];
-	if (delay < 1 || delay > f_dens.size()) {
+	// Rprintf("j %d | delay %d | nrow %d | log \n", j, delay, f_dens.nrow(), f_dens(delay - 1, id_in_f[j] - 1));
+	if (delay < 1 || delay > f_dens.nrow()) {
 	  return  R_NegInf;
 	}
-	out += f_dens[delay - 1];
+	out += f_dens(delay - 1, id_in_f[j] - 1);
       }
     } else {
       // only the cases listed in 'i' are retained
@@ -402,10 +404,10 @@ double cpp_ll_timing_sampling(Rcpp::List data, Rcpp::List param, SEXP i,
       for (size_t k = 0; k < length_i; k++) {
 	j = vec_i[k] - 1; // offset
 	delay = dates[j] - t_inf[j];
-	if (delay < 1 || delay > f_dens.size()) {
+	if (delay < 1 || delay > f_dens.nrow()) {
 	  return  R_NegInf;
 	}
-	out += f_dens[delay - 1];
+	out += f_dens(delay - 1, id_in_f[j] - 1);
       }
     }
 
