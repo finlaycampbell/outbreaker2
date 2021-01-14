@@ -248,7 +248,7 @@ outbreaker_data <- function(..., data = list(...)) {
     ## get matrix of distances
 
     data$L <- ncol(data$dna) #  (genome length)
-    data$D <- as.matrix(ape::dist.dna(data$dna, model="N")) # distance matrix
+    data$D <- as.matrix(ape::dist.dna(data$dna, model="N", pairwise.deletion = TRUE)) # distance matrix
     storage.mode(data$D) <- "integer" # essential for C/C++ interface
 
     ## get matching between sequences and cases

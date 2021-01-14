@@ -1,5 +1,6 @@
 #include <Rcpp.h>
 #include <Rmath.h>
+#include <algorithm>		// std::random_shuffle
 #include "internals.h"
 #include "likelihoods.h"
 #include "priors.h"
@@ -1112,9 +1113,15 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data, Rcpp::List con
 
   Rcpp::List ctd_timed_matrix_list = Rcpp::as<Rcpp::List>(data["ctd_timed_matrix"]);
   size_t n_mat = ctd_timed_matrix_list.size();
-  
+
+  // Shuffle indices to make equal cases equally likely
+  Rcpp::IntegerVector idx = Rcpp::seq(0, N-1);
+  std::random_shuffle (idx.begin(), idx.end());
+
   for (size_t i = 0; i < N; i++) {
 
+    size_t i = (size_t)idx[j];
+    
     // only non-NA ancestries are moved, if there is at least 1 choice
     if (alpha[i] != NA_INTEGER &&
 	sum(t_inf < t_inf[i]) > 0 &&
