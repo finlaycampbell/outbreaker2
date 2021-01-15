@@ -1118,7 +1118,7 @@ Rcpp::List cpp_move_swap_cases(Rcpp::List param, Rcpp::List data, Rcpp::List con
   Rcpp::IntegerVector idx = Rcpp::seq(0, N-1);
   std::random_shuffle (idx.begin(), idx.end());
 
-  for (size_t i = 0; i < N; i++) {
+  for (size_t j = 0; j < N; j++) {
 
     size_t i = (size_t)idx[j];
     
