@@ -611,7 +611,7 @@ outbreaker_data <- function(..., data = list(...)) {
       tmp[length(tmp)] <- tmp[length(tmp)]*data$N_place_unobserved[i]
       data$pp_place_adj[[i]] <- tmp
 
-      ## fill timeline with places (not in a place = 0)
+      ## fill timeline with places (unknown place = 0)
       for(j in 1:nrow(sub)) {
         ind <- (sub[j,3] + data$C_ind + 1):(sub[j,4] + data$C_ind + 1)
         val <- if(is.na(sub[j, 2])) 0 else match(sub[j, 2], place_order[[i]])
