@@ -94,7 +94,7 @@ double cpp_prior_tau(Rcpp::List param, Rcpp::List config,
     Rcpp::LogicalVector move_tau = config["move_tau"];
     double out = 0;
     for(size_t i = 0; i < tau.size(); i++) {
-      if(move_tau) {
+      if(move_tau[i]) {
 	out += R::dbeta(tau[i],
 			(double) shape(i, 0),
 			(double) shape(i, 1),
