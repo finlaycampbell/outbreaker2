@@ -123,8 +123,8 @@
 #' \item{max_kappa}{an integer indicating the largest number of generations
 #' between any two linked cases; defaults to 5}
 #'
-#' \item{prior_mu}{a numeric vector of length 2 indicating the first and second
-#' parameter of the gamma prior for the mutation rate 'mu'}
+#' \item{prior_mu}{a numeric value indicating the rate of the exponential prior
+#' for the mutation rate 'mu'}
 #'
 #' \item{prior_pi}{a numeric vector of length 2 indicating the first and second
 #' parameter of the beta prior for the reporting probability 'pi'}

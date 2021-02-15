@@ -200,6 +200,7 @@ double cpp_prior_lambda(Rcpp::List param, Rcpp::List config,
 			true);
       }
     }
+    return(out);
   } else {
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
 
