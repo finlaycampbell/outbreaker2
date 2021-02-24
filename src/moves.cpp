@@ -594,7 +594,7 @@ Rcpp::List cpp_move_lambda(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 // previous pointer defining param["t_inf"].
 
 // [[Rcpp::export(rng = true)]]
-Rcpp::List cpp_move_t_inf(Rcpp::List param, Rcpp::List data,
+Rcpp::List cpp_move_t_inf(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 			  Rcpp::RObject list_custom_ll = R_NilValue) {
 
   // deep copy here for now, ultimately should be an arg.
@@ -606,6 +606,18 @@ Rcpp::List cpp_move_t_inf(Rcpp::List param, Rcpp::List data,
   Rcpp::IntegerVector local_cases;
   size_t N = static_cast<size_t>(data["N"]);
 
+  // standard deviation of normal proposal for infection times
+  double sd_t_inf = static_cast<double>(config["sd_t_inf"]);
+
+  // define the vectors to sample from  
+  Rcpp::IntegerVector sample_from = Rcpp::seq(1, 50);
+
+  // change in infection time
+  int t_inf_change;
+  
+  // define probabilities
+  Rcpp::NumericVector sample_from_prob = Rcpp::dnorm(sample_from, 0.0, sd_t_inf);
+  
   double old_loglike = 0.0, new_loglike = 0.0, p_accept = 0.0;
   double old_loc_loglike = 0.0, new_loc_loglike = 0.0, p_loc_accept = 0.0;
 
@@ -625,8 +637,11 @@ Rcpp::List cpp_move_t_inf(Rcpp::List param, Rcpp::List data,
       old_loc_loglike += cpp_ll_timing(data, param, local_cases, list_custom_ll);
     }
     
-    // proposal (+/- 1)
-    new_t_inf[i] += unif_rand() > 0.5 ? 1 : -1; // new proposed value
+    // draw change in t_inf
+    t_inf_change = Rcpp::as<int>(Rcpp::sample(sample_from, 1, true, sample_from_prob));
+
+    // new proposed value (either add or subtract)
+    new_t_inf[i] += unif_rand() > 0.5 ? t_inf_change : -1*t_inf_change;
     
     // loglike with new value
     // term for case 'i' with offset

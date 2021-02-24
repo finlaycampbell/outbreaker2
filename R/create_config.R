@@ -207,6 +207,7 @@ create_config <- function(..., data = NULL) {
                    n_iter = 1e4, sample_every = 50,
                    sd_mu = 0.0001, sd_pi = 0.1,
                    sd_eps = 0.1, sd_eta = 0.1, sd_lambda = 0.05, sd_tau = 0.1,
+                   sd_t_inf = 1.0,
                    sd_t_onw = 5.0,
                    prop_alpha_move = 1/4,
                    prop_eps_move = 0.05,
@@ -558,6 +559,17 @@ create_config <- function(..., data = NULL) {
   }
   if (!is.finite(config$sd_pi)) {
     stop("sd_pi is infinite or NA")
+  }
+
+  ## check sd_t_inf
+  if (!is.numeric(config$sd_t_inf)) {
+    stop("sd_t_inf is not a numeric value")
+  }
+  if (config$sd_t_inf < 1e-10) {
+    stop("sd_t_inf is close to zero or negative")
+  }
+  if (!is.finite(config$sd_t_inf)) {
+    stop("sd_t_inf is infinite or NA")
   }
 
   ## check sd_t_onw

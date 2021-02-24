@@ -383,6 +383,7 @@ outbreaker_data <- function(..., data = list(...)) {
     if (!inherits(data$ctd_timed, c("matrix", "data.frame"))) {
       stop("ctd_timed is not a matrix or data.frame")
     }
+    if (inherits(data$ctd_timed, "tbl")) data$ctd_timed <- as.data.frame(data$ctd_timed)
     if(!ncol(data$ctd_timed) %in% c(4, 5)) {
       stop(paste0("Timed contact data must have four columns (ID | Place",
                   " | Start date | End date), with an optional fifth column",

@@ -73,9 +73,9 @@ print.outbreaker_chains <- function(x, n_row = 3, n_col = 8, ...) {
 #' @seealso See \href{http://www.repidemicsconsortium.org/outbreaker2/articles/introduction.html#graphics}{introduction vignette} for detailed examples on how to visualise \code{outbreaker_chains} objects.
 #'
 #' @details \code{type} indicates the type of graphic to plot:
-#' 
+#'
 #' \itemize{
-#' 
+#'
 #' \item \code{trace} to visualise MCMC traces for parameters or augmented data (plots the
 #' log-likelihood by default)
 #'
@@ -96,7 +96,8 @@ print.outbreaker_chains <- function(x, n_row = 3, n_col = 8, ...) {
 #' }
 #'
 #' @importFrom ggplot2 ggplot geom_line geom_point geom_histogram geom_density
-#' geom_violin aes aes_string coord_flip labs guides scale_size_area
+#'   geom_violin aes aes_string coord_flip labs guides scale_size_area
+#'   scale_x_discrete scale_y_discrete
 #'
 #' @importFrom grDevices xyTable
 #' @importFrom graphics plot
@@ -177,7 +178,7 @@ plot.outbreaker_chains <- function(x, y = "post",
     }
 
     tmp <- get_lab_color(...)
-    
+
     out_dat[3] <- vapply(seq_along(out_dat[[3]]), get_prop, 1)
     out_dat$from <- factor(out_dat$from, levels = c(0, sort(unique(out_dat$to))))
     out_dat$to <- factor(out_dat$to, levels = sort(unique(out_dat$to)))
@@ -376,7 +377,7 @@ summary.outbreaker_chains <- function(object, burnin = 0, ...) {
   if(ncol(place) > 0) {
     out$tree$place <- apply(place, 2, f1)
   }
-  
+
   ## function to get frequency of most frequent item
   f2 <- function(x) {
     (sort(table(x), decreasing = TRUE)/length(x))[1]
