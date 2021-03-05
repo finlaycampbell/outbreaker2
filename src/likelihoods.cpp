@@ -780,20 +780,14 @@ double cpp_ll_timeline(Rcpp::List data, Rcpp::List param, SEXP i,
 	    ind2 = t_onw[j] + C_ind;
 	  }
 	  
-	  w1 = static_cast<int>(timeline(j, ind1));
-	  w2 = static_cast<int>(timeline(alpha[j] - 1, ind2));
-
-	  //	  if(w1 != 0 && w2 != 0 && m == 0) {
-	    // std::printf("t_inf = %i | ind1 = %i | i = %i | alpha_i = %i | w1 = %i | w2 = %i | ll = %f | ind = %i\n", t_inf[j], ind1, j+1, alpha[j], w1, w2, log(trans_mat(N_place*N_place*(kappa[j]-1) + N_place*(w1) + w2)), m);
-	    //	  }
-	    
-	  if(ind1 >= 0 &&
-	     ind1 < timeline.ncol() &&
-	     ind2 >= 0 &&
-	     ind2 < timeline.ncol() &&
-	     w1 != -1 &&
-	     w2 != -1) {
-	    out += log(trans_mat(N_place*N_place*(kappa[j]-1) + N_place*(w1) + w2));
+	  if(ind1 >= 0 && ind1 < timeline.ncol() && ind2 >= 0 && ind2 < timeline.ncol()) {
+	    w1 = static_cast<int>(timeline(j, ind1));
+	    w2 = static_cast<int>(timeline(alpha[j] - 1, ind2));
+	    if(w1 != -1 && w2 != -1) {
+	      out += log(trans_mat(N_place*N_place*(kappa[j]-1) + N_place*(w1) + w2));
+	    } else {
+	      out +=  log(p_wrong);
+	    }
 	  } else {
 	    // std::printf("t_inf = %i | ind1 = %i | i = %i | alpha_i = %i | w1 = %i | w2 = %i | ind = %i\n", t_inf[j], ind1, j+1, alpha[j], w1, w2, m);
 	    out +=  log(p_wrong);
