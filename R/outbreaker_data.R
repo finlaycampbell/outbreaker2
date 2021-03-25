@@ -327,6 +327,9 @@ outbreaker_data <- function(..., data = list(...)) {
       stop("ctd must have two columns")
     }
 
+    ## convert tbls to dataframes for subsetting
+    if(inherits(data$ctd, "tbl")) data$ctd <- as.data.frame(data$ctd)
+
     ## Convert to character to prevent factors from interfering
     data$ctd[,1] <- as.character(data$ctd[,1])
     data$ctd[,2] <- as.character(data$ctd[,2])
@@ -334,6 +337,7 @@ outbreaker_data <- function(..., data = list(...)) {
     ## Ensure all cases found in linelist
     unq <- unique(unlist(data$ctd[,1:2]))
     not_found <- unq[!unq %in% data$ids]
+
     if (length(not_found) != 0) {
       stop(paste("Individual(s)", paste(not_found, collapse = ", "),
                  "are unknown cases (idx < 1 or > N")
