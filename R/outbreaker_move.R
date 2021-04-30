@@ -32,7 +32,11 @@ outbreaker_move <- function(moves, data, param_current,
 
     ## move parameters / augmented data
     for (j in seq_len(J)) {
-      hi <<- param_current
+      param <<- param_current
+      moves <<- moves
+      data <<- data
+      config <<- config
+      ## stop()
       ## move parameters
       param_current <- moves[[j]](param_current)
 
@@ -58,7 +62,7 @@ outbreaker_move <- function(moves, data, param_current,
   } # end of the chain
 
   cat("\n")
-  
+
   ## output is a list of saved chain states
   return(param_store)
 }

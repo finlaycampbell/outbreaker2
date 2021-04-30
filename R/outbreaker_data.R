@@ -48,7 +48,7 @@
 #' outbreaker_data(dates = x$sample, dna = x$dna, w_dens = x$w)
 #'
 outbreaker_data <- function(..., data = list(...)) {
-  
+
   ## SET DEFAULTS ##
   defaults <- list(dates = NULL,
                    w_dens = NULL,
@@ -182,7 +182,7 @@ outbreaker_data <- function(..., data = list(...)) {
     data$w_unobs <- data$w_dens
     data$log_w_unobs <- data$log_w_dens
   }
-  
+
   ## CHECK F_DENS
   if (!is.null(data$w_dens) && is.null(data$f_dens)) {
     data$f_dens <- data$w_dens
@@ -256,6 +256,30 @@ outbreaker_data <- function(..., data = list(...)) {
       stop("DNA sequence labels don't match case ids")
     }
 
+  } else if(!is.null(data$D)) {
+    if(nrow(data$D) > 0) {
+
+      if (!inherits(data$D, "matrix")) stop("D is not a matrix.")
+      if(is.null(data$L)) stop("Genome length L must be provided")
+      storage.mode(data$D) <- "integer" # essential for C/C++ interface
+
+      if (is.null(rownames(data$D)) | is.null(colnames(data$D))) {
+        if (nrow(data$D) != data$N) {
+          msg <- sprintf(paste("numbers of sequences and cases differ (%d vs %d):",
+                               "please label sequences"),
+                         nrow(data$D), data$N)
+          stop(msg)
+        }
+
+        rownames(data$D) <- colnames(data$D) <- seq_len(data$N)
+      }
+
+      data$id_in_dna <- match(as.character(data$ids), rownames(data$D))
+      if(all(is.na(data$id_in_dna))) {
+        stop("DNA sequence labels don't match case ids")
+      }
+
+    }
   } else {
     data$L <- 0L
     data$D <- matrix(integer(0), ncol = 0, nrow = 0)
@@ -299,18 +323,21 @@ outbreaker_data <- function(..., data = list(...)) {
   } else {
     data$dna_dates <- data$dates[which(!is.na(data$id_in_dna))]
   }
-  
+
 
   ## CHECK CTD
   if (!is.null(data$ctd)) {
-    
+
     if (!inherits(data$ctd, c("matrix", "data.frame"))) {
       stop("ctd is not a matrix or data.frame")
     }
-    
+
     if(! ncol(data$ctd) %in% c(2, 3)) {
       stop("ctd must have two columns")
     }
+
+    ## convert tibble to df for subsetting
+    if(inherits(data$ctd, "tbl")) data$ctd <- as.data.frame(data$ctd)
 
     ## Convert to character to prevent factors from interfering
     data$ctd[,1] <- as.character(data$ctd[,1])
@@ -351,7 +378,7 @@ outbreaker_data <- function(..., data = list(...)) {
       }
       data$ctd_matrix[[i]] <- mat
     }
-    
+
     if(data$ctd_directed) {
       data$C_combn <- data$N*(data$N - 1)
     } else {
@@ -394,7 +421,7 @@ outbreaker_data <- function(..., data = list(...)) {
 
     ## Set place names as characters to prevent accidental indexing with numbers
     data$ctd_timed[,2] <- as.character(data$ctd_timed[,2])
-    
+
     ## Set min(data$date) as day = 0 and adjust contact dates accordingly
     if (inherits(data$ctd_timed[,3], "Date")) {
       data$ctd_timed[,3] <- data$ctd_timed[,3] - min_date
@@ -428,7 +455,7 @@ outbreaker_data <- function(..., data = list(...)) {
     } else {
       data$p_place <- vector("list", n_types)
     }
-    
+
     ## check p_trans
     if(!is.null(data$p_trans)) {
       if(length(data$p_trans) != n_types) {
@@ -463,7 +490,7 @@ outbreaker_data <- function(..., data = list(...)) {
 
     ## the inferred number of unobserved places
     data$N_place_unobserved = numeric(n_types)
-    
+
     ## pass places as numbers rather than strings to speed up comparison
     ## these numbers will refer to the indices in the transition matrices
     place_order <- tapply(data$ctd_timed[,2], data$ctd_timed[,5], unique)
@@ -482,7 +509,7 @@ outbreaker_data <- function(..., data = list(...)) {
     get_n_unobs <- function(n_obs, prop) {
       ceiling(n_obs*((1 - prop)/prop))
     }
-    
+
     ## insert places into timelines - note this will overwrite previous
     ## locations if multiple locations are provided for the same date - we also
     ## calculate transition probabilities for each contact type
@@ -499,7 +526,7 @@ outbreaker_data <- function(..., data = list(...)) {
 
       ## check p_place
       if(!is.null(data$p_place[[i]])) {
-        
+
         if(!length(data$p_place[[i]]) %in% c(unq, unq + 1)) {
           stop(sprintf(paste("%d probabilities provided in p_place, but",
                              "%d required (one for each place)"),
@@ -513,11 +540,11 @@ outbreaker_data <- function(..., data = list(...)) {
 
         ## if not provided assume equal prior probability of all places
         data$p_place[[i]] <- rep(1/unq, unq)
-        
+
       }
-      
+
       if(is.null(data$p_trans[[i]])) {
-        
+
         ## calculate transition matrices for all pairwise combinations of observed places
         comb <- expand.grid(1:unq, 1:unq)
         data$p_trans[[i]] <- matrix(apply(comb, 1, get_trans, data$p_place[[i]]), unq)
@@ -529,15 +556,15 @@ outbreaker_data <- function(..., data = list(...)) {
                              "%dx%d required (one row for each place)"),
                        ncol(data$p_trans[[i]]), nrow(data$p_trans[[i]]), unq, unq))
         }
-        
+
         if(!all(vapply(apply(data$p_trans[[i]], 1, sum), all.equal, TRUE, 1))) {
           stop("Rows of transition matrices must sum to 1")
         }
 
       } else {
-        
+
         stop("p_trans must be NULL or a matrix")
-        
+
       }
 
       ## update p_place and p_trans to account for 'unobserved' places - these
@@ -584,7 +611,7 @@ outbreaker_data <- function(..., data = list(...)) {
       tmp <- data$pp_trans[[i]]
       tmp[,ncol(tmp)] <- tmp[,ncol(tmp)]*data$N_place_unobserved[i]
       data$pp_trans_adj[[i]] <- tmp
-      
+
       ## update prior probability to include unobserved places
       data$pp_place[[i]] <- c(data$p_place[[i]]*data$prop_place_observed[i], p_unob)
 
@@ -593,15 +620,15 @@ outbreaker_data <- function(..., data = list(...)) {
       tmp <- data$pp_place[[i]]
       tmp[length(tmp)] <- tmp[length(tmp)]*data$N_place_unobserved[i]
       data$pp_place_adj[[i]] <- tmp
-      
+
       ## fill timeline with places (not in a place = 0)
       for(j in 1:nrow(sub)) {
         ind <- (sub[j,3] + data$C_ind + 1):(sub[j,4] + data$C_ind + 1)
         mat[match(sub[j, 1], data$ids), ind] <- match(sub[j, 2], place_order[[i]])
       }
-      
+
       data$ctd_timed_matrix[[i]] <- mat
-      
+
     }
 
     ## number of unique places for each contact type
@@ -609,7 +636,7 @@ outbreaker_data <- function(..., data = list(...)) {
     data$N_times <- as.integer(t_range)
 
     data$has_ctd_timed <- TRUE
-    
+
   } else {
     data$ctd_timed_matrix <- data$pp_place <- data$pp_place_adj <- list()
     data$pp_trans <- data$pp_trans_adj <- matrix(0, nrow = 0, ncol = 0)
@@ -619,7 +646,7 @@ outbreaker_data <- function(..., data = list(...)) {
           data$N_place_unobserved <- numeric()
     data$has_ctd_timed <- FALSE
   }
-  
+
   ## output is a list of checked data
   return(data)
 

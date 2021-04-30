@@ -720,13 +720,24 @@ Rcpp::List cpp_move_alpha(Rcpp::List param, Rcpp::List data,
 
       // acceptance term
       p_accept = exp(new_loglike - old_loglike);
+
       
       // which case we restore the previous ('old') value
       if (p_accept < unif_rand()) { // reject new values
+
+	// Rprintf("\n rejecting: %f  old ll:  %f  new ll: %f",
+	// 	p_accept, old_loglike, new_loglike);
+
+	
 	new_alpha[i] = alpha[i];
 	new_ancestors = clone(ancestors);
 	new_mrca = clone(mrca);
       } else {
+
+	// Rprintf("\n accepting: %f  old ll:  %f  new ll: %f",
+	// 	p_accept, old_loglike, new_loglike);
+
+	
 	alpha[i] = new_alpha[i];
 	ancestors = clone(new_ancestors);
 	mrca = clone(new_mrca);
