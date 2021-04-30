@@ -44,7 +44,7 @@
 #'
 #' \item{init_eta}{initial value for the contact sensitivity (e.g. the
 #' proportion of transmission that have this type of contact)}
-#' 
+#'
 #' \item{n_iter}{an integer indicating the number of iterations in the MCMC,
 #' including the burnin period}
 #'
@@ -65,7 +65,7 @@
 #' \item{move_eps}{a logical indicating whether the contact reporting coverage
 #' should be estimated ('moved' in the MCMC), or not at all, defaulting to
 #' TRUE.}
-#' 
+#'
 #'\item{move_eta}{a logical indicating whether the contact sensitivity
 #' should be estimated ('moved' in the MCMC), or not at all, defaulting to
 #' TRUE.}
@@ -123,8 +123,8 @@
 #' \item{max_kappa}{an integer indicating the largest number of generations
 #' between any two linked cases; defaults to 5}
 #'
-#' \item{prior_mu}{a numeric vector of length 2 indicating the first and second
-#' parameter of the gamma prior for the mutation rate 'mu'}
+#' \item{prior_mu}{a numeric value indicating the rate of the exponential prior
+#' for the mutation rate 'mu'}
 #'
 #' \item{prior_pi}{a numeric vector of length 2 indicating the first and second
 #' parameter of the beta prior for the reporting probability 'pi'}
@@ -207,6 +207,7 @@ create_config <- function(..., data = NULL) {
                    n_iter = 1e4, sample_every = 50,
                    sd_mu = 0.0001, sd_pi = 0.1,
                    sd_eps = 0.1, sd_eta = 0.1, sd_lambda = 0.05, sd_tau = 0.1,
+                   sd_t_inf = 1.0,
                    sd_t_onw = 5.0,
                    prop_alpha_move = 1/4,
                    prop_eps_move = 0.05,
@@ -221,7 +222,7 @@ create_config <- function(..., data = NULL) {
                    n_iter_import = 5000,
                    sample_every_import = 50,
                    p_wrong = 0,
-                   prior_mu = c(0.01, 0.01),
+                   prior_mu = 1,
                    prior_pi = c(10,1),
                    prior_tau = c(2,2),
                    prior_eps = c(1,1),
@@ -432,7 +433,7 @@ create_config <- function(..., data = NULL) {
   if (any(is.na(config$move_t_inf))) {
     stop("move_t_inf has NAs")
   }
-  
+
   ## check move_mu
   if (!is.logical(config$move_mu)) {
     stop("move_mu is not a logical")
@@ -560,6 +561,17 @@ create_config <- function(..., data = NULL) {
     stop("sd_pi is infinite or NA")
   }
 
+  ## check sd_t_inf
+  if (!is.numeric(config$sd_t_inf)) {
+    stop("sd_t_inf is not a numeric value")
+  }
+  if (config$sd_t_inf < 1e-10) {
+    stop("sd_t_inf is close to zero or negative")
+  }
+  if (!is.finite(config$sd_t_inf)) {
+    stop("sd_t_inf is infinite or NA")
+  }
+
   ## check sd_t_onw
   if (!is.numeric(config$sd_t_onw)) {
     stop("sd_t_onw is not a numeric value")
@@ -666,7 +678,7 @@ create_config <- function(..., data = NULL) {
   if (!is.finite(config$prop_eps_move)) {
     stop("prop_eps_move is infinite or NA")
   }
-  
+
   ## check prop_tau_move
   if (!is.numeric(config$prop_tau_move)) {
     stop("prop_tau_move is not a numeric value")
@@ -911,13 +923,13 @@ create_config <- function(..., data = NULL) {
       ## check initial tree
       if (config$init_tree=="seqTrack" &&
           nrow(data$dna) != data$N) {
-        msg <- sprintf(paste("Can't use seqTrack initialization when", 
+        msg <- sprintf(paste("Can't use seqTrack initialization when",
                              "numbers of sequences and cases differ",
                              "(%d vs %d)"), nrow(data$dna), data$N)
         message(msg)
         config$init_tree <- "star"
       }
-      
+
       ## seqTrack init
       if (config$init_tree=="seqTrack") {
 
@@ -926,7 +938,7 @@ create_config <- function(..., data = NULL) {
                               data$dates,
                               FUN="<")
         diag(potent_ances) <- FALSE
-        
+
         D_temp <- data$D
         D_temp[!potent_ances] <- 1e30
         config$init_alpha <- apply(D_temp,2,which.min)
@@ -1015,7 +1027,7 @@ create_config <- function(..., data = NULL) {
         stop(msg)
       }
     }
-    
+
     ## disable moves for mu if no DNA sequences
     if(is.null(data$D) || nrow(data$D)<1) {
       config$move_mu <- FALSE
@@ -1031,7 +1043,7 @@ create_config <- function(..., data = NULL) {
     } else if(have_ctd & !have_ctd_timed) {
       config$move_tau <- FALSE
     }
-    
+
   }
 
   ## output is a list of checked settings with a dedicated class (for

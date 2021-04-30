@@ -68,7 +68,7 @@ bind_moves <- function(moves = custom_moves(), config, data,
                                 )
   }
 
-  
+
   ## remove move$eta if disabled
   if (all(!config$move_eta)) {
     out$eta <- NULL
@@ -104,7 +104,7 @@ bind_moves <- function(moves = custom_moves(), config, data,
                                   )
   }
 
-  
+
   ## remove move$joint if no ancestry can be moved
   if (!any(config$move_joint)) {
     out$joint <- NULL
@@ -137,6 +137,7 @@ bind_moves <- function(moves = custom_moves(), config, data,
   } else {
     out$t_inf <- bind_to_function(out$t_inf,
                                   data = data,
+                                  config = config,
                                   list_custom_ll = likelihoods
                                   )
   }

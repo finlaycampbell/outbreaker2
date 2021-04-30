@@ -32,11 +32,7 @@ outbreaker_move <- function(moves, data, param_current,
 
     ## move parameters / augmented data
     for (j in seq_len(J)) {
-      param <<- param_current
-      moves <<- moves
-      data <<- data
-      config <<- config
-      ## stop()
+
       ## move parameters
       param_current <- moves[[j]](param_current)
 

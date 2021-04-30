@@ -133,8 +133,8 @@ cpp_move_lambda <- function(param, data, config, custom_ll = NULL, custom_prior 
     .Call(`_outbreaker2_cpp_move_lambda`, param, data, config, custom_ll, custom_prior)
 }
 
-cpp_move_t_inf <- function(param, data, list_custom_ll = NULL) {
-    .Call(`_outbreaker2_cpp_move_t_inf`, param, data, list_custom_ll)
+cpp_move_t_inf <- function(param, data, config, list_custom_ll = NULL) {
+    .Call(`_outbreaker2_cpp_move_t_inf`, param, data, config, list_custom_ll)
 }
 
 cpp_move_alpha <- function(param, data, list_custom_ll = NULL) {

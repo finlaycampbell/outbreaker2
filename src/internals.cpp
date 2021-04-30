@@ -245,7 +245,7 @@ Rcpp::List cpp_swap_cases(Rcpp::List param, size_t i, bool swap_place) {
   // if we want to swap imports, we can set swap_place to TRUE
   
   size_t x = (size_t) alpha_in[i-1];
-  if (alpha_in[x-1] == NA_INTEGER && !swap_place) {
+  if (alpha_in[x-1] == NA_INTEGER) {
    return out;
   }
   

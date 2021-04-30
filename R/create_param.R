@@ -170,14 +170,14 @@ create_param <- function(data = outbreaker_data(),
     trans_mat <- list()
   }
 
-  ## Calculate initial ancestor tree if genetic sequences provided
-  if(!is.null(data$dna) | nrow(data$D) > 0) {
-    ancestors <- matrix(0, data$N, data$N)
-    ancestors <- cpp_find_ancestors(current_alpha, ancestors, NULL)
-    mrca <- t(apply(data$dna_combn, 1, function(x) cpp_find_mrca(x[1], x[2], ancestors)))
-  } else {
-    ancestors <- mrca <- matrix(0, 0, 0)
-  }
+  ## ## Calculate initial ancestor tree if genetic sequences provided
+  ## if(!is.null(data$dna)) {
+  ##   ancestors <- matrix(0, data$N, data$N)
+  ##   ancestors <- cpp_find_ancestors(current_alpha, ancestors, NULL)
+  ##   mrca <- t(apply(data$dna_combn, 1, function(x) cpp_find_mrca(x[1], x[2], ancestors)))
+  ## } else {
+  ##   ancestors <- mrca <- matrix(0, 0, 0)
+  ## }
 
   counter <- 1L
 
@@ -197,7 +197,7 @@ create_param <- function(data = outbreaker_data(),
                    kappa = current_kappa, pi = current_pi, tau = current_tau,
                    eps = current_eps, eta = current_eta,
                    lambda = current_lambda,
-                   trans_mat = trans_mat, ancestors = ancestors, mrca = mrca)
+                   trans_mat = trans_mat)
   class(current) <- c("outbreaker_param", "list")
 
   ## tmp <- cpp_swap_cases(current, 1, FALSE)

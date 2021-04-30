@@ -54,10 +54,8 @@ outbreaker_data <- function(..., data = list(...)) {
                    w_dens = NULL,
                    f_dens = NULL,
                    dna = NULL,
-                   dna_dates = NULL,
                    ctd = NULL,
                    ctd_timed = NULL,
-                   wards = NULL,
                    ids = NULL,
                    ctd_directed = FALSE,
                    w_unobs = NULL,
@@ -86,6 +84,7 @@ outbreaker_data <- function(..., data = list(...)) {
                    prop_place_observed = NULL,
                    has_ctd_timed = NULL,
                    p_wrong = 0,
+                   id_in_f = integer(0),
                    id_in_dna = integer(0))
 
   ## MODIFY DATA WITH ARGUMENTS ##
@@ -102,8 +101,12 @@ outbreaker_data <- function(..., data = list(...)) {
     if (inherits(data$dates, "POSIXct")) {
       data$dates <- difftime(data$dates, min_date, units="days")
     }
-    data$dates <- as.integer(round(data$dates))
+    data$dates <- setNames(as.integer(round(data$dates)), names(data$dates))
     data$dates <- data$dates - min(data$dates)
+    ## assign 'default' name for mapping to f_dens
+    if(is.null(names(data$dates))) {
+      names(data$dates) <- rep("default", length(data$dates))
+    }
     data$N <- length(data$dates)
     data$max_range <- diff(range(data$dates))
   }
@@ -188,16 +191,26 @@ outbreaker_data <- function(..., data = list(...)) {
     data$f_dens <- data$w_dens
   }
   if (!is.null(data$f_dens)) {
+    if(!inherits(data$f_dens, c("matrix", "numeric"))) {
+      stop("f_dens must be a numeric matrix or vector")
+    }
+    if(!is.matrix(data$f_dens)) {
+      data$f_dens <- matrix(data$f_dens, ncol = 1, dimnames = list(NULL, "default"))
+    }
     if (any(data$f_dens<0)) {
       stop("f_dens has negative entries (these should be probabilities!)")
     }
-
     if (any(!is.finite(data$f_dens))) {
       stop("non-finite values detected in f_dens")
     }
-
-    data$f_dens <- data$f_dens / sum(data$f_dens)
-    data$log_f_dens <- log(data$f_dens)
+    missing_f <- names(data$dates)[!names(data$dates) %in% colnames(data$f_dens)]
+    if (length(missing_f) > 0) {
+      stop(sprintf("incubation periods were not defined for the following groups: %s",
+                   paste0(unique(missing_f), collapse = ", ")))
+    }
+    data$f_dens <- apply(data$f_dens, 2, function(x) x/sum(x))
+    data$log_f_dens <- apply(data$f_dens, 2, log)
+    data$id_in_f <- match(names(data$dates), colnames(data$f_dens))
   }
 
   ## Add temporal ordering constraints using Serial Interval
@@ -215,10 +228,10 @@ outbreaker_data <- function(..., data = list(...)) {
     ## This allows for i to infect j even if it sampled after (SI < 0)
     .can_be_ances <- function(date1, date2, SI) {
       tdiff <- date2 - date1
-      out <- sapply(tdiff, function(i) if(i %in% SI$x) return(TRUE) else return(FALSE))
+      out <- sapply(tdiff, function(i) return(i %in% SI$x))
       return(out)
     }
-    SI <- .get_SI(data$w_dens, data$f_dens)
+    SI <- .get_SI(data$w_dens, data$f_dens[,1])
     data$can_be_ances <- outer(data$dates,
                                data$dates,
                                FUN=.can_be_ances,
@@ -235,7 +248,9 @@ outbreaker_data <- function(..., data = list(...)) {
     ## get matrix of distances
 
     data$L <- ncol(data$dna) #  (genome length)
-    data$D <- as.matrix(ape::dist.dna(data$dna, model="N")) # distance matrix
+    if(is.null(data$D)) {
+      data$D <- as.matrix(ape::dist.dna(data$dna, model="N", pairwise.deletion = TRUE)) # distance matrix
+    }
     storage.mode(data$D) <- "integer" # essential for C/C++ interface
 
     ## get matching between sequences and cases
@@ -256,30 +271,6 @@ outbreaker_data <- function(..., data = list(...)) {
       stop("DNA sequence labels don't match case ids")
     }
 
-  } else if(!is.null(data$D)) {
-    if(nrow(data$D) > 0) {
-
-      if (!inherits(data$D, "matrix")) stop("D is not a matrix.")
-      if(is.null(data$L)) stop("Genome length L must be provided")
-      storage.mode(data$D) <- "integer" # essential for C/C++ interface
-
-      if (is.null(rownames(data$D)) | is.null(colnames(data$D))) {
-        if (nrow(data$D) != data$N) {
-          msg <- sprintf(paste("numbers of sequences and cases differ (%d vs %d):",
-                               "please label sequences"),
-                         nrow(data$D), data$N)
-          stop(msg)
-        }
-
-        rownames(data$D) <- colnames(data$D) <- seq_len(data$N)
-      }
-
-      data$id_in_dna <- match(as.character(data$ids), rownames(data$D))
-      if(all(is.na(data$id_in_dna))) {
-        stop("DNA sequence labels don't match case ids")
-      }
-
-    }
   } else {
     data$L <- 0L
     data$D <- matrix(integer(0), ncol = 0, nrow = 0)
@@ -287,42 +278,42 @@ outbreaker_data <- function(..., data = list(...)) {
   }
   data$has_dna <- !is.na(data$id_in_dna)
 
-  ## Find the minimum spanning tree between all cases; this defines the pairwise
-  ## distances we will be conditioning the likelihood on
-  if(sum(data$has_dna) > 1) {
-    ## mst <- ape::mst(1*dist.dna(data$dna, 'N'))
-    ## mst[lower.tri(mst, diag = TRUE)] <- 0
-    ## mst <- which(mst > 0, arr.ind = TRUE)
-    ## dst <- data$D[mst]
-    ## mst[] <- match(rownames(data$dna)[mst], data$ids)
-    ## data$dna_combn <- cbind(mst, dst)
-    data$has_dna_ind <- which(data$has_dna)
-    data$dna_combn <- t(combn(data$has_dna_ind, 2))
-    ind <- matrix(data$ids[data$dna_combn], ncol = 2)
-    data$dna_combn <- cbind(data$dna_combn, data$D[ind])
-  } else {
-    data$dna_combn <- matrix(0, 0, 0)
-  }
+  ## ## Find the minimum spanning tree between all cases; this defines the pairwise
+  ## ## distances we will be conditioning the likelihood on
+  ## if(sum(data$has_dna) > 1) {
+  ##   ## mst <- ape::mst(1*dist.dna(data$dna, 'N'))
+  ##   ## mst[lower.tri(mst, diag = TRUE)] <- 0
+  ##   ## mst <- which(mst > 0, arr.ind = TRUE)
+  ##   ## dst <- data$D[mst]
+  ##   ## mst[] <- match(rownames(data$dna)[mst], data$ids)
+  ##   ## data$dna_combn <- cbind(mst, dst)
+  ##   data$has_dna_ind <- which(data$has_dna)
+  ##   data$dna_combn <- t(combn(data$has_dna_ind, 2))
+  ##   ind <- matrix(data$ids[data$dna_combn], ncol = 2)
+  ##   data$dna_combn <- cbind(data$dna_combn, data$D[ind])
+  ## } else {
+  ##   data$dna_combn <- matrix(0, 0, 0)
+  ## }
 
 
-  ## CHECK DNA_DATES
-  if (!is.null(data$dna_dates)) {
-    if(is.null(data$dna)) {
-    } else if(length(data$dna_dates) != nrow(data$dna)) {
-      stop(sprintf("Different number of dna sequences and dna dates provided (%i vs %i)",
-                   nrow(data$dna), length(data$dna_dates)))
-    }
-    if (inherits(data$dna_dates, "Date")) {
-      data$dna_dates <- data$dna_dates - min_date
-    } else if (inherits(data$dna_dates, "POSIXct")) {
-      data$dna_dates <- difftime(data$dna_dates, min_date, units="days")
-    } else if (inherits(data$dna_dates, 'numeric')) {
-      data$dna_dates <- data$dna_dates - min_date
-    }
-    data$dna_dates <- as.integer(round(data$dna_dates))
-  } else {
-    data$dna_dates <- data$dates[which(!is.na(data$id_in_dna))]
-  }
+  ## ## CHECK DNA_DATES
+  ## if (!is.null(data$dna_dates)) {
+  ##   if(is.null(data$dna)) {
+  ##   } else if(length(data$dna_dates) != nrow(data$dna)) {
+  ##     stop(sprintf("Different number of dna sequences and dna dates provided (%i vs %i)",
+  ##                  nrow(data$dna), length(data$dna_dates)))
+  ##   }
+  ##   if (inherits(data$dna_dates, "Date")) {
+  ##     data$dna_dates <- data$dna_dates - min_date
+  ##   } else if (inherits(data$dna_dates, "POSIXct")) {
+  ##     data$dna_dates <- difftime(data$dna_dates, min_date, units="days")
+  ##   } else if (inherits(data$dna_dates, 'numeric')) {
+  ##     data$dna_dates <- data$dna_dates - min_date
+  ##   }
+  ##   data$dna_dates <- as.integer(round(data$dna_dates))
+  ## } else {
+  ##   data$dna_dates <- data$dates[which(!is.na(data$id_in_dna))]
+  ## }
 
 
   ## CHECK CTD
@@ -336,7 +327,7 @@ outbreaker_data <- function(..., data = list(...)) {
       stop("ctd must have two columns")
     }
 
-    ## convert tibble to df for subsetting
+    ## convert tbls to dataframes for subsetting
     if(inherits(data$ctd, "tbl")) data$ctd <- as.data.frame(data$ctd)
 
     ## Convert to character to prevent factors from interfering
@@ -346,6 +337,7 @@ outbreaker_data <- function(..., data = list(...)) {
     ## Ensure all cases found in linelist
     unq <- unique(unlist(data$ctd[,1:2]))
     not_found <- unq[!unq %in% data$ids]
+
     if (length(not_found) != 0) {
       stop(paste("Individual(s)", paste(not_found, collapse = ", "),
                  "are unknown cases (idx < 1 or > N")
@@ -397,6 +389,7 @@ outbreaker_data <- function(..., data = list(...)) {
     if (!inherits(data$ctd_timed, c("matrix", "data.frame"))) {
       stop("ctd_timed is not a matrix or data.frame")
     }
+    if (inherits(data$ctd_timed, "tbl")) data$ctd_timed <- as.data.frame(data$ctd_timed)
     if(!ncol(data$ctd_timed) %in% c(4, 5)) {
       stop(paste0("Timed contact data must have four columns (ID | Place",
                   " | Start date | End date), with an optional fifth column",
@@ -493,7 +486,11 @@ outbreaker_data <- function(..., data = list(...)) {
 
     ## pass places as numbers rather than strings to speed up comparison
     ## these numbers will refer to the indices in the transition matrices
-    place_order <- tapply(data$ctd_timed[,2], data$ctd_timed[,5], unique)
+    place_order <- tapply(
+      data$ctd_timed[,2],
+      data$ctd_timed[,5],
+      function(x) unique(x[!is.na(x)])
+    )
 
     ## total range of dates
     t_range <- max(data$ctd_timed[,4]) - min(data$ctd_timed[,3]) + 1
@@ -522,7 +519,7 @@ outbreaker_data <- function(..., data = list(...)) {
       unq <- length(place_order[[i]])
 
       ## construct timeline (each row is a case, each column is a day)
-      mat <- matrix(0, nrow = data$N, ncol = t_range)
+      mat <- matrix(-1, nrow = data$N, ncol = t_range)
 
       ## check p_place
       if(!is.null(data$p_place[[i]])) {
@@ -621,10 +618,11 @@ outbreaker_data <- function(..., data = list(...)) {
       tmp[length(tmp)] <- tmp[length(tmp)]*data$N_place_unobserved[i]
       data$pp_place_adj[[i]] <- tmp
 
-      ## fill timeline with places (not in a place = 0)
+      ## fill timeline with places (unknown place = 0)
       for(j in 1:nrow(sub)) {
         ind <- (sub[j,3] + data$C_ind + 1):(sub[j,4] + data$C_ind + 1)
-        mat[match(sub[j, 1], data$ids), ind] <- match(sub[j, 2], place_order[[i]])
+        val <- if(is.na(sub[j, 2])) 0 else match(sub[j, 2], place_order[[i]])
+        mat[match(sub[j, 1], data$ids), ind] <- val
       }
 
       data$ctd_timed_matrix[[i]] <- mat

@@ -10,7 +10,7 @@
 #' the user. This the dedicated vignette on this topic
 #' \code{vignette("outbreaker2_custom")}.\cr
 #'
-#' 
+#'
 #'
 #' @export
 #'
@@ -90,7 +90,7 @@ outbreaker <- function(data = outbreaker_data(),
 
   ## CHECKS / PROCESS DATA ##
   data <- outbreaker_data(data = data)
-  
+
   ## CHECK / PROCESS CONFIG ##
   config <- create_config(config, data = data)
 

@@ -22,6 +22,9 @@
 #'
 #' \item \code{contact}: the likelihood of the contact tracing data; by default,
 #' the function \code{cpp_ll_contact} is used.
+#'
+#'#' \item \code{timeline}: the likelihood of the timeline data; by default,
+#' the function \code{cpp_ll_timeline} is used.
 #' }
 #'
 #' All log-likelihood functions should have the following arguments, in this
@@ -39,10 +42,11 @@
 #'
 #'
 #' @return
-#' A named list of functions with the class \code{custom_likelihood}, each
-#'     implementing a customised log-likelihood components of
-#'     outbreaker. Functions which are not customised will result in a NULL
-#'     component.
+#' A named list of list(function, arity) pairs with the class
+#'     \code{custom_likelihood}, each function implementing a customised
+#'     log-likelihood component of outbreaker. Functions which are not
+#'     customised will result in a list(NULL, 0) component. Any function with
+#'     arity 3 must have the third parameter default to NULL.
 #'
 #' @author Thibaut Jombart (\email{thibautjombart@@gmail.com})
 #'
@@ -53,14 +57,14 @@
 #' @seealso See \href{http://www.repidemicsconsortium.org/outbreaker2/articles/customisation.html#customizing-likelihood}{customization vignette} for detailed examples on how to customize likelihoods.
 #'
 #' @export
-#' 
+#'
 #' @examples
-#' 
+#'
 #' ## specify a null model by disabling all likelihood components
 #' f_null <- function(data, param) {
 #'   return(0.0)
 #' }
-#' 
+#'
 #' null_model <- custom_likelihoods(genetic = f_null,
 #'                                 timing_sampling = f_null,
 #'                                 timing_infections = f_null,
@@ -68,13 +72,13 @@
 #'                                 contact = f_null)
 #'
 #' null_config <- list(find_import = FALSE,
-#'                     n_iter = 200,
+#'                     n_iter = 100,
 #'                     sample_every = 1)
 #'
 #' ## load data
 #' x <- fake_outbreak
 #' data <- outbreaker_data(dates = x$sample, dna = x$dna, w_dens = x$w)
-#' 
+#'
 #' res_null <- outbreaker(data = data,
 #'                        config = null_config,
 #'                        likelihoods = null_model)
@@ -88,12 +92,16 @@
 ## Likelihood functions in outbreaker2 are implemented using Rcpp. However,
 ## these functions can also be replaced by customized functions. These can be
 ## specified by the user, through the '...' argument of
-## 'custom_likelihoods'. These functions must have 2 arguments:
+## 'custom_likelihoods'. These functions must have at least 2 arguments:
 
 ## - data: a valid 'outbreaker_data' list
 
 ## - param: a list containing current parameter states, as returned by
 ## - create_param
+
+## - [i=NULL]: (optional) a list of the cases for which the loglikelihoods
+## - should be calculated. Needs to default to `NULL` in which case the
+## - loglikelihood of the entire tree is calculated.
 
 custom_likelihoods <- function(...) {
 
@@ -122,40 +130,54 @@ custom_likelihoods <- function(...) {
     function_or_null <- function(x) {
         is.null(x) || is.function(x)
     }
+    list_function_or_null <- function(x) {
+        is.list(x) && (is.null(x[[1]]) || is.function(x[[1]]))
+    }
 
-    is_ok <- vapply(likelihoods, function_or_null, logical(1))
+    # Ensure that custom_likelihoods(l) == custom_likelihoods(custom_likelihoods(l))
+    is_list_function_or_null <- vapply(likelihoods, list_function_or_null, logical(1))
+    is_function_or_null <- vapply(likelihoods, function_or_null, logical(1))
 
-    if (!all(is_ok)) {
-        culprits <- likelihoods_names[!is_ok]
+    if (!all(is_function_or_null) & !all(is_list_function_or_null)) {
+        culprits <- likelihoods_names[!is_function_or_null]
         msg <- paste0("The following likelihoods are not functions: ",
                       paste(culprits, collapse = ", "))
         stop(msg)
     }
 
-
-    ## check they all have a single argument
-
-    with_two_args <- function(x) {
-        if(is.function(x)) {
-            return (length(methods::formalArgs(x)) == 2L)
+    # If the arity of the likelihood functions is three, the last argument should
+    # be the (1-based) indices of the cases we're currently perturbing. This
+    # allows us to calculate the local likelihood delta, rather than having to
+    # calculate the likelihood of the entire tree twice for every single
+    # perturbation we make.
+    if (!all(is_list_function_or_null)) {
+      likelihoods <- lapply(
+        likelihoods,
+        function(x) {
+          if (is.null(x)) return(list(x, 0)); list(x, length(methods::formalArgs(x)))
         }
-
-        return(TRUE)
+      )
     }
 
-    two_args <- vapply(likelihoods, with_two_args, logical(1))
+    arity_two_or_three <- function(x) {
+        if (is.function(x[[1]])) {
+            return (x[[2]] == 2L | x[[2]] == 3L)
+        }
+        return(T)
+    }
 
-    if (!all(two_args)) {
-        culprits <- likelihoods_names[!two_args]
-        msg <- paste0("The following likelihoods dont' have two arguments: ",
-                      paste(culprits, collapse = ", "))
+    legal_arity <- vapply(likelihoods, arity_two_or_three, logical(1))
+
+    if (!all(legal_arity)) {
+        culprits <- likelihoods_names[!legal_arity]
+        msg <- paste0("The following likelihoods do not have arity two or three: ",
+                      paste(culprits, collapse=", "))
         stop(msg)
     }
 
-
+    names(likelihoods) <- likelihoods_names
     class(likelihoods) <- c("custom_likelihoods", "list")
     return(likelihoods)
-
 }
 
 
@@ -197,4 +219,3 @@ print.custom_likelihoods <- function(x, ...) {
     return(invisible(NULL))
 
 }
-
