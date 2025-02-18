@@ -44,7 +44,7 @@
 #'
 #' \item{init_eta}{initial value for the contact sensitivity (e.g. the
 #' proportion of transmission that have this type of contact)}
-#' 
+#'
 #' \item{n_iter}{an integer indicating the number of iterations in the MCMC,
 #' including the burnin period}
 #'
@@ -65,7 +65,7 @@
 #' \item{move_eps}{a logical indicating whether the contact reporting coverage
 #' should be estimated ('moved' in the MCMC), or not at all, defaulting to
 #' TRUE.}
-#' 
+#'
 #'\item{move_eta}{a logical indicating whether the contact sensitivity
 #' should be estimated ('moved' in the MCMC), or not at all, defaulting to
 #' TRUE.}
@@ -137,7 +137,18 @@
 #'
 #' \item{prior_lambda}{a numeric vector of length 2 indicating the first and
 #' second parameter of the beta prior for the non-infectious contact rate
-#' 'lambda'}
+#' 'lambda'.}
+#'
+#' \item{ctd_directed}{a logical indicating if the contact tracing data is
+#' directed or not. If yes, the first column represents the infector and the
+#' second column the infectee. If ctd is provided as an epicontacts objects,
+#' directionality will be taken from there.}
+#'
+#' \item{negative_si}{a logical indicating whether negative serial
+#' intervals are epidemiologically possible. If not, ancestries with
+#' negative serial intervals are discarded.}
+#'
+#' \item{pb}{a logical indicating if a progress bar should be displayed.}
 #'
 #' }
 #'
@@ -226,7 +237,11 @@ create_config <- function(..., data = NULL) {
                    prior_tau = c(2,2),
                    prior_eps = c(1,1),
                    prior_eta = c(1,1),
-                   prior_lambda = c(1,1))
+                   prior_lambda = c(1,1),
+                   ctd_directed = FALSE,
+                   negative_si = TRUE,
+                   pb = FALSE)
+>>>>>>> 406ec85 (specify negative_si option via create_config)
 
   ## MODIFY CONFIG WITH ARGUMENTS ##
   config <- modify_defaults(defaults, config)
@@ -432,7 +447,7 @@ create_config <- function(..., data = NULL) {
   if (any(is.na(config$move_t_inf))) {
     stop("move_t_inf has NAs")
   }
-  
+
   ## check move_mu
   if (!is.logical(config$move_mu)) {
     stop("move_mu is not a logical")
@@ -666,7 +681,7 @@ create_config <- function(..., data = NULL) {
   if (!is.finite(config$prop_eps_move)) {
     stop("prop_eps_move is infinite or NA")
   }
-  
+
   ## check prop_tau_move
   if (!is.numeric(config$prop_tau_move)) {
     stop("prop_tau_move is not a numeric value")
@@ -911,13 +926,13 @@ create_config <- function(..., data = NULL) {
       ## check initial tree
       if (config$init_tree=="seqTrack" &&
           nrow(data$dna) != data$N) {
-        msg <- sprintf(paste("Can't use seqTrack initialization when", 
+        msg <- sprintf(paste("Can't use seqTrack initialization when",
                              "numbers of sequences and cases differ",
                              "(%d vs %d)"), nrow(data$dna), data$N)
         message(msg)
         config$init_tree <- "star"
       }
-      
+
       ## seqTrack init
       if (config$init_tree=="seqTrack") {
 
@@ -926,7 +941,7 @@ create_config <- function(..., data = NULL) {
                               data$dates,
                               FUN="<")
         diag(potent_ances) <- FALSE
-        
+
         D_temp <- data$D
         D_temp[!potent_ances] <- 1e30
         config$init_alpha <- apply(D_temp,2,which.min)
@@ -1015,7 +1030,7 @@ create_config <- function(..., data = NULL) {
         stop(msg)
       }
     }
-    
+
     ## disable moves for mu if no DNA sequences
     if(is.null(data$D) || nrow(data$D)<1) {
       config$move_mu <- FALSE
@@ -1031,7 +1046,7 @@ create_config <- function(..., data = NULL) {
     } else if(have_ctd & !have_ctd_timed) {
       config$move_tau <- FALSE
     }
-    
+
   }
 
   ## output is a list of checked settings with a dedicated class (for
