@@ -214,9 +214,9 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 	for (size_t j = 0; j < N; j++) {
 	  if (alpha[j] != NA_INTEGER) {
 	    // delay in infection times
-	    size_t delay_inf = t_inf[j] - t_inf[alpha[j] - 1]; // offset
+	    int delay_inf = t_inf[j] - t_inf[alpha[j] - 1]; // offset
 	    // delay in onset times
-	    size_t delay_ons = dates[j] - dates[alpha[j] - 1]; // offset
+	    int delay_ons = dates[j] - dates[alpha[j] - 1]; // offset
 	    if (delay_inf < 1 || delay_inf > w_dens.ncol()) {
 	      return  R_NegInf;
 	    }
@@ -237,9 +237,9 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 	  j = vec_i[k] - 1; // offset
 	  if (alpha[j] != NA_INTEGER) {
 	    // delay in infection times
-	    size_t delay_inf = t_inf[j] - t_inf[alpha[j] - 1]; // offset
+	    int delay_inf = t_inf[j] - t_inf[alpha[j] - 1]; // offset
 	    // delay in onset times
-	    size_t delay_ons = dates[j] - dates[alpha[j] - 1]; // offset
+	    int delay_ons = dates[j] - dates[alpha[j] - 1]; // offset
 	    if (delay_inf < 1 || delay_inf > w_dens.ncol()) {
 	      return  R_NegInf;
 	    }

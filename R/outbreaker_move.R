@@ -25,7 +25,9 @@ outbreaker_move <- function(moves, data, param_current,
   J <- length(moves)
 
   ## Set up progress bar
-  pb <- txtProgressBar(min = 1, max = config$n_iter, style = 3)
+  if(config$pb) {
+    pb <- utils::txtProgressBar(min = 1, max = config$n_iter, style = 3)
+  }
 
   ## RUN MCMC ##
   for (i in seq.int(2, config$n_iter, 1)) {
@@ -57,7 +59,9 @@ outbreaker_move <- function(moves, data, param_current,
 
   } # end of the chain
 
-  cat("\n")
+  if(config$pb) {
+    cat("\n")
+  }
 
   ## output is a list of saved chain states
   return(param_store)
