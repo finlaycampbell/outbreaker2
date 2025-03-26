@@ -100,7 +100,7 @@ double cpp_prior_tau(Rcpp::List param, Rcpp::List config,
     Rcpp::LogicalVector move_tau = config["move_tau"];
     double out = 0;
     for(size_t i = 0; i < tau.size(); i++) {
-      if(move_tau) {
+      if(move_tau[i]) {
 	out += R::dbeta(tau[i],
 			(double) shape(i, 0),
 			(double) shape(i, 1),
@@ -187,7 +187,8 @@ double cpp_prior_eta(Rcpp::List param, Rcpp::List config,
 
 
 
-// The prior for the non-transmision contact rate 'lambda' is a beta distribution
+// The prior for the non-transmision contact rate 'lambda' is a beta
+// distribution
 
 // [[Rcpp::export(rng = false)]]
 double cpp_prior_lambda(Rcpp::List param, Rcpp::List config,
@@ -206,6 +207,7 @@ double cpp_prior_lambda(Rcpp::List param, Rcpp::List config,
 			true);
       }
     }
+    return(out);
   } else {
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(custom_function);
 
