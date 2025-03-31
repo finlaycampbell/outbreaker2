@@ -114,5 +114,5 @@ param <- create_param(data = data, config = config)
 
 }
 \author{
-Thibaut Jombart (\email{thibautjombart@gmail.com})
+Thibaut Jombart (\email{thibautjombart@gmail.com}).
 }

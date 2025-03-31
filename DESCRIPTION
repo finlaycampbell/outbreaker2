@@ -52,6 +52,6 @@ Imports:
 LazyData: true
 LinkingTo: Rcpp, RcppEigen
 Encoding: UTF-8
-RoxygenNote: 7.1.2
+RoxygenNote: 7.3.2
 SystemRequirements: C++11
 VignetteBuilder: knitr

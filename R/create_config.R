@@ -238,11 +238,10 @@ create_config <- function(..., data = NULL) {
                    prior_tau = c(2,2),
                    prior_eps = c(1,1),
                    prior_eta = c(1,1),
-                   prior_lambda = c(1,1))
+                   prior_lambda = c(1,1),
                    ctd_directed = FALSE,
                    negative_si = TRUE,
                    pb = FALSE)
-
 
   ## MODIFY CONFIG WITH ARGUMENTS ##
   config <- modify_defaults(defaults, config)
@@ -434,7 +433,7 @@ create_config <- function(..., data = NULL) {
     stop("move_model is NA")
   }
 
-## check move_swap_cases
+  ## check move_swap_cases
   if (!is.logical(config$move_swap_cases)) {
     stop("move_swap_cases is not a logical")
   }
@@ -601,7 +600,7 @@ create_config <- function(..., data = NULL) {
     stop("sd_t_onw is infinite or NA")
   }
 
-## check sd_eps
+  ## check sd_eps
   if (!is.numeric(config$sd_eps)) {
     stop("sd_eps is not a numeric value")
   }
@@ -713,7 +712,7 @@ create_config <- function(..., data = NULL) {
     stop("prop_tau_move is infinite or NA")
   }
 
-## check prop_t_inf_move
+  ## check prop_t_inf_move
   if (!is.numeric(config$prop_t_inf_move)) {
     stop("prop_t_inf_move is not a numeric value")
   }
@@ -928,10 +927,10 @@ create_config <- function(..., data = NULL) {
   }
   if(n_untimed != 0 && nrow(config$prior_lambda) == 1 && n_untimed > 1) {
     config$prior_lambda <- config$prior_lambda[rep(1, n_untimed),]
+  }
 
   if (!is.logical(config$pb)) {
     stop("pb must be a logical")
-
   }
 
   ## CHECKS POSSIBLE IF DATA IS PROVIDED ##
