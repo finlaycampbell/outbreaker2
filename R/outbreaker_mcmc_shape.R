@@ -39,7 +39,7 @@ outbreaker_mcmc_shape <- function(param, data) {
     }
 
     if(!is.null(data$ctd)) {
-      
+
       ## unfold eta estimates ##
       eta <- matrix(unlist(param$eta),
                     ncol = length(data$ctd_matrix),
@@ -64,10 +64,10 @@ outbreaker_mcmc_shape <- function(param, data) {
     }
 
   }
-  
+
   ## unfold t_onw dates ##
   if(!is.null(data$ctd_timed)) {
-    
+
     if (!all(vapply(param$t_onw, length, integer(1))==data$N)) {
       stop("some onward infection dates are missing in the param")
     }
@@ -95,7 +95,7 @@ outbreaker_mcmc_shape <- function(param, data) {
 
   }
 
-  
+
   ## unfold number of generations ##
   if (!all(vapply(param$kappa, length, integer(1))==data$N)) {
     stop("some ancestries are missing in the param")
@@ -111,7 +111,7 @@ outbreaker_mcmc_shape <- function(param, data) {
   if(!is.null(data$ctd)) {
     param <- cbind(param, eps, lambda, eta)
   }
-  
+
   if(!is.null(data$ctd_timed)) {
     if(!is.null(data$ctd)) {
       param <- cbind(param, tau, t_onw)
@@ -120,7 +120,7 @@ outbreaker_mcmc_shape <- function(param, data) {
     }
 ##    param <- cbind(param, place)
   }
-  
+
   names(param) <- gsub("[.]", "_", names(param))
 
   ## output is a data.frame containing all parameters and augmented data, with a dedicated
