@@ -96,7 +96,7 @@ outbreaker_data <- function(..., data = list(...)) {
   if(is.null(data$ids)) {
     if(!is.null(names(data$dates))) {
       data$ids <- names(data$dates)
-    } else if(!is.null(data$ctd) & inherits(data$ctd, "epicontacts")){
+    } else if(!is.null(data$ctd) && inherits(data$ctd, "epicontacts")){
       data$ids <- as.character(data$ctd$linelist$id)
     } else {
       data$ids <- as.character(seq_along(data$dates))
@@ -392,9 +392,9 @@ outbreaker_data <- function(..., data = list(...)) {
     }
 
     if(data$ctd_directed) {
-      data$C_combn <- data$N*(data$N - 1)
+      data$C_combn <- data$N * (data$N - 1)
     } else {
-      data$C_combn <- data$N*(data$N - 1)/2
+      data$C_combn <- data$N * (data$N - 1) / 2
     }
     ## Count the number of each type of contact - these are ordered by their
     ## factor order, which we will use throughout the analysis
