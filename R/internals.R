@@ -301,7 +301,7 @@ add_convolutions <- function(data, config) {
   rownames(data$log_w_unobs) <- paste("kappa", seq_len(nrow(data$log_w_unobs)), sep="=")
   colnames(data$log_w_unobs) <- seq_len(ncol(data$log_w_unobs))
 
-  if(!config$ctd_directed) {
+  if (!config$ctd_directed && !is.null(data$ctd)) {
     data$contacts[] <- as.integer(data$contacts == 1 | t(data$contacts) == 1)
     data$C_combn <- data$C_combn/2
   }

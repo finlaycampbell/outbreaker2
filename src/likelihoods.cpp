@@ -422,7 +422,6 @@ double cpp_ll_timing_sampling(Rcpp::List data, Rcpp::List param, SEXP i,
     if (i == R_NilValue) {
       for (size_t j = 0; j < N; j++) {
 	delay = dates[j] - t_inf[j];
-	// Rprintf("j %d | delay %d | nrow %d | log \n", j, delay, f_dens.nrow(), f_dens(delay - 1, id_in_f[j] - 1));
 	if (delay < 1 || delay > f_dens.nrow()) {
 	  return  R_NegInf;
 	}

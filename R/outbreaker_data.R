@@ -122,7 +122,6 @@ outbreaker_data <- function(..., data = list(...)) {
     if (inherits(data$dates, "numeric") && any(data$dates %% 1 != 0)) {
       warning("Rounding non-integer dates to nearest integer")
     }
-    data$dates <- as.integer(round(data$dates))
     data$N <- length(data$dates)
     data$max_range <- diff(range(data$dates))
   }
