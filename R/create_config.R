@@ -241,7 +241,6 @@ create_config <- function(..., data = NULL) {
                    ctd_directed = FALSE,
                    negative_si = TRUE,
                    pb = FALSE)
->>>>>>> 406ec85 (specify negative_si option via create_config)
 
   ## MODIFY CONFIG WITH ARGUMENTS ##
   config <- modify_defaults(defaults, config)

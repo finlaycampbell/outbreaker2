@@ -52,7 +52,9 @@ outbreaker_move <- function(moves, data, param_current,
 
     ## store outputs if needed
     if ((i %% config$sample_every) == 0) {
-      setTxtProgressBar(pb, i)
+      if(config$pb) {
+        utils::setTxtProgressBar(pb, i)
+      }
       param_store <- outbreaker_mcmc_store(param_current, param_store, data,
                                            config, likelihoods, priors, i)
     }
