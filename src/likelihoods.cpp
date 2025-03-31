@@ -175,7 +175,6 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
     
   } else { // use of a customized likelihood function
     Rcpp::Function f = Rcpp::as<Rcpp::Function>(l[0]);
-
     int arity = l[1];
     if (arity == 3) return Rcpp::as<double>(f(data, param, i));
     return Rcpp::as<double>(f(data, param));
@@ -196,8 +195,11 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, size_t i,
 
 // ---------------------------
 
-// This likelihood corresponds to the probability of observing infection dates
-// of cases given the infection dates of their ancestors.
+// This likelihood corresponds to the probability of observing
+// infection dates of cases given the infection dates of their
+// ancestors. It also imposes the strict assumption that *serial
+// intervals* (i.e. delay between onset times) must be greater than
+// zero.
 
 double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 				Rcpp::RObject custom_function) {
@@ -213,11 +215,13 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
     Rcpp::IntegerVector alpha = param["alpha"];
     Rcpp::IntegerVector t_inf = param["t_inf"];
     Rcpp::IntegerVector kappa = param["kappa"];
+    Rcpp::IntegerVector dates = data["dates"];
     Rcpp::NumericMatrix w_dens = data["log_w_dens"];
 
     bool has_ctd_timed = data["has_ctd_timed"];
     
     size_t K = w_dens.nrow();
+    bool negative_si = data["negative_si"];
 
     double out = 0.0;
     double ll_1 = 0.0;
@@ -232,15 +236,20 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
       if (i == R_NilValue) {
 	for (size_t j = 0; j < N; j++) {
 	  if (alpha[j] != NA_INTEGER) {
-	    delay = t_inf[j] - t_inf[alpha[j] - 1]; // offset
-	    if (delay < 1 || delay > w_dens.ncol()) {
+	    // delay in infection times
+	    int delay_inf = t_inf[j] - t_inf[alpha[j] - 1]; // offset
+	    // delay in onset times
+	    int delay_ons = dates[j] - dates[alpha[j] - 1]; // offset
+	    if (delay_inf < 1 || delay_inf > w_dens.ncol()) {
+	      return  R_NegInf;
+	    }
+	    if (!negative_si && delay_ons < 0) {
 	      return  R_NegInf;
 	    }
 	    if (kappa[j] < 1 || kappa[j] > K) {
 	      return  R_NegInf;
 	    }
-
-	    out += w_dens(kappa[j] - 1, delay - 1);
+	    out += w_dens(kappa[j] - 1, delay_inf - 1);
 	  }
 	}
       } else {
@@ -248,16 +257,23 @@ double cpp_ll_timing_infections(Rcpp::List data, Rcpp::List param, SEXP i,
 	size_t length_i = static_cast<size_t>(LENGTH(i));
 	Rcpp::IntegerVector vec_i(i);
 	for (size_t k = 0; k < length_i; k++) {
-	  j = vec_i[k] - 1; // offset
+	  size_t j = vec_i[k] - 1; // offset
 	  if (alpha[j] != NA_INTEGER) {
-	    delay = t_inf[j] - t_inf[alpha[j] - 1]; // offset
-	    if (delay < 1 || delay > w_dens.ncol()) {
+	    // delay in infection times
+	    int delay_inf = t_inf[j] - t_inf[alpha[j] - 1]; // offset
+	    // delay in onset times
+	    int delay_ons = dates[j] - dates[alpha[j] - 1]; // offset
+	    if (delay_inf < 1 || delay_inf > w_dens.ncol()) {
+	      return  R_NegInf;
+	    }
+	    if (!negative_si && delay_ons < 0) {
 	      return  R_NegInf;
 	    }
 	    if (kappa[j] < 1 || kappa[j] > K) {
 	      return  R_NegInf;
 	    }
-	    out += w_dens(kappa[j] - 1, delay - 1);
+
+	    out += w_dens(kappa[j] - 1, delay_inf - 1);
 	  }
 	}
       }

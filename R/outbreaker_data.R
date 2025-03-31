@@ -9,16 +9,20 @@
 #' \describe{
 #' \item{dates}{dates a vector indicating the collection dates, provided either as
 #' integer numbers or in a usual date format such as \code{Date} or
-#' \code{POSIXct} format. By convention, zero will indicate the oldest date.}
+#' \code{POSIXct} format. By convention, zero will indicate the oldest date. If
+#' the vector is named, the vector names will be used for matching cases to
+#' contact tracing data and labelled DNA sequences.}
 #'
 #' \item{dna}{the DNA sequences in \code{DNAbin} format (see
 #' \code{\link[ape]{read.dna}} in the ape package); this can be imported from a
 #' fasta file (extension .fa, .fas, or .fasta) using \code{adegenet}'s function
 #' \link[adegenet]{fasta2DNAbin}.}
 #'
-#' \item{ctd}{the contact tracing data provided as a matrix or dataframe of two
+#' \item{ctd}{the contact tracing data provided as a matrix/dataframe of two
 #' columns, indicating a reported contact between the two individuals whose ids
-#' are provided in a given row of the data.}
+#' are provided in a given row of the data, or an epicontacts object. In the case
+#' of the latter, linelist IDs will be used for matching dates and DNA
+#' sequences.}
 #'
 #' \item{w_dens}{a vector of numeric values indicating the generation time
 #' distribution, reflecting the infectious potential of a case t = 1, 2, ...
@@ -28,15 +32,13 @@
 #'
 #' \item{f_dens}{similar to \code{w_dens}, except that this is the distribution
 #' of the colonization time, i_e. time interval during which the pathogen can
-#' be sampled from the patient.}
+#' be sampled from the patient.}}
 #'
-#'}
-#'
-#' @param ... a list of data items to be processed (see description)
+#' @param ... a list of data items to be processed (see description).
 #'
 #' @param data optionally, an existing list of data item as returned by \code{outbreaker_data}.
 #'
-#' @author Thibaut Jombart (\email{thibautjombart@@gmail.com})
+#' @author Thibaut Jombart (\email{thibautjombart@@gmail.com}).
 #'
 #' @importFrom magrittr %>%
 #'
@@ -90,6 +92,16 @@ outbreaker_data <- function(..., data = list(...)) {
   ## MODIFY DATA WITH ARGUMENTS ##
   data <- modify_defaults(defaults, data, FALSE)
 
+  ## Set up case ids
+  if(is.null(data$ids)) {
+    if(!is.null(names(data$dates))) {
+      data$ids <- names(data$dates)
+    } else if(!is.null(data$ctd) & inherits(data$ctd, "epicontacts")){
+      data$ids <- as.character(data$ctd$linelist$id)
+    } else {
+      data$ids <- as.character(seq_along(data$dates))
+    }
+  }
 
   ## CHECK DATA ##
   ## CHECK DATES
@@ -107,6 +119,10 @@ outbreaker_data <- function(..., data = list(...)) {
     if(is.null(names(data$dates))) {
       names(data$dates) <- rep("default", length(data$dates))
     }
+    if (inherits(data$dates, "numeric") && any(data$dates %% 1 != 0)) {
+      warning("Rounding non-integer dates to nearest integer")
+    }
+    data$dates <- as.integer(round(data$dates))
     data$N <- length(data$dates)
     data$max_range <- diff(range(data$dates))
   }
@@ -133,7 +149,6 @@ outbreaker_data <- function(..., data = list(...)) {
     if(data$w_dens[length(data$w_dens)] == 0) {
       final_index <- max(which(data$w_dens > 0))
       data$w_dens <- data$w_dens[1:final_index]
-      warning("Removed trailing zeroes found in w_dens")
     }
 
     ## add an exponential tail summing to 1e-4 to 'w'
@@ -213,8 +228,10 @@ outbreaker_data <- function(..., data = list(...)) {
     data$id_in_f <- match(names(data$dates), colnames(data$f_dens))
   }
 
-  ## Add temporal ordering constraints using Serial Interval
-  if(!is.null(data$dates)) {
+  ## CHECK POTENTIAL ANCESTRIES
+  # don't recalculate if can_be_ances is manually provided
+  if(is.null(data$can_be_ances) && !is.null(data$dates)) {
+    ## get temporal ordering constraint:
     ## canBeAnces[i,j] is 'i' can be ancestor of 'j'
     ## Calculate the serial interval from w_dens and f_dens
     .get_SI <- function(w_dens, f_dens) {
@@ -246,10 +263,11 @@ outbreaker_data <- function(..., data = list(...)) {
     if (!is.matrix(data$dna)) data$dna <- as.matrix(data$dna)
 
     ## get matrix of distances
-
     data$L <- ncol(data$dna) #  (genome length)
     if(is.null(data$D)) {
-      data$D <- as.matrix(ape::dist.dna(data$dna, model="N", pairwise.deletion = TRUE)) # distance matrix
+      data$D <- as.matrix(
+        ape::dist.dna(data$dna, model="N", pairwise.deletion = TRUE)
+      )
     }
     storage.mode(data$D) <- "integer" # essential for C/C++ interface
 
@@ -263,11 +281,14 @@ outbreaker_data <- function(..., data = list(...)) {
         stop(msg)
       }
 
-      rownames(data$dna) <- rownames(data$D) <- colnames(data$D) <- seq_len(data$N)
-    }
+      ## These need to be indices
+      rownames(data$D) <- colnames(data$D) <- seq_len(data$N)
 
-    data$id_in_dna <- match(as.character(data$ids), rownames(data$dna))
-    if(all(is.na(data$id_in_dna))) {
+      ## These need to match dates/ctd ids
+      rownames(data$dna) <- data$ids
+    }
+    data$id_in_dna <- match(data$ids, rownames(data$dna))
+    if(any(is.na(match(rownames(data$dna), data$ids)))) {
       stop("DNA sequence labels don't match case ids")
     }
 

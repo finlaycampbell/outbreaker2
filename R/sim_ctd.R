@@ -18,7 +18,7 @@
 #' @param lambda the non-infectious contact rate, defined as the probability
 #'     of contact between a non-transmission pair.
 #'
-#' @author Finlay Campbell (\email{f.campbell15@@imperial.ac.uk})
+#' @author Finlay Campbell (\email{finlaycampbell93@@gmail.com})
 #'
 #' @examples
 #'
@@ -35,27 +35,34 @@
 
 sim_ctd <- function(tTree, eps, lambda) {
 
+  tTree <- apply(tTree, 2, as.character)
+
   if(any(c(eps, lambda) < 0) | any(c(eps, lambda) > 1)) {
     stop('eps and lambda must be probabilities')
   }
 
+  if(ncol(tTree) != 2) {
+    stop("tTree must have two columns")
+  }
+
   id <- unique(c(tTree[,1], tTree[,2]))
   id <- id[!is.na(id)]
-  
+
   ## Sort tTree by value or alphabetically, This ensures A:B and B:A are both
   ## recognised when querying the contacts dataframe for transmission pairs
   tTree <- tTree %>%
     stats::na.omit() %>%
-    apply(1, sort, FALSE) %>%
+    apply(1, sort, decreasing = FALSE) %>%
     t() %>%
     as.data.frame(stringsAsFactors = FALSE)
 
-  tTree <- tTree[order(tTree[1]),]
+  tTree <- tTree[order(tTree[,1]),]
   names(tTree) <- c('V1', 'V2')
   if(nrow(tTree) == 0) stop("No transmission observed")
 
   ## Create a dataframe of all potential contacts
-  contacts <- as.data.frame(t(utils::combn(id, 2)))
+  contacts <- as.data.frame(t(utils::combn(sort(id), 2)),
+                            stringsAsFactors = FALSE)
 
   ## Create a column of logicals indicating whether a pair represents a
   ## transmission pair or not
@@ -77,10 +84,11 @@ sim_ctd <- function(tTree, eps, lambda) {
   ctd <- rbind(sampler(contacts[contacts$tPair,], eps),
                sampler(contacts[!contacts$tPair,], eps*lambda))
 
-  ctd <- ctd[, c(1, 2)] 
-  
+  ctd <- ctd[, c(1, 2)]
+
   colnames(ctd) <- c('i', 'j')
   rownames(ctd) <- NULL
 
   return(ctd)
+
 }

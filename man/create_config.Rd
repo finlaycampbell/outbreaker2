@@ -66,6 +66,7 @@ proportion of transmission that have this type of contact)}
 \item{n_iter}{an integer indicating the number of iterations in the MCMC,
 including the burnin period}
 
+
 \item{move_alpha}{a vector of logicals indicating, for each case, if the
 ancestry should be estimated ('moved' in the MCMC), or not, defaulting to
 TRUE; the vector is recycled if needed.}
@@ -155,6 +156,13 @@ parameter of the beta prior for the contact sensitivity 'eta'}
 \item{prior_lambda}{a numeric vector of length 2 indicating the first and
 second parameter of the beta prior for the non-infectious contact rate
 'lambda'}
+
+\item{ctd_directed}{a logical indicating if the contact tracing data is
+directed or not. If yes, the first column represents the infector and the
+second column the infectee. If ctd is provided as an epicontacts objects,
+directionality will be taken from there.}
+
+\item{pb}{a logical indicating if a progress bar should be displayed}
 
 }
 }

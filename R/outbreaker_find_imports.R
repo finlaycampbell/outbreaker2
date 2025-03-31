@@ -57,9 +57,11 @@ outbreaker_find_imports <- function(moves, data, param_current,
 
     ## store outputs if needed
     if ((i %% config$sample_every_import) == 0 && i>1000) {
-      influences[counter,] <- - vapply(seq_len(data$N),
-                                       function(i) cpp_ll_all(data, param_current, i, tmp_likelihoods),
-                                       numeric(1))
+      influences[counter,] <- - vapply(
+        seq_len(data$N),
+        function(i) cpp_ll_all(data, param_current, i, tmp_likelihoods),
+        numeric(1)
+      )
       counter <- counter + 1L
     }
   } # end of the chain

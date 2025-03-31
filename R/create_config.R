@@ -32,11 +32,11 @@
 #' reporting/symptoms distribution, and the dates of reporting/symptoms,
 #' provided in \code{data}.}
 #'
-#' \item{init_mu}{initial value for the mutation rates}
+#' \item{init_mu}{initial value for the mutation rates.}
 #'
-#' \item{init_pi}{initial value for the reporting probability}
+#' \item{init_pi}{initial value for the reporting probability.}
 #'
-#' \item{init_eps}{initial value for the contact reporting coverage}
+#' \item{init_eps}{initial value for the contact reporting coverage.}
 #'
 #' \item{init_tau}{initial value for the mobility paramter of unobserved cases}
 #'
@@ -46,7 +46,7 @@
 #' proportion of transmission that have this type of contact)}
 #'
 #' \item{n_iter}{an integer indicating the number of iterations in the MCMC,
-#' including the burnin period}
+#' including the burnin period.}
 #'
 #' \item{move_alpha}{a vector of logicals indicating, for each case, if the
 #' ancestry should be estimated ('moved' in the MCMC), or not, defaulting to
@@ -81,73 +81,84 @@
 #' \item{move_pi}{a logical indicating whether the reporting probability
 #' should be estimated ('moved' in the MCMC), or not, all defaulting to TRUE.}
 #'
-#' \item{n_iter}{the number of iterations of the MCMC}
+#' \item{n_iter}{the number of iterations of the MCMC.}
 #'
 #' \item{sample_every}{the frequency at which MCMC samples are retained for the
-#' output}
+#' output.}
 #'
 #' \item{sd_mu}{the standard deviation for the Normal proposal for the mutation
-#' rates}
+#' rates.}
 #'
 #' \item{sd_pi}{the standard deviation for the Normal proposal for the reporting
-#' probability}
+#' probability.}
 #'
 #' \item{sd_eps}{the standard deviation for the Normal proposal for the
-#' contact reporting coverage}
+#' contact reporting coverage.}
 #'
 #' \item{sd_eta}{the standard deviation for the Normal proposal for the
 #' contact sensitivity}
 #'
 #' \item{sd_lambda}{the standard deviation for the Normal proposal for the
-#' non-infectious contact rate}
+#' non-infectious contact rate.}
 #'
 #' \item{prop_alpha_move}{the proportion of ancestries to move at each iteration
-#' of the MCMC}
+#' of the MCMC.}
 #'
 #' \item{prop_eps_move}{the proportion of iterations at which eps is moved}
 #'
 #' \item{prop_tau_move}{the proportion of iterations at which tau is moved}
 #'
 #' \item{prop_t_inf_move}{the proportion of infection dates to move at each
-#' iteration of the MCMC}
+#' iteration of the MCMC.}
 
-#' \item{batch_size}{the size of the batch of random number pre-generated}
+#' \item{batch_size}{the size of the batch of random number pre-generated.}
 #'
 #' \item{paranoid}{a logical indicating if the paranoid mode should be used;
 #' this mode is used for performing additional tests during outbreaker; it makes
 #' computations substantially slower and is mostly used for debugging purposes.}
 #'
 #' \item{min_date}{earliest infection date possible, expressed as days since the
-#' first sampling}
+#' first sampling.}
 #'
 #' \item{max_kappa}{an integer indicating the largest number of generations
-#' between any two linked cases; defaults to 5}
+#' between any two linked cases; defaults to 5.}
 #'
 #' \item{prior_mu}{a numeric value indicating the rate of the exponential prior
-#' for the mutation rate 'mu'}
+#' for the mutation rate 'mu'.}
 #'
 #' \item{prior_pi}{a numeric vector of length 2 indicating the first and second
-#' parameter of the beta prior for the reporting probability 'pi'}
+#' parameter of the beta prior for the reporting probability 'pi'.}
 #'
 #' \item{prior_eps}{a numeric vector of length 2 indicating the first and second
-#' parameter of the beta prior for the contact reporting coverage 'eps'}
+#' parameter of the beta prior for the contact reporting coverage 'eps'.}
 #'
 #' \item{prior_eta}{a numeric vector of length 2 indicating the first and second
 #' parameter of the beta prior for the contact sensitivity 'eta'}
 #'
 #' \item{prior_lambda}{a numeric vector of length 2 indicating the first and
 #' second parameter of the beta prior for the non-infectious contact rate
-#' 'lambda'}
+#' 'lambda'.}
+#'
+#' \item{ctd_directed}{a logical indicating if the contact tracing data is
+#' directed or not. If yes, the first column represents the infector and the
+#' second column the infectee. If ctd is provided as an epicontacts objects,
+#' directionality will be taken from there.}
+#'
+#' \item{negative_si}{a logical indicating whether negative serial
+#' intervals are epidemiologically possible. If not, ancestries with
+#' negative serial intervals are discarded.}
+#'
+#' \item{pb}{a logical indicating if a progress bar should be displayed.}
 #'
 #' }
 #'
 #' @param data an optional list of data items as returned by
 #'     \code{outbreaker_data}; if provided, this allows for further checks of
-#'     the outbreaker setings.
+#'     the outbreaker settings.
 #'
-#' @seealso \code{\link{outbreaker_data}} to check and process data for outbreaker
+#' @seealso \code{\link{outbreaker_data}} to check and process data for outbreaker.
 #'
-#' @author Thibaut Jombart (\email{thibautjombart@@gmail.com})
+#' @author Thibaut Jombart (\email{thibautjombart@@gmail.com}).
 #'
 #' @export
 #'
@@ -228,6 +239,10 @@ create_config <- function(..., data = NULL) {
                    prior_eps = c(1,1),
                    prior_eta = c(1,1),
                    prior_lambda = c(1,1))
+                   ctd_directed = FALSE,
+                   negative_si = TRUE,
+                   pb = FALSE)
+
 
   ## MODIFY CONFIG WITH ARGUMENTS ##
   config <- modify_defaults(defaults, config)
@@ -354,6 +369,7 @@ create_config <- function(..., data = NULL) {
   if (!is.numeric(config$init_lambda)) {
     stop("init_lambda is not a numeric value")
   }
+
   if (any(config$init_lambda < 0)) {
     stop("init_lambda is negative")
   }
@@ -418,7 +434,7 @@ create_config <- function(..., data = NULL) {
     stop("move_model is NA")
   }
 
-  ## check move_swap_cases
+## check move_swap_cases
   if (!is.logical(config$move_swap_cases)) {
     stop("move_swap_cases is not a logical")
   }
@@ -462,6 +478,7 @@ create_config <- function(..., data = NULL) {
   if (!is.logical(config$move_eps)) {
     stop("move_eps is not a logical")
   }
+
   if (any(is.na(config$move_eps))) {
     stop("move_eps is NA")
   }
@@ -504,6 +521,7 @@ create_config <- function(..., data = NULL) {
   if (!is.logical(config$move_lambda)) {
     stop("move_lambda is not a logical")
   }
+
   if (any(is.na(config$move_lambda))) {
     stop("move_lambda is NA")
   }
@@ -583,10 +601,11 @@ create_config <- function(..., data = NULL) {
     stop("sd_t_onw is infinite or NA")
   }
 
-  ## check sd_eps
+## check sd_eps
   if (!is.numeric(config$sd_eps)) {
     stop("sd_eps is not a numeric value")
   }
+
   if (any(config$sd_eps < 1e-10)) {
     stop("sd_eps is close to zero or negative")
   }
@@ -638,6 +657,7 @@ create_config <- function(..., data = NULL) {
   if (!is.numeric(config$sd_lambda)) {
     stop("sd_lambda is not a numeric value")
   }
+
   if (any(config$sd_lambda < 1e-10)) {
     stop("sd_lambda is close to zero or negative")
   }
@@ -693,7 +713,7 @@ create_config <- function(..., data = NULL) {
     stop("prop_tau_move is infinite or NA")
   }
 
-  ## check prop_t_inf_move
+## check prop_t_inf_move
   if (!is.numeric(config$prop_t_inf_move)) {
     stop("prop_t_inf_move is not a numeric value")
   }
@@ -720,7 +740,6 @@ create_config <- function(..., data = NULL) {
   if (!is.finite(config$prop_model_move)) {
     stop("prop_model_move is infinite or NA")
   }
-
 
   ## check paranoid
   if (!is.logical(config$paranoid)) {
@@ -794,6 +813,7 @@ create_config <- function(..., data = NULL) {
   if (!is.numeric(config$prior_mu)) {
     stop("prior_mu is not a numeric value")
   }
+
   if (any((config$prior_mu < 0))) {
     stop("prior_mu is negative (it should be a rate)")
   }
@@ -831,6 +851,7 @@ create_config <- function(..., data = NULL) {
   if (!all(is.finite(config$prior_eps))) {
     stop("prior_eps is has values which are infinite or NA")
   }
+
   if(n_both != 0 && !nrow(config$prior_eps) %in% c(1, n_both)) {
     stop(sprintf("prior_eps must be of 1 or %d rows", n_both))
   }
@@ -901,11 +922,16 @@ create_config <- function(..., data = NULL) {
   if (!all(is.finite(config$prior_lambda))) {
     stop("prior_lambda is has values which are infinite or NA")
   }
+
   if(n_untimed != 0 && !nrow(config$prior_lambda) %in% c(1, n_untimed)) {
     stop(sprintf("prior_lambda must be of 1 or %d rows", n_untimed))
   }
   if(n_untimed != 0 && nrow(config$prior_lambda) == 1 && n_untimed > 1) {
     config$prior_lambda <- config$prior_lambda[rep(1, n_untimed),]
+
+  if (!is.logical(config$pb)) {
+    stop("pb must be a logical")
+
   }
 
   ## CHECKS POSSIBLE IF DATA IS PROVIDED ##
@@ -932,15 +958,11 @@ create_config <- function(..., data = NULL) {
 
       ## seqTrack init
       if (config$init_tree=="seqTrack") {
-
-        ## Enforce t_inf[alpha_i] < t_inf[i] for seqTrack init
-        potent_ances <- outer(data$dates,
-                              data$dates,
-                              FUN="<")
-        diag(potent_ances) <- FALSE
-
         D_temp <- data$D
-        D_temp[!potent_ances] <- 1e30
+        ## use strictly positive serial interval for starting tree
+        can_be_ances_tmp <- outer(data$dates, data$dates, FUN = "<")
+        diag(can_be_ances_tmp) <- FALSE
+        D_temp[!can_be_ances_tmp] <- 1e30
         config$init_alpha <- apply(D_temp,2,which.min)
         config$init_alpha[data$dates==min(data$dates)] <- NA
         config$init_alpha <- as.integer(config$init_alpha)
@@ -1066,7 +1088,7 @@ create_config <- function(..., data = NULL) {
 #'
 #' @param x an \code{outbreaker_config} object as returned by \code{create_config}.
 #'
-#' @param ... further arguments to be passed to other methods
+#' @param ... further arguments to be passed to other methods.
 
 print.outbreaker_config <- function(x, ...) {
   cat("\n\n ///// outbreaker settings ///\n")

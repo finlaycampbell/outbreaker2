@@ -1,4 +1,5 @@
 context("Test outbreaker")
+current_R_version <- gsub("R version ([0-9.]+) .+$", "\\1", R.version.string)
 
 ## test output format ##
 test_that("outbreaker's output have expected format", {
@@ -12,8 +13,7 @@ test_that("outbreaker's output have expected format", {
 
     ## run outbreaker
     data <- list(dna = x$dna, dates = x$onset, w_dens = x$w)
-    config <- list(n_iter = 10, sample_every = 1, paranoid = TRUE,
-                   find_import = FALSE)
+    config <- list(n_iter = 10, sample_every = 1, find_import = FALSE)
     out <- outbreaker(data, config)
 
 
@@ -110,7 +110,7 @@ test_that("results ok: time, no DNA", {
 
     ## check that support for ancestries is weak
     sup <- na.omit(out_no_dna.smry$tree$support)
-    expect_lt(quantile(sup, .9), .5)
+    expect_lt(quantile(sup, .9), .55)
     expect_lt(mean(sup), .35)
 
 })
@@ -128,11 +128,13 @@ test_that("results ok: time, ctd, DNA", {
 
     ## outbreaker time, ctd, no DNA ##
     ## analysis
+    ## set the random number generator kind to old R
+    suppressWarnings(RNGversion("3.5.2"))
     set.seed(1)
 
     tTree <- data.frame(i = x$ances,
                         j = 1:length(x$ances))
-    
+
     ctd <- sim_ctd(tTree, eps = 0.9, lambda = 0.1)
 
     data <- list(dates = x$onset, w_dens = x$w,
@@ -158,9 +160,12 @@ test_that("results ok: time, ctd, DNA", {
     quant_lambda <- quantile(out_ctd$lambda, c(0.25, 0.75))
     expect_true(quant_lambda[[1]] > 0.05 &
                 quant_lambda[[2]] < 0.35)
-        
+
     ## approx log post values
     expect_true(min(out_ctd.smry$post) > -1200)
+
+    ## reset the Random number generator kind
+    RNGversion(current_R_version)
 
 })
 
@@ -274,11 +279,40 @@ test_that("results ok: kappa and pi", {
 
     ## checks
     expect_equal(smry$tree$from, c(NA, 1, 2, 3))
-    expect_equal(smry$tree$generations, c(NA, 1, 2, 4.5))
+    expect_equal(smry$tree$generations, c(NA, 1, 2, 4))
     expect_true(min(smry$post) > -35)
     expect_true(all(smry$pi[3:4] > 0.5 & smry$pi[3:4] < 0.8))
 
 })
+
+
+
+
+
+
+test_that("results ok: kappa from genetic data", {
+
+    ## skip on CRAN
+    skip_on_cran()
+
+    dates <- c(0, 5, 15, 20, 30)
+    w <- dnorm(1:10, 5, 1)
+    dna <- matrix(c("A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A",
+                    "T", "T", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A",
+                    "T", "T", "G", "G", "G", "G", "A", "A", "A", "A", "A", "A",
+                    "T", "T", "G", "G", "G", "G", "T", "T", "A", "A", "A", "A",
+                    "T", "T", "G", "G", "G", "G", "T", "T", "G", "G", "G", "G"),
+                  byrow = TRUE, nrow = 5)
+    dna <- ape::as.DNAbin(dna)
+    data <- outbreaker_data(dates = dates, dna = dna, w_dens = w)
+    config <- create_config(init_mu = 2/12, move_mu = FALSE)
+    res <- outbreaker(data, config)
+    expect_equal(summary(res)$tree$generations,
+                 c(NA, 1L, 2L, 1L, 2L))
+
+})
+
+
 
 
 
@@ -300,11 +334,11 @@ test_that("results ok: outbreaker with custom priors",
 
     config <-  list(n_iter = 5e3, sample_every = 50,
                     init_tree = "star", move_kappa = TRUE,
-                    move_pi = TRUE, init_pi = 1,
+                    move_pi = TRUE, init_pi = 0.9,
                     find_import = FALSE)
 
 
-    ## plot(function(x) dbeta(x, 100, 1)) # to see the distribution
+    ## plot(function(x) dbeta(x, 50, 25)) # to see the distribution
 
     f_pi_1 <- function(x) dbeta(x$pi, 100, 1, log = TRUE) # stronger prior
     f_pi_2 <- function(x) 0.0 # flat prior
@@ -318,7 +352,7 @@ test_that("results ok: outbreaker with custom priors",
     smry_2 <- summary(out_2, burnin = 500)
 
     expect_true(smry_1$pi[2] > 0.9)
-    expect_true(smry_2$pi[2] > 0.2 && smry_2$pi[5] < 0.6)
+    expect_true(smry_2$pi[2] > 0.6 && smry_2$pi[5] < 0.9)
 
 })
 
@@ -369,5 +403,40 @@ test_that("results ok: outbreaker with fixed number returning priors and likelih
 
     expect_true(all(out1$post == 0))
     expect_true(all(out2$post == 1.123))
+
+})
+
+
+
+
+
+## test consensus tree
+test_that("test consensus trees", {
+
+    ## skip on CRAN
+    skip_on_cran()
+
+
+    ## get data
+    data(fake_outbreak)
+    x <- fake_outbreak
+
+    ## outbreaker DNA + time ##
+    ## analysis
+    set.seed(1)
+    data <- list(dna = x$dna, dates = x$onset, w_dens = x$w)
+    config <- list(n_iter = 5000, sample_every = 50,
+                   init_tree = "seqTrack", find_import = TRUE,
+                   move_pi = FALSE)
+
+    out <- outbreaker(data = data, config = config)
+
+    ## checks
+    out_smry_mpa <- summary(out, burnin = 1000, method = 'mpa')
+    out_smry_dec <- summary(out, burnin = 1000, method = 'decycle')
+
+    ## as there are no cycles, these should be the same
+    testthat::expect_equal(out_smry_mpa$tree$from,
+                           out_smry_dec$tree$from)
 
 })

@@ -1247,6 +1247,7 @@ Rcpp::List cpp_move_kappa(Rcpp::List param, Rcpp::List data, Rcpp::List config,
 	new_kappa[i] = kappa[i];
       } else {
 
+
 	// loglike with current parameters
 	old_loglike = cpp_ll_all(data, param, i+1, list_custom_ll);
 

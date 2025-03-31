@@ -1,3 +1,67 @@
+outbreaker2 1.1.3 (2022-05-18)
+==================
+
+### Bug fixes
+
+* Email addresses fixed
+* Adegenet added to Suggests
+
+
+
+<br>
+<br>
+
+outbreaker2 1.1.2 (2021-01-25)
+==================
+
+### New features
+* Custom likelihoods now support local likelihood calculations via the optional
+  `i` argument; this will speed up likelihood calculations by avoiding global
+  calculations where these are unnecessary
+
+### Bug fixes
+
+* Random index shuffling in cpp_move_swap_cases to ensure correct mixing
+* Negative serial intervals now allowed in can_be_ances
+* ID labels fix in plotting functions
+
+
+
+<br>
+<br>
+
+outbreaker2 1.1.1 (2020-01-31)
+==================
+
+### Bug fixes
+
+* Fixed uninitialized variable use
+* Updated email addresses
+
+
+
+<br>
+<br>
+
+outbreaker2 1.1.0 (2019-06-06)
+==================
+
+### Bug fixes
+
+* The genetic likelihood of the [original *outbreaker* paper](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003457) was found to contain a minor mistake in accounting for unobserved generations of infection. As of June 7th 2019, *outbreaker2* will use the correct genetic likelihood published [here](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1006930).
+
+### New features
+
+* *outbreaker2* now accepts `epicontacts` objects for contact data
+* Contact tracing data can be directed or not by toggling `ctd_directed`
+* Cyclical consensus trees can now be avoided by using `method = 'decyle'` in `summary.outbreaker_chains`
+* Added support for case-labelling in `plot.outbreaker_chains`
+* Added progress bar
+
+
+<br>
+<br>
+
 outbreaker2 1.0.1 (2018-03-06)
 ==================
 

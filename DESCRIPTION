@@ -1,24 +1,31 @@
 Package: outbreaker2
 Version: 1.2.0
-Date: 2019-02-07
+Date: 2025-04-01
 Title: Bayesian Reconstruction of Disease Outbreaks by Combining Epidemiologic
     and Genomic Data
 Authors@R: c(person("Thibaut", "Jombart",
                     email = "thibautjombart@gmail.com",
 		    role = c("aut")),
 	     person("Finlay", "Campbell",
-	            email = "f.campbell15@imperial.ac.uk",
+	            email = "finlaycampbell93@gmail.com",
 		    role = c("aut", "cre")),
 	     person("Rich", "Fitzjohn",
 	            email = "r.fitzjohn@imperial.ac.uk",
 		    role = c("aut")),
 	     person("Gerry", "Tonkin-Hill",
 	            email = "gqt20@cam.ac.uk",
+		    role = c("ctb")),
+	     person("Kristjan", "Eldjarn",
+	            email = "kristjan@eldjarn.net",
+		    role = c("ctb")),
+	     person("Alexis", "Robert",
+	            email = "alexis.robert@lshtm.ac.uk",
 		    role = c("ctb")))
-Maintainer: Finlay Campbell <f.campbell15@imperial.ac.uk>
+Maintainer: Finlay Campbell <finlaycampbell93@gmail.com>
 Description: Bayesian reconstruction of disease outbreaks using epidemiological
     and genetic information. Jombart T, Cori A, Didelot X, Cauchemez S, Fraser
-    C and Ferguson N. 2014. <doi:10.1371/journal.pcbi.1003457>.
+    C and Ferguson N. 2014. <doi:10.1371/journal.pcbi.1003457>. Campbell, F,
+    Cori A, Ferguson N, Jombart T. 2019. <doi:10.1371/journal.pcbi.1006930>.
 License: MIT + file LICENSE
 Suggests:
     coda,
@@ -26,7 +33,9 @@ Suggests:
     testthat,
     knitr,
     rmarkdown,
-    igraph
+    igraph,
+    epicontacts,
+    adegenet
 Depends:
     R (>= 3.0.0)
 Imports:
@@ -42,6 +51,7 @@ Imports:
     visNetwork
 LazyData: true
 LinkingTo: Rcpp, RcppEigen
-RoxygenNote: 6.1.1
+Encoding: UTF-8
+RoxygenNote: 7.1.2
 SystemRequirements: C++11
 VignetteBuilder: knitr
