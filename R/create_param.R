@@ -171,13 +171,16 @@ create_param <- function(data = outbreaker_data(),
   }
 
   ## ## Calculate initial ancestor tree if genetic sequences provided
-  ## if(!is.null(data$dna)) {
-  ##   ancestors <- matrix(0, data$N, data$N)
-  ##   ancestors <- cpp_find_ancestors(current_alpha, ancestors, NULL)
-  ##   mrca <- t(apply(data$dna_combn, 1, function(x) cpp_find_mrca(x[1], x[2], ancestors)))
-  ## } else {
-  ##   ancestors <- mrca <- matrix(0, 0, 0)
-  ## }
+  if(!is.null(data$dna) & data$genetic_model == "mrca") {
+    ancestors <- matrix(0, data$N, data$N)
+    ancestors <- cpp_find_ancestors(current_alpha, ancestors, NULL)
+    mrca <- t(apply(
+      data$dna_combn, 1,
+      function(x) cpp_find_mrca(x[1], x[2], ancestors)
+    ))
+  } else {
+    ancestors <- mrca <- matrix(0, 0, 0)
+  }
 
   counter <- 1L
 
@@ -197,21 +200,13 @@ create_param <- function(data = outbreaker_data(),
                    kappa = current_kappa, pi = current_pi, tau = current_tau,
                    eps = current_eps, eta = current_eta,
                    lambda = current_lambda,
-                   trans_mat = trans_mat)
+                   trans_mat = trans_mat,
+                   ancestors = ancestors, mrca = mrca)
   class(current) <- c("outbreaker_param", "list")
 
-  ## tmp <- cpp_swap_cases(current, 1, FALSE)
-
-  ## ## Count the number of contacts
-  ## if(!is.null(data$ctd_timed)) {
-  ##   current$n_contacts <- local_n_contacts(data, current, seq.int(1, data$N))
-  ## } else {
-  ##   current$n_contacts <- matrix(, ncol = 0, nrow = 0)
-  ## }
 
   ## SHAPE CHAIN ##
-  out <- list(store = store,
-              current = current)
+  out <- list(store = store, current = current)
   return(out)
-}
 
+}

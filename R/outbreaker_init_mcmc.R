@@ -12,17 +12,18 @@
 ## #'
 ## #' @export
 ## #'
-outbreaker_init_mcmc <- function(data, param_current, param_store, loglike, priors, config) {
+outbreaker_init_mcmc <- function(data, param_current, param_store,
+                                 loglike, priors, config) {
 
-    ## COMPUTE INITIAL LIKE/PRIOR/POST ##
-    param_store$like[1] <- cpp_ll_all(data, param_current, NULL, loglike)
-    param_store$prior[1] <- cpp_prior_all(param_current, config, priors)
-    param_store$post[1] <- param_store$like[1] + param_store$prior[1]
+  ## COMPUTE INITIAL LIKE/PRIOR/POST ##
+  param_store$like[1] <- cpp_ll_all(data, param_current, NULL, loglike)
+  param_store$prior[1] <- cpp_prior_all(param_current, config, priors)
+  param_store$post[1] <- param_store$like[1] + param_store$prior[1]
 
-    if(is.infinite(param_store$post[1])) {
-      stop("Likelihood of initial parameter state is -Inf")
-    }
+  if (is.infinite(param_store$post[1])) {
+    stop("Likelihood of initial parameter state is -Inf")
+  }
 
-    return(param_store)
+  return(param_store)
+
 }
-

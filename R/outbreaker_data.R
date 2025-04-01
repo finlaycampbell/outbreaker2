@@ -297,42 +297,41 @@ outbreaker_data <- function(..., data = list(...)) {
   }
   data$has_dna <- !is.na(data$id_in_dna)
 
-  ## ## Find the minimum spanning tree between all cases; this defines the pairwise
-  ## ## distances we will be conditioning the likelihood on
-  ## if(sum(data$has_dna) > 1) {
-  ##   ## mst <- ape::mst(1*dist.dna(data$dna, 'N'))
-  ##   ## mst[lower.tri(mst, diag = TRUE)] <- 0
-  ##   ## mst <- which(mst > 0, arr.ind = TRUE)
-  ##   ## dst <- data$D[mst]
-  ##   ## mst[] <- match(rownames(data$dna)[mst], data$ids)
-  ##   ## data$dna_combn <- cbind(mst, dst)
-  ##   data$has_dna_ind <- which(data$has_dna)
-  ##   data$dna_combn <- t(combn(data$has_dna_ind, 2))
-  ##   ind <- matrix(data$ids[data$dna_combn], ncol = 2)
-  ##   data$dna_combn <- cbind(data$dna_combn, data$D[ind])
-  ## } else {
-  ##   data$dna_combn <- matrix(0, 0, 0)
-  ## }
+  # get IDs pairs with sequence data and the distance between them
+  if(sum(data$has_dna) > 1) {
+    data$has_dna_ind <- which(data$has_dna)
+    data$dna_combn <- t(combn(data$has_dna_ind, 2))
+    # add distance
+    data$dna_combn <- cbind(
+      data$dna_combn,
+      data$D[matrix(data$ids[data$dna_combn], ncol = 2)]
+    )
+  } else {
+    data$dna_combn <- matrix(0, 0, 0)
+  }
 
-
-  ## ## CHECK DNA_DATES
-  ## if (!is.null(data$dna_dates)) {
-  ##   if(is.null(data$dna)) {
-  ##   } else if(length(data$dna_dates) != nrow(data$dna)) {
-  ##     stop(sprintf("Different number of dna sequences and dna dates provided (%i vs %i)",
-  ##                  nrow(data$dna), length(data$dna_dates)))
-  ##   }
-  ##   if (inherits(data$dna_dates, "Date")) {
-  ##     data$dna_dates <- data$dna_dates - min_date
-  ##   } else if (inherits(data$dna_dates, "POSIXct")) {
-  ##     data$dna_dates <- difftime(data$dna_dates, min_date, units="days")
-  ##   } else if (inherits(data$dna_dates, 'numeric')) {
-  ##     data$dna_dates <- data$dna_dates - min_date
-  ##   }
-  ##   data$dna_dates <- as.integer(round(data$dna_dates))
-  ## } else {
-  ##   data$dna_dates <- data$dates[which(!is.na(data$id_in_dna))]
-  ## }
+  ## check DNA dates if provide
+  if (!is.null(data$dna_dates)) {
+    if (is.null(data$dna)) {
+      stop("DNA dates provided but no sequence data")
+    } else if (length(data$dna_dates) != nrow(data$dna)) {
+      stop(
+        sprintf(
+          "Different number of dna sequences and dna dates provided (%i vs %i)",
+          nrow(data$dna), length(data$dna_dates))
+      )
+    }
+    if (inherits(data$dna_dates, "Date")) {
+      data$dna_dates <- data$dna_dates - min_date
+    } else if (inherits(data$dna_dates, "POSIXct")) {
+      data$dna_dates <- difftime(data$dna_dates, min_date, units = "days")
+    } else if (inherits(data$dna_dates, "numeric")) {
+      data$dna_dates <- data$dna_dates - min_date
+    }
+    data$dna_dates <- as.integer(round(data$dna_dates))
+  } else {
+    data$dna_dates <- data$dates[which(!is.na(data$id_in_dna))]
+  }
 
 
   ## CHECK CTD

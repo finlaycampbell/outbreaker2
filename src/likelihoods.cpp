@@ -51,11 +51,17 @@
 
 double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
 		      Rcpp::RObject custom_function) {
+
+  // Distance matrix
   Rcpp::IntegerMatrix D = data["D"];
   if (D.ncol() < 1) return 0.0;
 
+  // Number of cases
   size_t N = static_cast<size_t>(data["N"]);
   if (N < 2) return 0.0;
+
+  // Genetic sequence model
+  std::string genetic_model = Rcpp::as<std::string>(data["genetic_model"]);
 
   Rcpp::List l;
   if (custom_function != R_NilValue) {
@@ -68,107 +74,183 @@ double cpp_ll_genetic(Rcpp::List data, Rcpp::List param, SEXP i,
     size_t K = w_dens.nrow();
     double mu = Rcpp::as<double>(param["mu"]);
     long int L = Rcpp::as<int>(data["L"]);
+    bool has_ctd_timed = data["has_ctd_timed"];
     Rcpp::IntegerVector alpha = param["alpha"]; // values are on 1:N
     Rcpp::IntegerVector kappa = param["kappa"];
+    Rcpp::IntegerVector t_inf = param["t_inf"];
+    Rcpp::IntegerVector t_onw = param["t_onw"];
+    Rcpp::IntegerVector t_sam = data["dna_dates"];
+    Rcpp::IntegerVector id_in_dna = data["id_in_dna"];
     Rcpp::LogicalVector has_dna = data["has_dna"];
 
-
-    // Local variables used for computatoins
-    size_t n_mut = 0;
-    size_t n_non_mut = 0;
-    double out = 0;
-    bool found[1];
-    size_t ances[1];
-    size_t n_generations[1];
-    found[0] = false;
-    ances[0] = NA_INTEGER;
-    n_generations[0] = NA_INTEGER;
-
-  
     // Invalid values of mu
     if (mu < 0.0 || mu > 1.0) {
       return R_NegInf;
     }
 
+    // Initialise likelihood    
+    double out = 0;
     
-    // NOTE ON MISSING SEQUENCES
+    if(genetic_model == "default") {
 
-    // Terms participating to the genetic likelihood correspond to pairs
-    // of ancestor-descendent which have a genetic sequence. The
-    // log-likelihood of other pairs is 0.0, and can therefore be
-    // ommitted. Note the possible source of confusion in indices here:
+      // Local variables used for computations
+      size_t n_mut = 0;
+      size_t n_non_mut = 0;
+      bool found[1];
+      size_t ances[1];
+      size_t n_generations[1];
+      found[0] = false;
+      ances[0] = NA_INTEGER;
+      n_generations[0] = NA_INTEGER;
+    
+      // NOTE ON MISSING SEQUENCES
 
-    // 'has_dna' is a vector, thus indexed from 0:(N-1)
+      // Terms participating to the genetic likelihood correspond to pairs
+      // of ancestor-descendent which have a genetic sequence. The
+      // log-likelihood of other pairs is 0.0, and can therefore be
+      // ommitted. Note the possible source of confusion in indices here:
+
+      // 'has_dna' is a vector, thus indexed from 0:(N-1)
 	  
-    // 'cpp_get_n_mutations' is a function, and thus takes indices on 1:N
-
-
+      // 'cpp_get_n_mutations' is a function, and thus takes indices on 1:N
     
-    // all cases are retained
+      // all cases are retained
     
-    if (i == R_NilValue) {
-      for (size_t j = 0; j < N; j++) { // 'j' on 0:(N-1)
-	if (alpha[j] != NA_INTEGER) {
+      if (i == R_NilValue) {
+	for (size_t j = 0; j < N; j++) { // 'j' on 0:(N-1)
+	  if (alpha[j] != NA_INTEGER) {
 
-	  // kappa restriction
+	    // kappa restriction
 
-	  if (kappa[j] < 1 || kappa[j] > K) {
-	    return R_NegInf;
-	  }
+	    if (kappa[j] < 1 || kappa[j] > K) {
+	      return R_NegInf;
+	    }
 
-	  // missing sequences handled here
+	    // missing sequences handled here
 	  
-	  if (has_dna[j]) {
+	    if (has_dna[j]) {
 	 
-	    lookup_sequenced_ancestor(alpha, kappa, has_dna, j + 1,
-				      ances, n_generations, found);
+	      lookup_sequenced_ancestor(alpha, kappa, has_dna, j + 1,
+					ances, n_generations, found);
 
-	    if (found[0]) {
+	      if (found[0]) {
 
-	      n_mut = cpp_get_n_mutations(data, j + 1, ances[0]); // remember the offset
-	      n_non_mut = L - n_mut;
+		n_mut = cpp_get_n_mutations(data, j + 1, ances[0]); // remember the offset
+		n_non_mut = L - n_mut;
 
-	      out += n_mut*log(n_generations[0]*mu) +
-		n_non_mut*log(1 - n_generations[0]*mu);
+		out += n_mut*log(n_generations[0]*mu) +
+		  n_non_mut*log(1 - n_generations[0]*mu);
 		
+	      }
 	    }
 	  }
 	}
+
+      } else {
+	// only the cases listed in 'i' are retained
+	size_t length_i = static_cast<size_t>(LENGTH(i));
+	Rcpp::IntegerVector vec_i(i);
+	for (size_t k = 0; k < length_i; k++) {
+	  size_t j = vec_i[k] - 1; // offset
+	  if (alpha[j] != NA_INTEGER) {
+	    // kappa restriction
+	    if (kappa[j] < 1 || kappa[j] > K) {
+	      return R_NegInf;
+	    }
+
+	    // missing sequences handled here
+	  	  
+	    if (has_dna[j]) {
+	 
+	      lookup_sequenced_ancestor(alpha, kappa, has_dna, j + 1, 
+					ances, n_generations, found);
+
+	      if (found[0]) {
+
+		n_mut = cpp_get_n_mutations(data, j + 1, ances[0]); // remember the offset
+		n_non_mut = L - n_mut;
+	      
+		out += n_mut*log(n_generations[0]*mu) +
+		  n_non_mut*log(1 - n_generations[0]*mu);
+	      
+	      }
+	    }
+	  
+	  }
+
+	}
       }
 
-    } else {
-      // only the cases listed in 'i' are retained
-      size_t length_i = static_cast<size_t>(LENGTH(i));
-      Rcpp::IntegerVector vec_i(i);
-      for (size_t k = 0; k < length_i; k++) {
-	size_t j = vec_i[k] - 1; // offset
-	if (alpha[j] != NA_INTEGER) {
-	  // kappa restriction
-	  if (kappa[j] < 1 || kappa[j] > K) {
-	    return R_NegInf;
+    } else if(genetic_model == "mrca") {
+
+      Rcpp::NumericMatrix mrca = param["mrca"];
+      Rcpp::NumericMatrix combn = data["dna_combn"];
+
+      // add at the beginning of vector - indexing is now by case ID! (not ID - 1)
+      t_inf.insert(t_inf.begin(), 100000);
+      t_onw.insert(t_onw.begin(), 100000);
+
+      int t_inf_1, t_inf_2;
+      int id_1, id_2;
+      int nmut, t_div, t_diff;
+    
+      //    double mut_sum = 0, time_sum = 0;
+
+      // for(size_t j = 0; j < N; j++) {
+      //   if (alpha[j] != NA_INTEGER) {
+      for(size_t j = 0; j < mrca.nrow(); j++) {
+
+	// get infection times of two nodes
+	// we index by case ID because we have added a value to the beginning of t_inf
+	id_1 = mrca(j, 0);
+	id_2 = mrca(j, 1);
+
+	// if we are imputing t_onw, use this infection time
+	if(has_ctd_timed) {
+
+	  // if we have an unobserved case, use the infection time from t_onw
+	  if(kappa[id_1-1] == 1) {
+	    t_inf_1 = t_inf[id_1];
+	  } else {
+	    t_inf_1 = t_onw[id_1];
 	  }
 
-	  // missing sequences handled here
-	  	  
-	  if (has_dna[j]) {
-	 
-	    lookup_sequenced_ancestor(alpha, kappa, has_dna, j + 1, 
-				      ances, n_generations, found);
-
-	    if (found[0]) {
-
-	      n_mut = cpp_get_n_mutations(data, j + 1, ances[0]); // remember the offset
-	      n_non_mut = L - n_mut;
-	      
-	      out += n_mut*log(n_generations[0]*mu) +
-		n_non_mut*log(1 - n_generations[0]*mu);
-	      
-	    }
+	  if(kappa[id_2-1] == 1) {
+	    t_inf_2 = t_inf[id_2];
+	  } else {
+	    t_inf_2 = t_onw[id_2];
 	  }
+	
+	} else {
+	
+	  t_inf_1 = t_inf[id_1];
+	  t_inf_2 = t_inf[id_2];
 	  
 	}
 
-      }
+	// the earlier infection time represents the time of divergence. if one
+	// case is the infector of the other (i.e. mrca = 0), then we choose the
+	// other infection date (because we've set it to 10000)
+	if(t_inf_1 > t_inf_2) {
+	  t_div = t_inf_2;
+	} else {
+	  t_div = t_inf_1;
+	}
+
+	// get total divergence time (divergence to sampling)
+	t_diff = abs(t_sam[id_in_dna[combn(j, 0)-1]-1] - t_div) +
+	  abs(t_sam[id_in_dna[combn(j, 1)-1]-1] - t_div);
+
+	// get number of mutations
+	nmut = combn(j,2);
+
+	//      printf("t_diff = %i | n_mut = %i \n", t_diff, nmut);
+      
+	// calculate likelihood
+	out += R::dpois(nmut, t_diff*mu*L, true);
+ 
+     }
+
     }
 
     return(out);

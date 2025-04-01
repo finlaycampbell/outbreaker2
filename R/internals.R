@@ -305,8 +305,9 @@ update_data_with_config <- function(data, config) {
   )
   colnames(data$log_w_unobs) <- seq_len(ncol(data$log_w_unobs))
 
-  # are negative serial intervals allows
+  # pass on config settings
   data$negative_si <- config$negative_si
+  data$genetic_model <- config$genetic_model
 
   # number of contacts combinations depend on directionality
   if (config$ctd_directed) {
