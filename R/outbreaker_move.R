@@ -25,8 +25,10 @@ outbreaker_move <- function(moves, data, param_current,
   J <- length(moves)
 
   ## Set up progress bar
-  if(config$pb) {
-    pb <- utils::txtProgressBar(min = 1, max = config$n_iter, style = 3)
+  if (config$pb) {
+    pb <- utils::txtProgressBar(
+      min = 1, max = config$n_iter, style = 3, width = 25
+    )
   }
 
   ## RUN MCMC ##
@@ -52,16 +54,15 @@ outbreaker_move <- function(moves, data, param_current,
 
     ## store outputs if needed
     if ((i %% config$sample_every) == 0) {
-      if(config$pb) {
-        utils::setTxtProgressBar(pb, i)
-      }
+      if (config$pb) utils::setTxtProgressBar(pb, i)
+      cat("  | Reconstructing transmission trees...")
       param_store <- outbreaker_mcmc_store(param_current, param_store, data,
                                            config, likelihoods, priors, i)
     }
 
   } # end of the chain
 
-  if(config$pb) {
+  if (config$pb) {
     cat("\n")
   }
 

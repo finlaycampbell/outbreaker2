@@ -36,6 +36,13 @@ outbreaker_find_imports <- function(moves, data, param_current,
   tmp_likelihoods$contact <- list(function(data, param) return(0), 0)
   tmp_likelihoods$timeline <- list(function(data, param) return(0), 0)
 
+  ## Set up progress bar
+  if (config$pb) {
+    pb <- utils::txtProgressBar(
+      min = 1, max = config$n_iter_import, style = 3, width = 25
+    )
+  }
+
   ## RUN MCMC ##
   for (i in seq.int(2, config$n_iter_import, 1)) {
     ## move parameters / augmented data
@@ -55,15 +62,22 @@ outbreaker_find_imports <- function(moves, data, param_current,
       }
     }
 
-    ## store outputs if needed
-    if ((i %% config$sample_every_import) == 0 && i>1000) {
-      influences[counter,] <- - vapply(
-        seq_len(data$N),
-        function(i) cpp_ll_all(data, param_current, i, tmp_likelihoods),
-        numeric(1)
-      )
-      counter <- counter + 1L
+    if ((i %% config$sample_every_import) == 0) {
+      if (i > 1000) {
+        ## store outputs if needed
+        influences[counter,] <- - vapply(
+          seq_len(data$N),
+          function(i) cpp_ll_all(data, param_current, i, tmp_likelihoods),
+          numeric(1)
+        )
+        counter <- counter + 1L
+      }
+      if (config$pb) {
+        utils::setTxtProgressBar(pb, i)
+        cat("  | Identifying imports...")
+      }
     }
+
   } # end of the chain
 
   ## FIND OUTLIERS BASED ON INFLUENCE ##
@@ -73,11 +87,12 @@ outbreaker_find_imports <- function(moves, data, param_current,
   outliers <- mean_influences > threshold
 
 
-  ## All outliers are considered as introductions, so that ancestries (alpha) are set to 'NA' and
-  ## the number of generations between cases and their ancestor (kappa) is set to NA; the
-  ## movements of alpha and kappa for these cases is also disabled; because the config has been
-  ## altered in these cases, we systematically return the config as well as the initial
-  ## parameters.
+  ## All outliers are considered as introductions, so that ancestries
+  ## (alpha) are set to 'NA' and the number of generations between
+  ## cases and their ancestor (kappa) is set to NA; the movements of
+  ## alpha and kappa for these cases is also disabled; because the
+  ## config has been altered in these cases, we systematically return
+  ## the config as well as the initial parameters.
 
   ini_param$store$alpha[[1]][outliers] <- ini_param$current$alpha[outliers] <- NA
   ini_param$store$kappa[[1]][outliers] <- ini_param$current$kappa[outliers] <- NA
@@ -85,6 +100,10 @@ outbreaker_find_imports <- function(moves, data, param_current,
   ini_param$store$threshold <- threshold
   config$move_alpha[outliers] <- FALSE
   config$move_kappa[outliers] <- FALSE
+
+  if(config$pb) {
+    cat("\n")
+  }
 
   return(list(config = config,
               param_current = ini_param$current,

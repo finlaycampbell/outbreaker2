@@ -236,7 +236,7 @@ create_config <- function(..., data = NULL) {
                    n_iter_import = 5000,
                    sample_every_import = 50,
                    p_wrong = 0,
-                   prior_mu = 1,
+                   prior_mu = c(1),
                    prior_pi = c(10,1),
                    prior_tau = c(2,2),
                    prior_eps = c(1,1),
@@ -245,7 +245,7 @@ create_config <- function(..., data = NULL) {
                    ctd_directed = FALSE,
                    negative_si = TRUE,
                    genetic_model = "default",
-                   pb = FALSE)
+                   pb = TRUE)
 
   ## MODIFY CONFIG WITH ARGUMENTS ##
   config <- modify_defaults(defaults, config)
