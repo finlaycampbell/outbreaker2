@@ -264,43 +264,64 @@ convolve_log <- function(x, y) {
   return(unlist(r))
 }
 
-## add convolutions to data$log_w_dens
-## rows = kapp avalue
-## columns = time interval
-add_convolutions <- function(data, config) {
-  ## COMPUTE CONVOLUTIONS IF NEEDED ##
+# use this function to pass config info to data
+update_data_with_config <- function(data, config) {
 
+  # compute convolutions if needed
+  # rows = kappa values, columns = time interval
   if (config$max_kappa>1) {
 
     ## first compute convolutions on natural scale
     for (i in 2:config$max_kappa) {
-      data$log_w_dens <- rbind(data$log_w_dens,
-                               convolve_log(data$log_w_dens[i-1,],
-                                            log(rev(data$w_dens))
-                               )[seq_len(ncol(data$log_w_dens))]
+      data$log_w_dens <- rbind(
+        data$log_w_dens,
+        convolve_log(
+          data$log_w_dens[i - 1, ], log(rev(data$w_dens))
+        )[seq_len(ncol(data$log_w_dens))]
       )
-      data$log_w_unobs <- rbind(data$log_w_unobs,
-                               convolve_log(data$log_w_unobs[i-1,],
-                                            log(rev(data$w_unobs))
-                               )[seq_len(ncol(data$log_w_unobs))]
+      data$log_w_unobs <- rbind(
+        data$log_w_unobs,
+        convolve_log(
+          data$log_w_unobs[i - 1, ],
+          log(rev(data$w_unobs))
+        )[seq_len(ncol(data$log_w_unobs))]
       )
     }
   }
 
-  ## The option to move t_onw needs to be available to the likelihood function -
-  ## use this function to pass information from config to data
+  # The option to move t_onw needs to be available to the likelihood function -
+  # use this function to pass information from config to data
   data$move_tau <- config$move_tau
   data$swap_place <- config$swap_place
 
-  ## name rows/columns (useful if internal debugging needed)
-  rownames(data$log_w_dens) <- paste("kappa", seq_len(nrow(data$log_w_dens)), sep="=")
+  # name rows/columns (useful if internal debugging needed)
+  rownames(data$log_w_dens) <- paste(
+    "kappa", seq_len(nrow(data$log_w_dens)), sep = "="
+  )
   colnames(data$log_w_dens) <- seq_len(ncol(data$log_w_dens))
 
-  rownames(data$log_w_unobs) <- paste("kappa", seq_len(nrow(data$log_w_unobs)), sep="=")
+  rownames(data$log_w_unobs) <- paste(
+    "kappa", seq_len(nrow(data$log_w_unobs)), sep = "="
+  )
   colnames(data$log_w_unobs) <- seq_len(ncol(data$log_w_unobs))
 
-  ## pass config information required in likelihood
+  # are negative serial intervals allows
   data$negative_si <- config$negative_si
+
+  # number of contacts combinations depend on directionality
+  if (config$ctd_directed) {
+    data$C_combn <- data$N * (data$N - 1)
+  } else {
+    data$C_combn <- data$N * (data$N - 1) / 2
+    # if undirected, A -> B = B -> A
+    data$ctd_matrix <- lapply(
+      data$ctd_matrix,
+      function(x) {
+        x[which(t(x) == 1, arr.ind = TRUE)] <- 1
+        return(x)
+      }
+    )
+  }
 
   return(data)
 }

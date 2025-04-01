@@ -240,6 +240,7 @@ create_config <- function(..., data = NULL) {
                    prior_lambda = c(1,1),
                    ctd_directed = FALSE,
                    negative_si = TRUE,
+                   genetic_model = c("default", "mrca", "phylogeny"),
                    pb = FALSE)
 
   ## MODIFY CONFIG WITH ARGUMENTS ##
