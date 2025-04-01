@@ -338,52 +338,52 @@ outbreaker_data <- function(..., data = list(...)) {
   ## CHECK CTD
   if (!is.null(data$ctd)) {
 
-    if (!inherits(data$ctd, c("matrix", "data.frame"))) {
-      stop("ctd is not a matrix or data.frame")
-    }
+    # extract contact info from epicontacts object
+    if (inherits(data$ctd, "epicontacts"))
+      data$ctd <- data$ctd$contacts[
+        intersect(c("from", "to", "type"), names(data$ctd$contacts))
+      ]
 
-    if(! ncol(data$ctd) %in% c(2, 3)) {
-      stop("ctd must have two columns")
-    }
+    # convert tbls to dataframes for subsetting
+    if (inherits(data$ctd, "tbl")) data$ctd <- as.data.frame(data$ctd)
 
-    ## convert tbls to dataframes for subsetting
-    if(inherits(data$ctd, "tbl")) data$ctd <- as.data.frame(data$ctd)
+    if (!inherits(data$ctd, c("matrix", "data.frame")))
+      stop("ctd is not a matrix, data.frame or epicontacts object")
+
+    if (!ncol(data$ctd) %in% c(2, 3))
+      stop("ctd must have two or three columns")
 
     ## Convert to character to prevent factors from interfering
-    data$ctd[,1] <- as.character(data$ctd[,1])
-    data$ctd[,2] <- as.character(data$ctd[,2])
+    data$ctd[,1] <- as.character(data$ctd[, 1])
+    data$ctd[,2] <- as.character(data$ctd[, 2])
 
     ## Ensure all cases found in linelist
-    unq <- unique(unlist(data$ctd[,1:2]))
-    not_found <- unq[!unq %in% data$ids]
-
-    if (length(not_found) != 0) {
+    not_found <- setdiff(unlist(data$ctd[,1:2]), data$ids)
+    if (length(not_found) > 0) {
       stop(paste("Individual(s)", paste(not_found, collapse = ", "),
-                 "are unknown cases (idx < 1 or > N")
-           )
+                 "in contact data are found in case IDs"))
     }
 
     ## Determine the number of contact types
-    if(ncol(data$ctd) == 3) {
-      if(!inherits(data$ctd[,3], "factor")) {
-      data$ctd[,3] <- factor(data$ctd[,3],
-                             levels = unique(data$ctd[,3]))
+    if (ncol(data$ctd) == 3) {
+      if (!inherits(data$ctd[, 3], "factor")) {
+        data$ctd[, 3] <- factor(data$ctd[, 3], levels = unique(data$ctd[, 3]))
       }
     } else {
-      data$ctd$type <- factor('foo')
+      data$ctd$type <- factor("foo")
     }
 
-    data$ctd_matrix <- list()
-
-    ## Create a contact matrix for each contact type
-    ## If contact data is not directed, fill the matrix in both directions
-    for(i in seq_along(levels(data$ctd[,3]))) {
-      to_keep <- data$ctd[,3] == levels(data$ctd[,3])[i]
-      tmp <- subset(data$ctd, to_keep)
-      mat <- matrix(0, nrow = data$N, ncol = data$N)
-      mat[cbind(match(tmp[,2], data$ids), match(tmp[,1], data$ids))] <- 1
-      data$ctd_matrix[[i]] <- mat
-    }
+    # generate pairwise binary contact matrices, indexed to data$ids
+    data$ctd_matrix <- lapply(
+      levels(data$ctd[, 3]),
+      function(contact_type) {
+        mat <- matrix(0, nrow = data$N, ncol = data$N)
+        mat[
+          apply(data$ctd[data$ctd[,3] == contact_type, 1:2], 2, match, data$ids)
+        ] <- 1
+        return(mat)
+      }
+    )
 
     ## Count the number of each type of contact - these are ordered by their
     ## factor order, which we will use throughout the analysis
