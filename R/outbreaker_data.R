@@ -59,7 +59,6 @@ outbreaker_data <- function(..., data = list(...)) {
                    ctd = NULL,
                    ctd_timed = NULL,
                    ids = NULL,
-                   ctd_directed = FALSE,
                    w_unobs = NULL,
                    N = 0L,
                    L = 0L,
@@ -382,20 +381,10 @@ outbreaker_data <- function(..., data = list(...)) {
       to_keep <- data$ctd[,3] == levels(data$ctd[,3])[i]
       tmp <- subset(data$ctd, to_keep)
       mat <- matrix(0, nrow = data$N, ncol = data$N)
-      for(j in 1:nrow(tmp)) {
-        mtch_1 <- match(tmp[,1], data$ids)
-        mtch_2 <- match(tmp[,2], data$ids)
-        mat[cbind(mtch_2, mtch_1)] <- 1
-        if(!data$ctd_directed) mat[cbind(mtch_1, mtch_2)] <- 1
-      }
+      mat[cbind(match(tmp[,2], data$ids), match(tmp[,1], data$ids))] <- 1
       data$ctd_matrix[[i]] <- mat
     }
 
-    if(data$ctd_directed) {
-      data$C_combn <- data$N * (data$N - 1)
-    } else {
-      data$C_combn <- data$N * (data$N - 1) / 2
-    }
     ## Count the number of each type of contact - these are ordered by their
     ## factor order, which we will use throughout the analysis
     data$C_nrow <- as.vector(table(data$ctd[,3]))

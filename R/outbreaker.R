@@ -95,7 +95,7 @@ outbreaker <- function(data = outbreaker_data(),
   config <- create_config(config, data = data)
 
   ## ADD CONVOLUTIONS TO DATA ##
-  data <- add_convolutions(data = data, config = config)
+  data <- update_data_with_config(data = data, config = config)
 
   ## PROCESS CUSTOM FUNCTIONS FOR PRIORS AND LIKELIHOOD ##
   priors <- custom_priors(priors)
