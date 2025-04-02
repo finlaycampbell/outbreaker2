@@ -204,10 +204,10 @@ outbreaker_data <- function(..., data = list(...)) {
     data$f_dens <- data$w_dens
   }
   if (!is.null(data$f_dens)) {
-    if(!inherits(data$f_dens, c("matrix", "numeric"))) {
+    if (!inherits(data$f_dens, c("matrix", "numeric"))) {
       stop("f_dens must be a numeric matrix or vector")
     }
-    if(!is.matrix(data$f_dens)) {
+    if (!is.matrix(data$f_dens)) {
       data$f_dens <- matrix(data$f_dens, ncol = 1, dimnames = list(NULL, "default"))
     }
     if (any(data$f_dens<0)) {
@@ -218,8 +218,13 @@ outbreaker_data <- function(..., data = list(...)) {
     }
     missing_f <- names(data$dates)[!names(data$dates) %in% colnames(data$f_dens)]
     if (length(missing_f) > 0) {
-      stop(sprintf("incubation periods were not defined for the following groups: %s",
-                   paste0(unique(missing_f), collapse = ", ")))
+      stop(sprintf(paste(
+        "Named date vectors are used to specify incubation periods for",
+        "different groups: either provide a matrix of incubation periods",
+        "with column names matching each group, or provide an unnamed date",
+        "vector. Incubation periods are missing for the following groups: %s"),
+        paste0(unique(missing_f), collapse = ", "))
+        )
     }
     data$f_dens <- apply(data$f_dens, 2, function(x) x/sum(x))
     data$log_f_dens <- apply(data$f_dens, 2, log)
@@ -330,7 +335,8 @@ outbreaker_data <- function(..., data = list(...)) {
     }
     data$dna_dates <- as.integer(round(data$dna_dates))
   } else {
-    data$dna_dates <- data$dates[which(!is.na(data$id_in_dna))]
+    if (!is.null(data$dna))
+      data$dna_dates <- data$dates[which(!is.na(data$id_in_dna))]
   }
 
 
