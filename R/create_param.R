@@ -171,7 +171,7 @@ create_param <- function(data = outbreaker_data(),
   }
 
   ## ## Calculate initial ancestor tree if genetic sequences provided
-  if(!is.null(data$dna) & data$genetic_model == "mrca") {
+  if(!is.null(data$dna) & config$genetic_model == "mrca") {
     ancestors <- matrix(0, data$N, data$N)
     ancestors <- cpp_find_ancestors(current_alpha, ancestors, NULL)
     mrca <- t(apply(
