@@ -38,8 +38,9 @@ outbreaker_find_imports <- function(moves, data, param_current,
 
   ## Set up progress bar
   if (config$pb) {
+    message("Identifying imports...")
     pb <- utils::txtProgressBar(
-      min = 1, max = config$n_iter_import, style = 3, width = 25
+      min = 1, max = config$n_iter_import, style = 3, width = 50
     )
   }
 
@@ -74,7 +75,6 @@ outbreaker_find_imports <- function(moves, data, param_current,
       }
       if (config$pb) {
         utils::setTxtProgressBar(pb, i)
-        cat("  | Identifying imports...")
       }
     }
 
