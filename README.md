@@ -27,7 +27,7 @@ $$\mu^{d(s_i,s_{\alpha_i})}(1 - \mu)^{(\kappa_i\times l(s_i, s_{\alpha_i})) - d(
 
 The corrected genetic likelihood is:
 
-$$(\kappa_i\mu)^{d(s_i,s_{\alpha_i})}(1-\kappa_i\mu)^{l(s_i,s_{\alpha_i})-d(s_i,s_{\alpha_i})}$$
+$$(\kappa_i \mu)^{d(s_i,s_{\alpha_i})}(1 - \mu)^{(\kappa_i\times l(s_i, s_{\alpha_i})) - d(s_i,s_{\alpha_i})}$$
 
 <br>
 
@@ -36,7 +36,7 @@ Installation
 
 To install the stable version from CRAN:
 
-```r
+``` r
 install.packages("outbreaker2")
 ```
 
@@ -44,20 +44,20 @@ To install the development version from github (requires Rtools on windows and
 GSL headers on all platforms):
 
 
-```r
+``` r
 devtools::install_github("reconhub/outbreaker2")
 ```
 
 To add local copies of the vignettes, you will need to specify:
 
-```r
+``` r
 devtools::install_github("reconhub/outbreaker2", build_vignettes = TRUE)
 ```
 
 Then, to load the package, use:
 
 
-```r
+``` r
 library("outbreaker2")
 ```
 
