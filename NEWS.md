@@ -1,3 +1,16 @@
+outbreaker2 1.1.4 (2022-12-16)
+==================
+
+### Bug fixes
+
+* Added `negative_si` option to `create_config` to allow ancestries with negative serial intervals to be immediately discarded.
+* Removed C++11 SystemRequirements specification (R 4.0+ defaults to C++11)
+
+
+
+<br>
+<br>
+
 outbreaker2 1.1.3 (2022-05-18)
 ==================
 

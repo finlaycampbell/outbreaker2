@@ -60,7 +60,7 @@ provided in \code{data}.}
 
 \item{init_tau}{initial value for the mobility paramter of unobserved cases}
 
-\item{init_lambda}{initial value for the non-infectious contact rate}
+\item{init_lambda}{initial value for the non-infectious contact rate.}
 
 \item{init_eta}{initial value for the contact sensitivity (e.g. the
 proportion of transmission that have this type of contact)}
@@ -114,19 +114,25 @@ probability.}
 
 \item{sd_eps}{the standard deviation for the Normal proposal for the
 contact reporting coverage.}
+<<<<<<< HEAD
 
 \item{sd_eta}{the standard deviation for the Normal proposal for the
 contact sensitivity}
+=======
+>>>>>>> master
 
 \item{sd_lambda}{the standard deviation for the Normal proposal for the
 non-infectious contact rate.}
 
 \item{prop_alpha_move}{the proportion of ancestries to move at each iteration
 of the MCMC.}
+<<<<<<< HEAD
 
 \item{prop_eps_move}{the proportion of iterations at which eps is moved}
 
 \item{prop_tau_move}{the proportion of iterations at which tau is moved}
+=======
+>>>>>>> master
 
 \item{prop_t_inf_move}{the proportion of infection dates to move at each
 iteration of the MCMC.}
@@ -150,9 +156,12 @@ parameter of the beta prior for the reporting probability 'pi'.}
 
 \item{prior_eps}{a numeric vector of length 2 indicating the first and second
 parameter of the beta prior for the contact reporting coverage 'eps'.}
+<<<<<<< HEAD
 
 \item{prior_eta}{a numeric vector of length 2 indicating the first and second
 parameter of the beta prior for the contact sensitivity 'eta'}
+=======
+>>>>>>> master
 
 \item{prior_lambda}{a numeric vector of length 2 indicating the first and
 second parameter of the beta prior for the non-infectious contact rate
