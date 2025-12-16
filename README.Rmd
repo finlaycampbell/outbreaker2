@@ -1,5 +1,3 @@
-
-[![Travis-CI Build Status](https://app.travis-ci.com/reconhub/outbreaker2.svg?branch=master)](https://app.travis-ci.com/reconhub/outbreaker2)
 [![Appveyor build status](https://ci.appveyor.com/api/projects/status/yj449x0yqhphvcrt/branch/master?svg=true)](https://ci.appveyor.com/project/thibautjombart/outbreaker2/branch/master)
 [![Coverage Status](https://app.codecov.io/github/reconhub/outbreaker2/coverage.svg?branch=master)](https://app.codecov.io/github/reconhub/outbreaker2?branch=master)
 [![CRAN Downloads](https://cranlogs.r-pkg.org/badges/outbreaker2)](https://cran.r-project.org/package=outbreaker2)
